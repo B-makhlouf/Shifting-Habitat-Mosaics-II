@@ -50,3 +50,25 @@ Yukon2015$capture_date_julian<- yday(as.Date(Yukon2015$capture_date, format = "%
 #Write to a csv file
 write_csv(Yukon2015, here("Data/Natal Origin/2015 Yukon_natal_data.csv"))
 
+##### 
+## 2016 Yukon 
+#### 
+
+Yukon2016 <- read_csv(here("Data/To_be_cleaned/Natal Origin/2016 Yukon_natal data.csv"))
+
+#Take the value in the column file.id, and remove _yukon_chinook_
+Yukon2016$fish.id <- gsub("_yukon_chin_", "", Yukon2016$file.id)
+
+#Add a space to file.id in the 4th and 7th position
+Yukon2016$fish.id <- gsub("yk", "_yk_", Yukon2016$fish.id)
+
+# change the capture date to Julian date
+Yukon2016$capture_date <- as.Date(Yukon2016$capture_date, format = "%m/%d/%y")
+
+# Convert capture_date to day of the year (Julian day)
+Yukon2016$capture_date_julian<- yday(as.Date(Yukon2016$capture_date, format = "%m/%d/%y"))
+
+#Write to a csv file
+write_csv(Yukon2016, here("Data/Natal Origin/2016 Yukon_natal_data.csv"))
+
+
