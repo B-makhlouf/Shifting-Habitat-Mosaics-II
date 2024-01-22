@@ -71,4 +71,28 @@ Yukon2016$capture_date_julian<- yday(as.Date(Yukon2016$capture_date, format = "%
 #Write to a csv file
 write_csv(Yukon2016, here("Data/Natal Origin/2016 Yukon_natal_data.csv"))
 
+### 
+# 2017 Yukon 
+###
 
+Yukon2017 <- read_csv(here("Data/To_be_cleaned/Natal Origin/2017 Yukon_natal data.csv"))
+Yukon2017_extra<- read_csv(here("Data/To_be_cleaned/Natal Origin/2017 Yukon extra data.csv"), skip = 1)
+
+#bring in the capture date from Yukon2017_extra into Yukon2017 by matching the indices of matching values in otonum and otolith #
+
+Yukon2017$capture_date <- Yukon2017_extra$sampleDate[match(Yukon2017$otoNum, Yukon2017_extra$otoNum)]
+
+#Take the value in the column file.id, and remove _yukon_chinook_
+Yukon2017$fish.id <- gsub("_yukon_king_", "", Yukon2017$file.id)
+
+#Add a space to file.id in the 4th and 7th position
+Yukon2017$fish.id <- gsub("yk", "_yk_", Yukon2017$fish.id)
+
+#remove .exp
+Yukon2017$fish.id <- gsub(".exp", "", Yukon2017$fish.id)
+
+# Convert capture_date to day of the year (Julian day)
+Yukon2017$capture_date_julian<- yday(as.Date(Yukon2017$capture_date, format = "%m/%d/%y"))
+
+#Write to a csv file
+write_csv(Yukon2017, here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
