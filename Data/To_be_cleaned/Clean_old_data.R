@@ -118,13 +118,6 @@ Yukon2017$capture_date_julian<- yday(as.Date(Yukon2017$capture_date, format = "%
 write_csv(Yukon2017, here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
 
 
-
-
-
-
-
-
-
 ### 2018 Yukon 
 
 Yukon2018 <- read_csv(here("Data/To_be_cleaned/Natal Origin/2018 Yukon_natal_data.csv"))
