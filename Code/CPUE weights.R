@@ -1,9 +1,10 @@
 ##----- CPUE ----- 
 
+# This script takes in CPUE values and calculates weights for each fish in natal 
+# origin based on the day of the year that they were caught and the proportional CPUE for that time strata. '
 
-# Create otoCatch, which groups all the values in natal_values by the 
-# day of the year that they were caught, summarizes the number of 
-# fish caught on that day of the year 
+#---------------- 
+
 library(lubridate)
 library(tidyverse)
 library(here)
@@ -16,6 +17,23 @@ library(here)
 natal_values<- read_csv(here("Data/Natal Origin/2010 Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2010.csv"))
 identifier <- "2010 Yukon"
+
+#2015 Yukon 
+natal_values<- read_csv(here("Data/Natal Origin/2015 Yukon_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2015.csv"))
+identifier <- "2015 Yukon"
+
+#2017 Yukon 
+natal_values<- read_csv(here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2017.csv"))
+identifier <- "2017 Yukon"
+
+#2018 Yukon 
+natal_values<- read_csv(here("Data/Natal Origin/2018 Yukon_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2018.csv"))
+identifier <- "2018 Yukon"
+
+
 
 # ------------------------------------------------------------------------------
 ## Summarizes the # of fish caught on that day of the year.
@@ -88,6 +106,3 @@ weighting_df<- as.data.frame(weighting_vector)
 filename<- paste0(identifier, "_CPUE weights.csv")
 filepath<- file.path(here("data", "CPUE", "CPUE_weights", filename))
 write_csv(weighting_df, filepath)
-
-
-
