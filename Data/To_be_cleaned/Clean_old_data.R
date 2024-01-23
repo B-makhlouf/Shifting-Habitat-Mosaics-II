@@ -136,5 +136,8 @@ Yukon2018$capture_date <- Yukon2018_extra$sampleDate[match(Yukon2018$otoNum, Yuk
 #subsitute - for _ in fish.id 
 Yukon2018$fish.id <- gsub("-", "_", Yukon2018$fish.id)
 
+#Convert capture_date to day of the year (Julian day)
+Yukon2018$capture_date_julian<- yday(as.Date(Yukon2018$capture_date, format = "%m/%d/%y"))
+
 #write to csv
 write_csv(Yukon2018, here("Data/Natal Origin/2018 Yukon_natal_data.csv"))
