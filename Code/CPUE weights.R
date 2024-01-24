@@ -23,6 +23,11 @@ natal_values<- read_csv(here("Data/Natal Origin/2015 Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2015.csv"))
 identifier <- "2015 Yukon"
 
+#2016 Yukon
+natal_values<- read_csv(here("Data/Natal Origin/2016 Yukon_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2016.csv"))
+identifier <- "2016 Yukon"
+
 #2017 Yukon 
 natal_values<- read_csv(here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2017.csv"))

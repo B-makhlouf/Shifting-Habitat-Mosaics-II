@@ -15,14 +15,6 @@ library(fabricatr)
 library(ggplot2)
 library(sf)
 
-###----- Data ------------------------------------------------------------------ 
-
-## 2015 
-natal_origins<- read.csv("Data/Natal Origin/2015 Yukon_natal_data.csv")
-yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2015.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
-CPUE <- read.csv(here("Data/CPUE/CPUE_weights/2015 Yukon_CPUE weights.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
-identifier <- "2015 Yukon"
-
 ###----- Shapefiles ------------------------------------------------------------
 
 #Shapefiles
@@ -40,6 +32,30 @@ my.gen_reachid <- my.gen$reachid # reach ids of the middle Yukon tributaries
 #Shapefile with the tributaries from the upper Yukon river basin 
 uy.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp", quiet = TRUE)
 uy.gen_reachid <- uy.gen$reachid #reach ids of the upper Yukon tributaries
+
+###----- Data ------------------------------------------------------------------ 
+
+## 2015 
+natal_origins<- read.csv("Data/Natal Origin/2015 Yukon_natal_data.csv")
+yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2015.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
+CPUE <- read.csv(here("Data/CPUE/CPUE_weights/2015 Yukon_CPUE weights.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+identifier <- "2015 Yukon"
+
+# 2016
+natal_origins<- read.csv("Data/Natal Origin/2016 Yukon_natal_data.csv")
+yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2016.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
+CPUE <- read.csv(here("Data/CPUE/CPUE_weights/2016 Yukon_CPUE weights.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+identifier<- "2016 Yukon"
+
+# 2017 
+natal_origins<- read.csv("Data/Natal Origin/2017 Yukon_natal_data.csv")
+yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2017.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
+CPUE <- read.csv(here("Data/CPUE/CPUE_weights/2017 Yukon_CPUE weights.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+identifier <- "2017 Yukon"
+
+
+
+if (T){
 
 #------------------------------------------------------------------------------ 
 
@@ -150,8 +166,8 @@ for (i in 1:length(otogene[, 1])) {
   assign_rescaled <- assign_norm / max(assign_norm) 
   
   ## Remove diffuse probability by negating anything under a threshold
-  assign_rescaled[assign_rescaled < .7] <- 0 
-  assign_rescaled[assign_rescaled >= .7] <- 1
+  assign_rescaled[assign_rescaled < .8] <- 0 
+  assign_rescaled[assign_rescaled >= .8] <- 1
   
   # Rescaled values are placed into the assignment matrix for that fish 
   assignment_matrix[,i] <- assign_rescaled
@@ -175,9 +191,10 @@ write.csv(basin_df, filepath)
 ################################################################################
 
 # Rest of your plotting code
-#breaks <- seq(min(basin_assign_rescale), max(basin_assign_rescale), length= 9)
 
-breaks <- c(0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1)
+breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+
+#breaks <- c(0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1)
 nclr <- length(breaks)
 filename <- paste0(identifier, "_.pdf")
 filepath <- file.path(here("Figures", "Maps", "Yukon", filename))
@@ -193,4 +210,4 @@ plot(st_geometry(basin), col = "gray60", border = "gray48", main = identifier)
 plot(st_geometry(isoscape), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
 dev.off()
 
-
+}
