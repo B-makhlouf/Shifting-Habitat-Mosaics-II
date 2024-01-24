@@ -118,7 +118,11 @@ Yukon2017$capture_date_julian<- yday(as.Date(Yukon2017$capture_date, format = "%
 write_csv(Yukon2017, here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
 
 
+
+
+##############
 ### 2018 Yukon 
+##############
 
 Yukon2018 <- read_csv(here("Data/To_be_cleaned/Natal Origin/2018 Yukon_natal_data.csv"))
 Yukon2018_extra <- read_csv(here("Data/To_be_cleaned/Natal Origin/2018 Yukon extra data.csv"))
@@ -134,3 +138,31 @@ Yukon2018$capture_date_julian<- yday(as.Date(Yukon2018$capture_date, format = "%
 
 #write to csv
 write_csv(Yukon2018, here("Data/Natal Origin/2018 Yukon_natal_data.csv"))
+
+
+
+############### KUSKO
+
+
+
+##### 2017 Kusko 
+Kusko2017 <- read_csv(here("Data/To_be_cleaned/Natal Origin/2017 Kusko_natal_data.csv"))
+Kusko2017_extra <- read_csv(here("Data/To_be_cleaned/Natal Origin/2017 Kusko_extra_data(1).csv"))
+
+#Fix fish id 
+Kusko2017$fish.id <- gsub("_kusko_king_", "", Kusko2017$fish.id)
+Kusko2017$fish.id <- gsub("kk", "_kk_", Kusko2017$fish.id)
+Kusko2017$fish.id <- gsub("redo", "", Kusko2017$fish.id)
+Kusko2017$fish.id <- gsub("a", "", Kusko2017$fish.id)
+
+#populate otoNUM with the last three digits of fish.id
+Kusko2017$otoNum <- substr(Kusko2017$fish.id, 9, 11) %>% as.numeric()
+
+#populate capture date by pulling the sample date in which UWID and otoNUM match
+Kusko2017$capture_date <- Kusko2017_extra$Sample_Date[match(Kusko2017$otoNum, Kusko2017_extra$UW_ID)]
+
+#Convert Capture date to Julian date
+Kusko2017$capture_date_julian<- yday(as.Date(Kusko2017$capture_date, format = "%m/%d/%y"))
+
+#write to csv
+write_csv(Kusko2017, here("Data/Natal Origin/2017 Kusko_natal_data.csv"))
