@@ -5,20 +5,14 @@
 ###------ Packages -------------------------------------------------------------
 
 rm(list=ls())
-library(mgcv)
-library(sciplot)
 library(here)
-library(caTools)
 library(dplyr)
-library(raster)
 library(stringr)
 library(lubridate)
 library(classInt)
 library(RColorBrewer)
 library(fabricatr)
 library(ggplot2)
-library(openxlsx)
-library(rio)
 library(sf)
 
 ###----- Data ------------------------------------------------------------------ 
@@ -26,7 +20,7 @@ library(sf)
 ## 2015 
 natal_origins<- read.csv("Data/Natal Origin/2015 Yukon_natal_data.csv")
 yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2015.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
-CPUE <- 
+CPUE <- read.csv(here("Data/CPUE/CPUE_weights/2015 Yukon_CPUE weights.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
 identifier <- "2015 Yukon"
 
 ###----- Shapefiles ------------------------------------------------------------
@@ -138,7 +132,6 @@ output_matrix_wt <- matrix(NA,nrow=length(pid_iso),ncol=l)
 #############################
 
 ## loop for assingments
-
 for (i in 1:length(otogene[, 1])) {
 
   iso_o <- otogene[i, "iso"] %>% as.numeric()  # Otolith ratio
@@ -150,57 +143,35 @@ for (i in 1:length(otogene[, 1])) {
   StreamOrderPrior <- as.numeric(yuk_edges$Str_Order > 2)
   
   #####. BAYES RULE ASSIGNMENT. ##################
+  
   assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior
-  assign_norm <- assign / sum(assign)  # Normalize so all pixels sum to 1
-  assign_max <- assign_norm / max(assign_norm)  # Rescale so all pixels range from 0 to 1
   
-  #### BAYES RULE ASSIGNMENT; ISOTOPE VALUES ONLY ################
-  assignIsotopeOnly <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * StreamOrderPrior
-  assignIsotopeOnly_norm <- assignIsotopeOnly / sum(assignIsotopeOnly)  # Normalize so all pixels sum to 1
-  assignIsotopeOnly_max <- assignIsotopeOnly_norm / max(assignIsotopeOnly_norm)  # Rescale so all pixels range from 0 to 1
+  #rescale so max assignment is 1 
   
-  f.strata <- strat[which(CPUE$DOY == otogene$DOY[i])]
-  f.strata.vec[i] <- f.strata
+  assign_rescale<- assign/max(assign)
   
-  assign_norm_wt <- assign_norm * strat.wt[f.strata] #weighted + normalized (iso+gen)
-  assign_max_wt <- assign_max * strat.wt[f.strata] #weighted+ scaled (iso+gen)
-  assignIsotopeOnly_max_wt <- assignIsotopeOnly_max * strat.wt[f.strata] #weighted +scaled (isotope only)
+  #multiply by CPUE weight
   
-  output_matrix_wt[, i] <- assign_max_wt
-  output_matrix[, i] <- assign_max
+  CPUE_weight<- CPUE[i]
   
-  output_matrix_isotopeOnly[, i] <- assignIsotopeOnly_max
+  assign_norm_wt <- assign_rescale * CPUE_weight
   
-  output_matrix_isotopeOnly_wt[, i]<- assignIsotopeOnly_max_wt
+  #normalize so sum of all assignments is 1
   
-  output_matrix_genetics[, i] <- gen.prior
+  assign_norm <- assign_norm_wt/sum(assign_norm_wt)
+  
+  #add to output matrix
+  
+  output_matrix[, i] <- assign_norm
+  
 }
-
 
 ###------- BASIN SCALE POSTERIOR VALUES ----------------------------------------
 
 #Isotope + Genetics 
-output_sum <- apply(output_matrix_wt, 1, sum) #total probability for each location
+output_sum <- apply(output_matrix, 1, sum) #total probability for each location
 output_sum_norm <- output_sum/sum(output_sum) #normalized probability for each location
 output_sum_scale <- output_sum_norm/max(output_sum_norm) #scale so entire basin of assignments ranges 0 to 1
 
-#Genetics only
-genetics_sum <- apply(output_matrix_genetics,1,sum)
-genetics_norm<-genetics_sum/sum(genetics_sum)
-genetics_scale<- genetics_norm/max(genetics_norm)
-
-#Isotope only
-isotope_only_sum <- apply(output_matrix_isotopeOnly_wt,1,sum)
-isotope_only_norm<-isotope_only_sum/sum(isotope_only_sum)
-isotope_only_scale<- isotope_only_norm/max(isotope_only_norm)
-
 ###Final 
-
-#output_matrix_isotopeOnly_wt #ISOTOPE ONLY, WEIGHTED 
-#output_matrix_genetics # GENETICS ONLY
-#output_matrix_wt # COMBINED,WEIGHTED 
-
-yuk_edges<-as_Spatial(yuk_edges)
-yuk_basin<-as_Spatial(yuk_basin)
-
 
