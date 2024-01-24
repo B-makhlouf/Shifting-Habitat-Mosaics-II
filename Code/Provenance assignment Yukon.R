@@ -25,13 +25,9 @@ identifier <- "2015 Yukon"
 
 ###----- Shapefiles ------------------------------------------------------------
 
-#Shapefile with all of the tributaries, predicted isotopic values, and predicted isotopic error values
-yuk_edges <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc_withprobs.shp",quiet = TRUE)
-yuk_edges<-as_Spatial(yuk_edges)
-
-#Shapefile with Yukon basin (US + Canada)
-yuk_basin<-st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp"), quiet = TRUE)
-yuk_basin<-as_Spatial(yuk_basin)
+#Shapefiles
+isoscape<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 #Shapefile with the tributaries from the lower Yukon river basin 
 ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
@@ -162,8 +158,39 @@ for (i in 1:length(otogene[, 1])) {
   
 }
 
+###------- BASIN SCALE VALUES ----------------------------------------
+
+basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
+basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
+basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
+
+basin_df<- as.data.frame(basin_assign_rescale) #convert to data frame for export 
+filename<- paste0(identifier, "_basin_norm.csv")
+filepath<- file.path(here("Data", "Production", "Yukon", filename))
+write.csv(basin_df, filepath)
 
 
-###------- BASIN SCALE POSTERIOR VALUES ----------------------------------------
+################################################################################
+##### Mapping using base R 
+################################################################################
+
+# Rest of your plotting code
+#breaks <- seq(min(basin_assign_rescale), max(basin_assign_rescale), length= 9)
+
+breaks <- c(0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1)
+nclr <- length(breaks)
+filename <- paste0(identifier, "_.pdf")
+filepath <- file.path(here("Figures", "Maps", "Yukon", filename))
+pdf(file = filepath, width = 9, height = 6)
+plotvar <- basin_assign_norm
+class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
+plotclr <- brewer.pal(nclr, "YlOrRd")
+colcode <- findColours(class, plotclr, digits = 2)
+colcode[plotvar == 0] <- 'gray80'
+colcode[which(StreamOrderPrior == 0)] <- 'gray60'
+colcode[which(pid_prior == 0)] <- 'gray60'
+plot(st_geometry(basin), col = "gray60", border = "gray48", main = identifier)
+plot(st_geometry(isoscape), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
+dev.off()
 
 

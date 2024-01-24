@@ -13,14 +13,16 @@ CPUE_all$year <- year(CPUE_all$Date)
 
 #Extract by year 
 CPUE_2010 <- CPUE_all %>% filter(year == 2010)
-CPUE_2011 <- CPUE_all %>% filter(year == 2015)
-CPUE_2012 <- CPUE_all %>% filter(year == 2017)
-CPUE_2013 <- CPUE_all %>% filter(year == 2018)
+CPUE_2015 <- CPUE_all %>% filter(year == 2015)
+CPUE_2016 <- CPUE_all %>% filter(year == 2016)
+CPUE_2017 <- CPUE_all %>% filter(year == 2017)
+CPUE_2018 <- CPUE_all %>% filter(year == 2018)
 
 #Write to a csv file
 write_csv(CPUE_2010, here("Data/CPUE/Yukon CPUE 2010.csv"))
-write_csv(CPUE_2011, here("Data/CPUE/Yukon CPUE 2015.csv"))
-write_csv(CPUE_2012, here("Data/CPUE/Yukon CPUE 2017.csv"))
-write_csv(CPUE_2013, here("Data/CPUE/Yukon CPUE 2018.csv"))
+write_csv(CPUE_2015, here("Data/CPUE/Yukon CPUE 2015.csv"))
+write_csv(CPUE_2016, here("Data/CPUE/Yukon CPUE 2016.csv"))
+write_csv(CPUE_2017, here("Data/CPUE/Yukon CPUE 2017.csv"))
+write_csv(CPUE_2018, here("Data/CPUE/Yukon CPUE 2018.csv"))
 
 
