@@ -124,8 +124,7 @@ error <- sqrt(pid_isose_mod^2 + within_site^2 + analyt^2)  # COMBINED error
 output_matrix <- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(otogene))
 l<-length(otogene[, 1])
 f.strata.vec <- rep(NA,l)
-output_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
-output_matrix_wt <- matrix(NA,nrow=length(pid_iso),ncol=l)
+assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
 
 #############################
 ###### ASSIGNMENTS HERE ##### 
@@ -146,32 +145,25 @@ for (i in 1:length(otogene[, 1])) {
   
   assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior
   
-  #rescale so max assignment is 1 
+  # normalize so all values sum to 1 (probability distribution)
+  assign_norm <- assign / sum(assign) 
   
-  assign_rescale<- assign/max(assign)
+  assign_norm <- assign_norm * CPUE[i]
   
-  #multiply by CPUE weight
+  #rescale so that all values are between 0 and 1 
+  assign_rescaled <- assign_norm / max(assign_norm) 
   
-  CPUE_weight<- CPUE[i]
+  ## Remove diffuse probability by negating anything under a threshold
+  assign_rescaled[assign_rescaled < .7] <- 0 
+  assign_rescaled[assign_rescaled >= .7] <- 1
   
-  assign_norm_wt <- assign_rescale * CPUE_weight
-  
-  #normalize so sum of all assignments is 1
-  
-  assign_norm <- assign_norm_wt/sum(assign_norm_wt)
-  
-  #add to output matrix
-  
-  output_matrix[, i] <- assign_norm
+  # Rescaled values are placed into the assignment matrix for that fish 
+  assignment_matrix[,i] <- assign_rescaled
   
 }
 
+
+
 ###------- BASIN SCALE POSTERIOR VALUES ----------------------------------------
 
-#Isotope + Genetics 
-output_sum <- apply(output_matrix, 1, sum) #total probability for each location
-output_sum_norm <- output_sum/sum(output_sum) #normalized probability for each location
-output_sum_scale <- output_sum_norm/max(output_sum_norm) #scale so entire basin of assignments ranges 0 to 1
-
-###Final 
 
