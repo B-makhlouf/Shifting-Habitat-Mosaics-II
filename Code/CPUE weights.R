@@ -38,10 +38,24 @@ natal_values<- read_csv(here("Data/Natal Origin/2018 Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2018.csv"))
 identifier <- "2018 Yukon"
 
+#2017 Kusko
+natal_values<- read_csv(here("Data/Natal Origin/2017 Kusko_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2017.csv"))
+identifier <- "2017 Kusko"
+
+#2018 Kusko 
+natal_values<- read_csv(here("Data/Natal Origin/2018 Kusko_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2018.csv"))
+identifier <- "2018 Kusko"
 
 
 # ------------------------------------------------------------------------------
 ## Summarizes the # of fish caught on that day of the year.
+
+CPUE<- CPUE %>%
+  #change the date format to the proper format
+  mutate(Date = as.Date(Date, format = "%m/%d/%y")) %>%
+  rename( dailyCPUE = CPUE)
 
 otoCatch <- natal_values %>%
   rename(DOY = capture_date_julian)%>%
@@ -49,7 +63,7 @@ otoCatch <- natal_values %>%
   summarise(Catch = length(fish.id))
 
 CPUE <- CPUE %>%
-  mutate(DOY = format(as.POSIXct(Date), '%j')) %>%#create DOY collumn which makes date into day of year
+  mutate(DOY = format(as.POSIXct(Date), '%j')) %>% #create DOY collumn which makes date into day of year
   mutate(dailyPROP = dailyCPUE/sum(dailyCPUE)) #calculate the daily proportion of the total catch
 
 CPUE$otoCATCH <- 0 #Create an otocatch collumn in CPUE

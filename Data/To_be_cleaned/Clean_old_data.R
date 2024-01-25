@@ -7,7 +7,6 @@ library(lubridate)
 ###2010 Yukon 
 #############
 
-
 Yukon2010<- read_csv(here("Data/Natal Origin/2010 Yukon_natal_data.csv"))
 
 #Take the value in the column file.id, and remove _yukon_chinook_
@@ -24,9 +23,6 @@ Yukon2010$capture_date_julian<- yday(as.Date(Yukon2010$capture_date, format = "%
 
 #Write to a csv file
 write_csv(Yukon2010, here("Data/Natal Origin/2010 Yukon_natal_data.csv"))
-
-
-
 
 
 
@@ -59,11 +55,6 @@ write_csv(Yukon2015, here("Data/Natal Origin/2015 Yukon_natal_data.csv"))
 
 
 
-
-
-
-
-
 ##### 
 ## 2016 Yukon 
 #### 
@@ -84,10 +75,6 @@ Yukon2016$capture_date_julian<- yday(as.Date(Yukon2016$capture_date, format = "%
 
 #Write to a csv file
 write_csv(Yukon2016, here("Data/Natal Origin/2016 Yukon_natal_data.csv"))
-
-
-
-
 
 
 

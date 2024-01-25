@@ -25,4 +25,19 @@ write_csv(CPUE_2016, here("Data/CPUE/Yukon CPUE 2016.csv"))
 write_csv(CPUE_2017, here("Data/CPUE/Yukon CPUE 2017.csv"))
 write_csv(CPUE_2018, here("Data/CPUE/Yukon CPUE 2018.csv"))
 
+## KUSKO 
+
+CPUE_all<- read_csv(here("Data/To_be_cleaned/CPUE/Kusko CPUE 2017-2018.csv"))
+
+#Extract by year 
+CPUE_2017 <- CPUE_all %>% filter(`Sample Year` == 2017)
+
+CPUE_2017<- CPUE_2017 %>%
+  rename(Date = `Date Kog.`)
+
+CPUE_2018 <- CPUE_all %>% filter(`Sample Year` == 2018)
+
+#writ to csv
+write_csv(CPUE_2017, here("Data/CPUE/Kusko CPUE 2017.csv"))
+write_csv(CPUE_2018, here("Data/CPUE/Kusko CPUE 2018.csv"))
 
