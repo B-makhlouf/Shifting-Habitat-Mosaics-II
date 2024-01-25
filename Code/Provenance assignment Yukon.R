@@ -21,24 +21,13 @@ library(sf)
 yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
-#Shapefile with the tributaries from the lower Yukon river basin 
-ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
-ly.gen_reachid <- ly.gen$reachid # reach ids of the lower Yukon tributaries
-
-#Shapefile with the tributaries from the middle Yukon river basin
-my.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp", quiet = TRUE)
-my.gen_reachid <- my.gen$reachid # reach ids of the middle Yukon tributaries
-
-#Shapefile with the tributaries from the upper Yukon river basin 
-uy.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp", quiet = TRUE)
-uy.gen_reachid <- uy.gen$reachid #reach ids of the upper Yukon tributaries
-
 ###----- Data ------------------------------------------------------------------ 
 
 ## 2015 
 natal_origins<- read.csv("Data/Natal Origin/2015 Yukon_natal_data.csv")
 yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2015.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
 CPUE <- read.csv(here("Data/CPUE/CPUE_weights/2015 Yukon_CPUE weights.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+Genetics <- read.csv(here("Data/Genetics/Genetic Prior/2015_Yukon_genetic_prior_.csv"))
 identifier <- "2015 Yukon"
 
 # 2016
@@ -59,65 +48,28 @@ if (T){
 
 #------------------------------------------------------------------------------ 
 
-# Create a new attribute in the yuk_edges shapefile that indicates which genetic region each tributary belongs to 
-
+#Shapefile with the tributaries from the lower Yukon river basin 
+ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
+ly.gen_reachid <- ly.gen$reachid # reach ids of the lower Yukon tributaries
+  
+#Shapefile with the tributaries from the middle Yukon river basin
+my.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp", quiet = TRUE)
+my.gen_reachid <- my.gen$reachid # reach ids of the middle Yukon tributaries
+  
+#Shapefile with the tributaries from the upper Yukon river basin 
+uy.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp", quiet = TRUE)
+uy.gen_reachid <- uy.gen$reachid #reach ids of the upper Yukon tributaries
+  
 yuk_edges$GenLMU <- 0
 yuk_edges$GenLMU[yuk_edges$reachid %in% ly.gen_reachid] <- "lower"
 yuk_edges$GenLMU[yuk_edges$reachid %in% my.gen_reachid] <- "middle"
 yuk_edges$GenLMU[yuk_edges$reachid %in% uy.gen_reachid] <- "upper"
-
+  
 # Create a vector of the INDICES associated with each genetic region
-
+  
 LYsites <- which(yuk_edges$GenLMU == "lower")
 MYsites <- which(yuk_edges$GenLMU == "middle")
 UYsites <- which(yuk_edges$GenLMU == "upper")
-
-#Sum probability values for each genetic region for each fish 
-
-yuk2015_gen <- yuk_gen %>%
-  filter( QC_or_RR != "qc") %>% #only 2015 and NOT QC
-  group_by(FishID, indiv, repunit) %>% #Group by.. Fish, individual, unit,
-  summarise(P = sum(PofZ)) #Each individual's summed posterior probability of being in each genetic region. 
-
-otoTab <- natal_origins #otolith data
-geneTab <- yuk2015_gen #genetic data 
-
-# create fishid by extracting the last three characters
-
-fishid<- otoTab$otoNum %>%
-  as.numeric()
-
-otoTab$FishID <- fishid #extract fish_id
-
-
-###----- Build Otogene ---------------------------------------------------------
-
-otogene <- data.frame( 
-  FishID = fishid, #all fish_ids
-  Date = otoTab$capture_date, #all_dates associated
-  iso = otoTab$natal_iso_mean, #otolith natal isotope value
-  L = rep(1/3, length(fishid)), #assign equal likelihood of each genetic region
-  M = rep(1/3, length(fishid)),
-  U = rep(1/3, length(fishid))
-)
-
-#go to the genetics table and extract those which have a oto info
-
-fish.g <- geneTab %>% 
-  filter(FishID %in% fishid) %>%
-  arrange(FishID)
-
-otogene <- otogene %>% 
-  arrange(FishID)
-
-## in otogene, bring in the summed probabilities for lower, middle, and upper for each fish 
-otogene$L[fishid %in% fish.g$FishID] <- fish.g$P[fish.g$repunit == "lower"]
-otogene$M[fishid %in% fish.g$FishID] <- fish.g$P[fish.g$repunit == "middle"]
-otogene$U[fishid %in% fish.g$FishID] <- fish.g$P[fish.g$repunit == "upper"]
-
-#bring in DOY (julian date) by matching FsihID in otogene to FishID in otoTab
-otogene$DOY <- otoTab$capture_date_julian[match(otogene$FishID, otoTab$FishID)]
-
 
 ## ----- Extract isoscape prediction + error values -----------------------------
 
@@ -133,8 +85,8 @@ within_pop <- within_site - analyt # Population error
 error <- sqrt(pid_isose_mod^2 + within_site^2 + analyt^2)  # COMBINED error 
 
 ###----- CREATE EMPTY MATRICES -------------------------------------------------
-output_matrix <- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(otogene))
-l<-length(otogene[, 1])
+output_matrix <- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(natal_origins))
+l<-length(natal_origins[, 1])
 f.strata.vec <- rep(NA,l)
 assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
 
@@ -143,12 +95,12 @@ assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
 #############################
 
 ## loop for assingments
-for (i in 1:length(otogene[, 1])) {
+for (i in 1:length(natal_origins[, 1])) {
 
-  iso_o <- otogene[i, "iso"] %>% as.numeric()  # Otolith ratio
-  genP <- otogene[i, c("L", "M", "U")] #genetic posterior for each
+  iso_o <- natal_origins[i, "natal_iso_mean"] %>% as.numeric()  # Otolith ratio
+  genP <- Genetics[i,] #genetic posterior for each
   gen.prior <- rep(0, length = length(pid_iso))
-  gen.prior[LYsites] <- genP[1] %>% as.numeric()
+  gen.prior[LYsites] <- genP["Lower"] %>% as.numeric()
   gen.prior[MYsites] <- genP[2] %>% as.numeric()
   gen.prior[UYsites] <- genP[3] %>% as.numeric()
   StreamOrderPrior <- as.numeric(yuk_edges$Str_Order > 2)
@@ -166,8 +118,8 @@ for (i in 1:length(otogene[, 1])) {
   assign_rescaled <- assign_norm / max(assign_norm) 
   
   ## Remove diffuse probability by negating anything under a threshold
-  assign_rescaled[assign_rescaled < .8] <- 0 
-  assign_rescaled[assign_rescaled >= .8] <- 1
+  assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0 
+  assign_rescaled[assign_rescaled >= sensitivity_threshold] <- 1
   
   # Rescaled values are placed into the assignment matrix for that fish 
   assignment_matrix[,i] <- assign_rescaled
@@ -196,7 +148,7 @@ breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
 
 #breaks <- c(0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1)
 nclr <- length(breaks)
-filename <- paste0(identifier, "_.pdf")
+filename <- paste0(identifier, sensitivity_threshold, "_.pdf")
 filepath <- file.path(here("Figures", "Maps", "Yukon", filename))
 pdf(file = filepath, width = 9, height = 6)
 plotvar <- basin_assign_norm
