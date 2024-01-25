@@ -18,7 +18,7 @@ library(sf)
 ###----- Shapefiles ------------------------------------------------------------
 
 #Shapefiles
-isoscape<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 #Shapefile with the tributaries from the lower Yukon river basin 
@@ -207,7 +207,7 @@ colcode[plotvar == 0] <- 'gray80'
 colcode[which(StreamOrderPrior == 0)] <- 'gray60'
 colcode[which(pid_prior == 0)] <- 'gray60'
 plot(st_geometry(basin), col = "gray60", border = "gray48", main = identifier)
-plot(st_geometry(isoscape), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
+plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
 dev.off()
 
 }
