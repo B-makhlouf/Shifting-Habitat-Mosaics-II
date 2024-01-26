@@ -16,41 +16,42 @@ library(here)
 #2010 Yukon 
 natal_values<- read_csv(here("Data/Natal Origin/2010 Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2010.csv"))
-identifier <- "2010 Yukon"
+identifier <- "2010_Yukon"
 
 #2015 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2015 Yukon_natal_data.csv"))
+natal_values<- read_csv(here("Data/Natal Origin/2015_Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2015.csv"))
-identifier <- "2015 Yukon"
+identifier <- "2015_Yukon"
 
 #2016 Yukon
-natal_values<- read_csv(here("Data/Natal Origin/2016 Yukon_natal_data.csv"))
+natal_values<- read_csv(here("Data/Natal Origin/2016_Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2016.csv"))
-identifier <- "2016 Yukon"
+identifier <- "2016_Yukon"
 
 #2017 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
+natal_values<- read_csv(here("Data/Natal Origin/2017_Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2017.csv"))
-identifier <- "2017 Yukon"
+identifier <- "2017_Yukon"
 
 #2018 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2018 Yukon_natal_data.csv"))
+natal_values<- read_csv(here("Data/Natal Origin/2018_Yukon_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2018.csv"))
-identifier <- "2018 Yukon"
+identifier <- "2018_Yukon"
 
 #2017 Kusko
-natal_values<- read_csv(here("Data/Natal Origin/2017 Kusko_natal_data.csv"))
+natal_values<- read_csv(here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2017.csv"))
-identifier <- "2017 Kusko"
+identifier <- "2017_Kusko"
 
 #2018 Kusko 
-natal_values<- read_csv(here("Data/Natal Origin/2018 Kusko_natal_data.csv"))
+natal_values<- read_csv(here("Data/Natal Origin/2018_Kusko_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2018.csv"))
-identifier <- "2018 Kusko"
+identifier <- "2018_Kusko"
 
 
 # ------------------------------------------------------------------------------
 ## Summarizes the # of fish caught on that day of the year.
+  
 
 CPUE<- CPUE %>%
   #change the date format to the proper format
@@ -125,3 +126,5 @@ weighting_df<- as.data.frame(weighting_vector)
 filename<- paste0(identifier, "_CPUE weights.csv")
 filepath<- file.path(here("data", "CPUE", "CPUE_weights", filename))
 write_csv(weighting_df, filepath)
+
+
