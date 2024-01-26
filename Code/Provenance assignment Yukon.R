@@ -1,10 +1,5 @@
 
 
-
-
-
-
-
 ###------ Packages -------------------------------------------------------------
 
 rm(list=ls())
@@ -26,16 +21,45 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 
 ###----- Data ------------------------------------------------------------------ 
 
-Yukon_map <- function(year, sensitivity_threshold) {
-    
-  # Construct the identifier based on the year
-  identifier <- paste(year, "Yukon", sep = " ")
-    
+Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, filter_half = NULL) {  
+  
+  # Construct the identifier based on the year and filtered quartile or half
+  if (!is.null(filter_quartile_date)) {
+    quartile_identifier <- paste("Q", which(filter_quartile_date == c("Q1", "Q2", "Q3", "Q4")), sep = "")
+  } else if (!is.null(filter_half)) {
+    quartile_identifier <- filter_half
+  } else {
+    quartile_identifier <- "full"
+  }
+  
+  identifier <- paste(year, quartile_identifier, "Yukon", sep = "_")
+  
   # Read data based on the year
   natal_origins <- read.csv(paste("Data/Natal Origin/", year, "_Yukon_natal_data.csv", sep = ""))
   yuk_gen <- read.csv(here("Data/Genetics/", paste(year, "_Yukon_Genetics.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE)
   CPUE <- read.csv(here("Data/CPUE/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
   Genetics <- read.csv(here("Data/Genetics/Genetic Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
+    
+  # Filter data based on the specified quartile of date
+  if (!is.null(filter_quartile_date)) {
+    quartile_values <- quantile(natal_origins$capture_date_julian, probs = c(0, 0.25, 0.5, 0.75, 1))
+    if (filter_quartile_date == "Q1") {
+      natal_origins <- natal_origins[natal_origins$capture_date_julian >= quartile_values[1] & natal_origins$capture_date_julian <= quartile_values[2], ]
+    } else if (filter_quartile_date == "Q2") {
+      natal_origins <- natal_origins[natal_origins$capture_date_julian > quartile_values[2] & natal_origins$capture_date_julian <= quartile_values[3], ]
+    } else if (filter_quartile_date == "Q3") {
+      natal_origins <- natal_origins[natal_origins$capture_date_julian > quartile_values[3] & natal_origins$capture_date_julian <= quartile_values[4], ]
+    } else if (filter_quartile_date == "Q4") {
+      natal_origins <- natal_origins[natal_origins$capture_date_julian > quartile_values[4], ]
+    }
+  } else if (!is.null(filter_half)) {
+    if (filter_half == "H1") {
+      natal_origins <- natal_origins[natal_origins$capture_date_julian <= median(natal_origins$capture_date_julian), ]
+    } else if (filter_half == "H2") {
+      natal_origins <- natal_origins[natal_origins$capture_date_julian > median(natal_origins$capture_date_julian), ]
+    }
+  }
+  
     
   #Shapefile with the tributaries from the lower Yukon river basin 
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
@@ -140,10 +164,6 @@ Yukon_map <- function(year, sensitivity_threshold) {
   plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
   dev.off()
 }
-
-
-
-
 
 
 
