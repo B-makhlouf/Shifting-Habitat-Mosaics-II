@@ -32,10 +32,10 @@ Yukon_map <- function(year, sensitivity_threshold) {
   identifier <- paste(year, "Yukon", sep = " ")
     
   # Read data based on the year
-  natal_origins <- read.csv(paste("Data/Natal Origin/", year," ", "Yukon_natal_data.csv", sep = ""))
+  natal_origins <- read.csv(paste("Data/Natal Origin/", year, "_Yukon_natal_data.csv", sep = ""))
   yuk_gen <- read.csv(here("Data/Genetics/", paste(year, "_Yukon_Genetics.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE)
   CPUE <- read.csv(here("Data/CPUE/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
-  Genetics <- read.csv(here("Data/Genetics/Genetic Prior", paste(year, "_Yukon_genetic_prior.csv", sep = "")))
+  Genetics <- read.csv(here("Data/Genetics/Genetic Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
     
   #Shapefile with the tributaries from the lower Yukon river basin 
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
@@ -141,10 +141,9 @@ Yukon_map <- function(year, sensitivity_threshold) {
   dev.off()
 }
 
-# Run the function for each of the three sensitivity thresholds
-Yukon_map(2015,0.5)
-Yukon_map(0.75)
-Yukon_map(0.9)
+
+
+
 
 
 

@@ -24,9 +24,18 @@ uy.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/
 uy.gen_reachid <- uy.gen$reachid #reach ids of the upper Yukon tributaries
 
 ############# Data
-natal_origins<- read.csv("Data/Natal Origin/2015 Yukon_natal_data.csv")
-yuk_gen <- read.csv(here("Data/Genetics/Yukon_Genetics_2015.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
+natal_origins<- read.csv("Data/Natal Origin/2015_Yukon_natal_data.csv")
+yuk_gen <- read.csv(here("Data/Genetics/2015_Yukon_Genetics.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
 identifier<- "2015_Yukon"
+
+natal_origins<- read.csv("Data/Natal Origin/2016_Yukon_natal_data.csv")
+yuk_gen <- read.csv(here("Data/Genetics/2016_Yukon_Genetics.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
+identifier<- "2016_Yukon"
+
+natal_origins<- read.csv("Data/Natal Origin/2017_Yukon_natal_data.csv")
+yuk_gen <- read.csv(here("Data/Genetics/2017_Yukon_Genetics.csv"), sep = ",", header = TRUE, stringsAsFactors = FALSE)
+identifier<- "2017_Yukon"
+
 
 # Create a new attribute in the yuk_edges shapefile that indicates which genetic region each tributary belongs to 
 
@@ -109,3 +118,4 @@ gen.prior$Upper[upper_rows] <- otogene$U[upper_rows]
 filename <- paste0(identifier, "_genetic_prior_", ".csv")
 filepath <- here("Data/Genetics/Genetic Prior/", filename)
 write.csv(gen.prior, filepath, row.names = FALSE)
+

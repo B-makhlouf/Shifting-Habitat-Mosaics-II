@@ -49,6 +49,7 @@ CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2018.csv"))
 identifier <- "2018_Kusko"
 
 
+
 # ------------------------------------------------------------------------------
 ## Summarizes the # of fish caught on that day of the year.
   
@@ -74,7 +75,7 @@ matching_indices <- match(otoCatch$DOY, CPUE$DOY) %>% na.omit() # Match DOY valu
 CPUE$otoCATCH[matching_indices] <- otoCatch$Catch # Update the otoCATCH column in CPUE where matches are found
 
 CPUE <- CPUE %>%
- filter(otoCATCH > 0) %>% #keep only those with at least 1 fish caught
+ #filter(otoCATCH > 0) %>% #keep only those with at least 1 fish caught
  mutate(otoPROP = otoCATCH / sum(otoCATCH), #calculate the otolith proportion
  oto_cumPROP = cumsum(otoPROP), #calculate the cumulative proportion    
  COratio = dailyPROP / otoPROP) #calculate the ratio of daily catch to otolith catch    
@@ -126,5 +127,60 @@ weighting_df<- as.data.frame(weighting_vector)
 filename<- paste0(identifier, "_CPUE weights.csv")
 filepath<- file.path(here("data", "CPUE", "CPUE_weights", filename))
 write_csv(weighting_df, filepath)
+
+# Export CPUE as a .csv
+filename<- paste0(identifier, "_expanded_CPUE.csv")
+filepath<- file.path(here("data", "CPUE", filename))
+write_csv(CPUE, filepath)
+
+## Read in all the expanded CPUE files and put them all in one dataframe 
+# Add "year" collumn to each dataframe
+
+#2015
+exp_CPUE_2015<- read_csv(here("Data/CPUE/2015_Yukon_expanded_CPUE.csv"))
+exp_CPUE_2015$year<- 2015
+
+#2016
+exp_CPUE_2016<- read_csv(here("Data/CPUE/2016_Yukon_expanded_CPUE.csv"))
+exp_CPUE_2016$year<- 2016
+
+#2017
+exp_CPUE_2017<- read_csv(here("Data/CPUE/2017_Yukon_expanded_CPUE.csv"))
+exp_CPUE_2017$year<- 2017
+
+#2018
+exp_CPUE_2018<- read_csv(here("Data/CPUE/2018_Yukon_expanded_CPUE.csv"))
+exp_CPUE_2018$year<- 2018
+
+#2017 Kusko
+exp_CPUE_2017_Kusko<- read_csv(here("Data/CPUE/2017_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2017_Kusko$year<- 2017
+
+#2018 Kusko
+exp_CPUE_2018_Kusko<- read_csv(here("Data/CPUE/2018_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2018_Kusko$year<- 2018
+
+#Combine all the CPUE dataframes into one
+all_exp_CPUE<- rbind(exp_CPUE_2015, exp_CPUE_2016, exp_CPUE_2017, exp_CPUE_2018)
+
+#Export the combined CPUE dataframe
+filename<- "Yukon_all_exp_CPUE.csv"
+filepath<- file.path(here("data", "CPUE", filename))
+write_csv(all_exp_CPUE, filepath)
+
+
+all_exp_CPUE$Date<- as.Date(all_exp_CPUE$Date, format = "%Y-%m-%d") #convert date to date format
+
+#plot a line chart of CPUE by date, with a separate line for each year
+
+ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) + 
+  geom_line() +
+  labs(title = "CPUE by Year", x = "Day of Year", y = "CPUE")
+
+ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) + 
+  geom_line(size = 2) +
+  geom_line(aes(y = oto_cumPROP), size = 1, color = "black")+
+  labs(title = "CPUE by Year", x = "Day of Year", y = "CPUE") +
+  facet_wrap(~ year, nrow = 2, ncol = 2)
 
 
