@@ -22,7 +22,7 @@ Yukon2010$capture_date <- as.Date(Yukon2010$capture_date, format = "%m/%d/%y")
 Yukon2010$capture_date_julian<- yday(as.Date(Yukon2010$capture_date, format = "%m/%d/%y"))
 
 #Write to a csv file
-write_csv(Yukon2010, here("Data/Natal Origin/2010 Yukon_natal_data.csv"))
+write_csv(Yukon2010, here("Data/Natal Origin/2010_Yukon_natal_data.csv"))
 
 
 
@@ -40,7 +40,7 @@ Yukon2015$fish.id <- gsub("_yokon_chin_", "", Yukon2015$file.id)
 Yukon2015$fish.id <- gsub("yk", "_yk_", Yukon2015$fish.id)
 
 # change the capture date to Julian date
-Yukon2010$capture_date <- as.Date(Yukon2010$capture_date, format = "%m/%d/%y")
+Yukon2015$capture_date <- as.Date(Yukon2015$capture_date, format = "%m/%d/%y")
 
 #remove .exp 
 Yukon2015$fish.id <- gsub(".exp", "", Yukon2015$fish.id)
@@ -49,7 +49,7 @@ Yukon2015$fish.id <- gsub(".exp", "", Yukon2015$fish.id)
 Yukon2015$capture_date_julian<- yday(as.Date(Yukon2015$capture_date, format = "%m/%d/%y"))
 
 #Write to a csv file
-write_csv(Yukon2015, here("Data/Natal Origin/2015 Yukon_natal_data.csv"))
+write_csv(Yukon2015, here("Data/Natal Origin/2015_Yukon_natal_data.csv"))
 
 
 
@@ -74,7 +74,7 @@ Yukon2016$capture_date <- as.Date(Yukon2016$capture_date, format = "%m/%d/%y")
 Yukon2016$capture_date_julian<- yday(as.Date(Yukon2016$capture_date, format = "%m/%d/%y"))
 
 #Write to a csv file
-write_csv(Yukon2016, here("Data/Natal Origin/2016 Yukon_natal_data.csv"))
+write_csv(Yukon2016, here("Data/Natal Origin/2016_Yukon_natal_data.csv"))
 
 
 
@@ -102,7 +102,7 @@ Yukon2017$fish.id <- gsub(".exp", "", Yukon2017$fish.id)
 Yukon2017$capture_date_julian<- yday(as.Date(Yukon2017$capture_date, format = "%m/%d/%y"))
 
 #Write to a csv file
-write_csv(Yukon2017, here("Data/Natal Origin/2017 Yukon_natal_data.csv"))
+write_csv(Yukon2017, here("Data/Natal Origin/2017_Yukon_natal_data.csv"))
 
 
 
@@ -124,7 +124,7 @@ Yukon2018$fish.id <- gsub("-", "_", Yukon2018$fish.id)
 Yukon2018$capture_date_julian<- yday(as.Date(Yukon2018$capture_date, format = "%m/%d/%y"))
 
 #write to csv
-write_csv(Yukon2018, here("Data/Natal Origin/2018 Yukon_natal_data.csv"))
+write_csv(Yukon2018, here("Data/Natal Origin/2018_Yukon_natal_data.csv"))
 
 
 
@@ -151,7 +151,7 @@ Kusko2017$capture_date <- Kusko2017_extra$Sample_Date[match(Kusko2017$otoNum, Ku
 Kusko2017$capture_date_julian<- yday(as.Date(Kusko2017$capture_date, format = "%m/%d/%y"))
 
 #write to csv
-write_csv(Kusko2017, here("Data/Natal Origin/2017 Kusko_natal_data.csv"))
+write_csv(Kusko2017, here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
 
 
 
@@ -177,4 +177,4 @@ Kusko2018$capture_date <- Kusko2018_extra$date[match(Kusko2018$otoNum, Kusko2018
 Kusko2018$capture_date_julian<- yday(as.Date(Kusko2018$capture_date, format = "%m/%d/%y"))
 
 #write to csv
-write_csv(Kusko2018, here("Data/Natal Origin/2018 Kusko_natal_data.csv"))
+write_csv(Kusko2018, here("Data/Natal Origin/2018_Kusko_natal_data.csv"))
