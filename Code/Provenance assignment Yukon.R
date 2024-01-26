@@ -141,7 +141,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
 
   basin_df<- as.data.frame(basin_assign_rescale) #convert to data frame for export 
-  filename<- paste0(identifier, "_basin_norm.csv")
+  filename<- paste0(identifier, "_", sensitivity_threshold, "_basin_norm.csv")
   filepath<- file.path(here("Data", "Production", "Yukon", filename))
   write.csv(basin_df, filepath)
 
@@ -168,7 +168,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
     nclr <- length(breaks)
     filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
-    filepath <- file.path(here("Figures", "Maps", "Yukon", filename))
+    filepath <- file.path(here("Figures", "Maps", "Yukon", year, filename))
     pdf(file = filepath, width = 9, height = 6)
     plotvar <- basin_assign_norm
     class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
