@@ -2,9 +2,9 @@
 
 # Code 
 
-## `R/`Provenance Assignment Yukon
+## `R/`Yukon Map Fucntion
 
-The `Yukon_map` R script generates basin-scale maps for the Yukon river basin, utilizing isoscape predictions and genetic data. To use the function, load Yukon river edges and basin shapefiles, then run `Yukon_map` with specified parameters like year, sensitivity threshold, and date filtering options. The function expects CSV files in the "Data" directory for genetics, natal origin, and CPUE weights. Output maps can be displayed interactively or saved as PDF files in the "Figures/Maps/Yukon" directory.
+The `Yukon_map_function` R script generates basin-scale maps for the Yukon river basin, utilizing isoscape predictions and genetic data. To use the function, load Yukon river edges and basin shapefiles, then run `Yukon_map` with specified parameters like year, sensitivity threshold, and date filtering options. The function expects CSV files in the "Data" directory for genetics, natal origin, and CPUE weights. Output maps can be displayed interactively or saved as PDF files in the "Figures/Maps/Yukon" directory.
 
 ### Outputs
 
