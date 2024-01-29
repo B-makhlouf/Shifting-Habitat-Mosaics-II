@@ -19,7 +19,25 @@ library(sf)
 yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
-###----- Data ------------------------------------------------------------------ 
+#' Yukon Map Function
+#'
+#' This R script provides a function, `Yukon_map`, for generating basin-scale maps of the Yukon river. The maps are based on isoscape predictions, genetic data, and capture dates. The script includes functionality for filtering data by quartile or half, adjusting sensitivity thresholds, and saving maps as interactive displays or PDF files.
+#'
+#' @param year The target year for the analysis.
+#' @param sensitivity_threshold The threshold for rescaling probabilities in the Bayesian assignment process.
+#' @param filter_quartile_date Specify one of "Q1", "Q2", "Q3", or "Q4" to filter data based on the quartile of capture dates. Default is `NULL`.
+#' @param filter_half Specify "H1" or "H2" to filter data based on the first or second half of capture dates. Default is `NULL`.
+#' @param plot_show Set to `TRUE` to display the map interactively using base R graphics. Set to `FALSE` to save the map as a PDF file.
+#'
+#' @return The function generates basin-scale normalized probabilities, outputs an interactive map (if specified), and saves PDF maps.
+#'
+#' @examples
+#' \dontrun{
+#' # Example Usage:
+#' Yukon_map(year = 2022, sensitivity_threshold = 0.5, filter_quartile_date = "Q2", plot_show = TRUE)
+#' }
+#'
+#' @export
 
 Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, filter_half = NULL, plot_show = FALSE) {  
   
