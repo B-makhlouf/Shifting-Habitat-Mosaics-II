@@ -156,8 +156,14 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
   basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
   basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
-
-  basin_df<- as.data.frame(basin_assign_rescale) #convert to data frame for export 
+ 
+  # Create a data frame, with one for each of the assignment types 
+  
+  basin_df <- data.frame(normalized = basin_assign_norm, 
+                         rescaled = basin_assign_rescale, 
+                         raw = basin_assign_sum
+                         )
+  
   filename<- paste0(identifier, "_", sensitivity_threshold, "_basin_norm.csv")
   filepath<- file.path(here("Data", "Production", "Yukon", filename))
   write.csv(basin_df, filepath)

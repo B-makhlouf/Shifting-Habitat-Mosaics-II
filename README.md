@@ -49,4 +49,10 @@ The `CPUE` R script calculates weights for each fish in natal origin based on th
 3. Explore the generated CSV files for CPUE weights and expanded CPUE data.
 
 
+## `R/` Genetic prior early years 
+
+This script takes raw genetic data from 2010-2018 Yukon and converts them into the same format as the genetic data for 2019-2021. Outputs genetic data in a readable format to 'Data/Genetics/Genetic Prior/' 
+
+
+
 

@@ -10,7 +10,7 @@ source("code/Functions/Yukon_map_function.R")
 sensitivity_thresholds <- seq(.4, .9, .1)
 
 # List of years with data
-years <- c(2015, 2016, 2017)
+years <- c(2015, 2016, 2017, 2019, 2021)
 
 # List of potential ways to divide the data into quartiles 
 Quartiles <- levels(factor(c("Q1", "Q2", "Q3", "Q4")))
@@ -20,18 +20,21 @@ combinations <- expand.grid(year = years, threshold = sensitivity_thresholds, qu
 
 # Loop through all combinations and produce a map for each
 for (i in 1:nrow(combinations)) {
-  Yukon_map(year = combinations$year[i], threshold = combinations$threshold[i], quartile = combinations$quartile[i])
+  Yukon_map(combinations$year[i], combinations$threshold[i], combinations$quartile[i])
 }
+
+
+
 
 # Do the same thing above but without cutting the data into quartiles
 for (year in years) {
   for (threshold in sensitivity_thresholds) {
     # Run the function without quartiles
-    Yukon_map(year = year, threshold = threshold)
+    Yukon_map( year,threshold)
   }
 }
 
-Yukon_map(2021, .7)
+
 
 calculate_metrics <- function(threshold) {
   # Read in each production year for the given threshold
