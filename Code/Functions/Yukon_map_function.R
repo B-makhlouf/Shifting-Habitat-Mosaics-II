@@ -54,7 +54,6 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
   # Read data based on the year
   natal_origins <- read.csv(paste("Data/Natal Origin/", year, "_Yukon_natal_data.csv", sep = ""))
-  yuk_gen <- read.csv(here("Data/Genetics/", paste(year, "_Yukon_Genetics.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE)
   CPUE <- read.csv(here("Data/CPUE/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
   Genetics <- read.csv(here("Data/Genetics/Genetic Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
     

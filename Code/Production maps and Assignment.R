@@ -31,6 +31,7 @@ for (year in years) {
   }
 }
 
+Yukon_map(2021, .7)
 
 calculate_metrics <- function(threshold) {
   # Read in each production year for the given threshold
