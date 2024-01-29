@@ -1,33 +1,35 @@
-# Source the code/Provenance assignment Yukon.R
+#This script is where functions are iterated through to produce various maps and assignment values at the tributary scale 
 
-source("code/Provenance assignment Yukon.R")
 library(tidyverse)
 library(here)
 
-# Make a list from .4 to .9 in increments of .1
+# Read in the function
+source("code/Functions/Yukon_map_function.R")
+
+# List of reasonable sensitivity thresholds: .4-.9 
 sensitivity_thresholds <- seq(.4, .9, .1)
-years<- c(2015,2016,2017)
-Quartiles<- c("Q1","Q2","Q3","Q4")
 
-#loop through each year, threshold value, and quartile
+# List of years with data
+years <- c(2015, 2016, 2017)
 
-for (year in years){
-  for (threshold in sensitivity_thresholds){
-    for (quartile in Quartiles){
-      
-      # Run the function
-      Yukon_map(year, threshold, quartile)
-    }
-  }
+# List of potential ways to divide the data into quartiles 
+Quartiles <- levels(factor(c("Q1", "Q2", "Q3", "Q4")))
+
+# Function to generate all combinations of years, thresholds, and quartiles
+combinations <- expand.grid(year = years, threshold = sensitivity_thresholds, quartile = Quartiles)
+
+# Loop through all combinations and produce a map for each
+for (i in 1:nrow(combinations)) {
+  Yukon_map(year = combinations$year[i], threshold = combinations$threshold[i], quartile = combinations$quartile[i])
 }
 
-
-for (year in years){
-  for (threshold in sensitivity_thresholds){
-      # Run the function
-      Yukon_map(year, threshold)
-    }
+# Do the same thing above but without cutting the data into quartiles
+for (year in years) {
+  for (threshold in sensitivity_thresholds) {
+    # Run the function without quartiles
+    Yukon_map(year = year, threshold = threshold)
   }
+}
 
 
 calculate_metrics <- function(threshold) {
