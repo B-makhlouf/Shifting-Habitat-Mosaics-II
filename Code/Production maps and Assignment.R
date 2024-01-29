@@ -63,35 +63,9 @@ calculate_metrics <- function(threshold) {
   write_csv(prod_all, here(paste0("Results/Variability/Yukon_Production_all_", threshold, ".csv")))
 }
 
-for (threshold in sensitivity_thresholds ){
-  calculate_metrics(threshold)
-}
 
 
-# Create a dataframe with the collumns threshold and mean_CV
 
-CV_data <- data.frame(
-  threshold = NA,
-  mean_cv = NA
-)
-
-#Loop through each threshold file and add the mean CV to the dataframe
-
-for (threshold in sensitivity_thresholds){
-  CV_data <- CV_data %>% add_row(threshold = threshold, mean_cv = mean(read_csv(here(paste0("Results/Variability/Yukon_Production_all_", threshold, ".csv"))) %>% select(mean_cv) %>% unlist()))
-}
-
-#Plot mean CV vs threshold
-
-ggplot(CV_data, aes(x = threshold, y = mean_cv)) +
-  geom_point(color = "coral") +
-  geom_line(color = "coral") +
-  labs(x = "Threshold", y = "CV")+ 
-  ggtitle("CV of relative production among years vs cutoff threshold")+ 
-  theme_gray()
-
-# Export to figures
-ggsave(here("Results/Figures/Yukon_CV_threshold.png"), width = 6, height = 6, units = "in", dpi = 300)
 
 
 
