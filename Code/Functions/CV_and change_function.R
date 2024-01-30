@@ -21,12 +21,16 @@ CV_and_change <- function(threshold) {
   prod_2015 <- read_csv(here(paste0("Data/Production/Yukon/2015_full_Yukon_", threshold, "_basin_norm.csv")))
   prod_2016 <- read_csv(here(paste0("Data/Production/Yukon/2016_full_Yukon_", threshold, "_basin_norm.csv")))
   prod_2017 <- read_csv(here(paste0("Data/Production/Yukon/2017_full_Yukon_", threshold, "_basin_norm.csv")))
+  prod_2019 <- read_csv(here(paste0("Data/Production/Yukon/2019_full_Yukon_", threshold, "_basin_norm.csv")))
+  prod_2021 <- read_csv(here(paste0("Data/Production/Yukon/2021_full_Yukon_", threshold, "_basin_norm.csv")))
   
   # Combine data frames for all years
   prod_all <- data.frame(
-    year_2015 = prod_2015$basin_assign_rescale,
-    year_2016 = prod_2016$basin_assign_rescale,
-    year_2017 = prod_2017$basin_assign_rescale
+    year_2015 = prod_2015$rescaled,
+    year_2016 = prod_2016$rescaled,
+    year_2017 = prod_2017$rescaled,
+    year_2019 = prod_2019$rescaled,
+    year_2021 = prod_2021$rescaled
   )
   
   # Calculate metrics
@@ -40,6 +44,4 @@ CV_and_change <- function(threshold) {
   # Export as a .csv
   write_csv(prod_all, here(paste0("Results/Variability/Yukon_Production_all_", threshold, ".csv")))
   
-  # Return the calculated metrics
-  return(prod_all)
 }

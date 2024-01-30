@@ -41,6 +41,8 @@ calculate_metrics <- function(threshold) {
   prod_2015 <- read_csv(here(paste0("Data/Production/Yukon/2015_full_Yukon_", threshold, "_basin_norm.csv")))
   prod_2016 <- read_csv(here(paste0("Data/Production/Yukon/2016_full_Yukon_", threshold, "_basin_norm.csv")))
   prod_2017 <- read_csv(here(paste0("Data/Production/Yukon/2017_full_Yukon_", threshold, "_basin_norm.csv")))
+  prod_2019 <- read_csv(here(paste0("Data/Production/Yukon/2019_full_Yukon_", threshold, "_basin_norm.csv")))
+  prod_2021 <- read_csv(here(paste0("Data/Production/Yukon/2021_full_Yukon_", threshold, "_basin_norm.csv")))
   
   # Initialize an empty data frame
   prod_all <- data.frame(
