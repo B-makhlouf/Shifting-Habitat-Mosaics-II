@@ -13,7 +13,7 @@ sensitivity_thresholds <- seq(.4, .9, .1)
 #Export the results to a csv file
 
 for (threshold in sensitivity_thresholds ){
-  calculate_metrics(threshold)
+  CV_and_change(threshold)
 }
 
 # Calculate and visualize how the mean CV from 2015-2017 changes over time 
@@ -34,6 +34,7 @@ for (threshold in sensitivity_thresholds){
                                                     unlist()))
 }
 
+
 #Plot mean CV vs threshold
 ggplot(CV_data, aes(x = threshold, y = mean_cv)) +
   geom_point(color = "coral") +
@@ -52,22 +53,22 @@ ggsave(here("Results/Figures/Yukon_CV_threshold.png"), width = 6, height = 6, un
 
 ############# Variation within a year, among thresholds ###### 
 
-full_2015_.4<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.4_basin_norm.csv")) %>% select(basin_assign_rescale)
-full_2015_.5<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.5_basin_norm.csv")) %>% select(basin_assign_rescale)
-full_2015_.6<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.6_basin_norm.csv")) %>% select(basin_assign_rescale)
-full_2015_.7<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.7_basin_norm.csv")) %>% select(basin_assign_rescale)
-full_2015_.8<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.8_basin_norm.csv")) %>% select(basin_assign_rescale)
-full_2015_.9<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.9_basin_norm.csv")) %>% select(basin_assign_rescale)
+full_2015_.4<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.4_basin_norm.csv"))  %>% select(normalized)
+full_2015_.5<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.5_basin_norm.csv")) %>% select(normalized)
+full_2015_.6<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.6_basin_norm.csv")) %>% select(normalized)
+full_2015_.7<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.7_basin_norm.csv")) %>% select(normalized)
+full_2015_.8<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.8_basin_norm.csv")) %>% select(normalized)
+full_2015_.9<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.9_basin_norm.csv")) %>% select(normalized)
 
 
 #Put all of these into one dataframe 
 full_2015 <- data.frame(
-  threshold_4 = full_2015_.4$basin_assign_rescale,
-  threshold_5 = full_2015_.5$basin_assign_rescale,
-  threshold_6 = full_2015_.6$basin_assign_rescale,
-  threshold_7 = full_2015_.7$basin_assign_rescale,
-  threshold_8 = full_2015_.8$basin_assign_rescale,
-  threshold_9 = full_2015_.9$basin_assign_rescale
+  threshold_4 = full_2015_.4,
+  threshold_5 = full_2015_.5,
+  threshold_6 = full_2015_.6,
+  threshold_7 = full_2015_.7,
+  threshold_8 = full_2015_.8,
+  threshold_9 = full_2015_.9
 )
 
 #Put the data into long format

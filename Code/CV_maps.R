@@ -10,7 +10,7 @@ yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yuko
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 StreamOrderPrior <- as.numeric(yuk_edges$Str_Order > 2)
 pid_prior <- yuk_edges$PriorSl2 #Habitat prior ( RCA slope)
-threshold<- .5
+threshold<- .7
 
 generate_cv_plot <- function(threshold) {
   # Read in production data with CV metrics

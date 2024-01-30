@@ -13,7 +13,7 @@
 #'
 #' @examples
 #' calculate_metrics(threshold = 0.5)
-
+threshold <- 0.5
 
 CV_and_change <- function(threshold) {
   
@@ -45,3 +45,5 @@ CV_and_change <- function(threshold) {
   write_csv(prod_all, here(paste0("Results/Variability/Yukon_Production_all_", threshold, ".csv")))
   
 }
+
+
