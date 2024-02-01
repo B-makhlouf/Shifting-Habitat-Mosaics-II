@@ -17,6 +17,8 @@ threshold <- 0.5
 
 CV_and_change <- function(threshold) {
   
+  library(sf)
+  
   # Read in each production year for the given threshold
   prod_2015 <- read_csv(here(paste0("Data/Production/Yukon/2015_full_Yukon_", threshold, "_basin_norm.csv")))
   prod_2016 <- read_csv(here(paste0("Data/Production/Yukon/2016_full_Yukon_", threshold, "_basin_norm.csv")))
@@ -26,21 +28,35 @@ CV_and_change <- function(threshold) {
   
   # Combine data frames for all years
   prod_all <- data.frame(
-    year_2015 = prod_2015$rescaled,
-    year_2016 = prod_2016$rescaled,
-    year_2017 = prod_2017$rescaled,
-    year_2019 = prod_2019$rescaled,
-    year_2021 = prod_2021$rescaled
+    year_2015_resc = prod_2015$rescaled,
+    year_2015_norm = prod_2015$normalized,
+    year_2016_resc = prod_2016$rescaled,
+    year_2016_norm = prod_2016$normalized,
+    year_2017_resc= prod_2017$rescaled,
+    year_2017_norm = prod_2017$normalized,
+    year_2019_resc = prod_2019$rescaled,
+    year_2019_norm = prod_2019$normalized,
+    year_2021_resc = prod_2021$rescaled,
+    year_2021_norm = prod_2021$normalized
   )
+  
+  Yukon_shapefile<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
   
   # Calculate metrics
   prod_all$sd <- apply(prod_all, 1, sd)
   prod_all$mean <- apply(prod_all, 1, mean)
   prod_all$cv <- prod_all$sd / prod_all$mean
   prod_all$mean_cv <- apply(prod_all, 1, mean, na.rm = TRUE)
-  prod_all$change_2016_2017 <- prod_all$year_2017 - prod_all$year_2016
-  prod_all$change_2015_2016 <- prod_all$year_2016 - prod_all$year_2015
+  prod_all$change_2016_2017 <- prod_all$year_2017_resc - prod_all$year_2016_resc
+  prod_all$change_2015_2016 <- prod_all$year_2016_resc - prod_all$year_2015_resc
+  prod_all$Str_length_2015 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2015_norm > .7])/1000
+  prod_all$Str_length_2016 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2016_norm > .7])/1000
+  prod_all$Str_length_2017 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2017_norm > .7])/1000
+  prod_all$Str_length_2019 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2019_norm > .7])/1000
+  prod_all$Str_length_2021 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2021_norm > .7])/1000
+  prod_all$avg_str_length <- mean(c(prod_all$Str_length_2015[1], prod_all$Str_length_2016[1], prod_all$Str_length_2017[1], prod_all$Str_length_2019[1], prod_all$Str_length_2021[1]))
   
+    
   # Export as a .csv
   write_csv(prod_all, here(paste0("Results/Variability/Yukon_Production_all_", threshold, ".csv")))
   
