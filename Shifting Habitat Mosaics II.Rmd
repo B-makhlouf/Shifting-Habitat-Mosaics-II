@@ -1,0 +1,29 @@
+---
+title: "Shifting Habitat Mosaics II"
+author: "Ben Makhlouf"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(knitr)
+library(here)
+
+```
+
+# Total Year production, with a .7 threshold 
+``````{r, echo=FALSE}
+include_graphics(here("Figures/Maps/Yukon/2015/2015_full_Yukon_0.7_.pdf"))
+include_graphics(here("Figures/Maps/Yukon/2016/2016_full_Yukon_0.7_.pdf"))
+include_graphics(here("Figures/Maps/Yukon/2017/2017_full_Yukon_0.7_.pdf"))
+include_graphics(here("Figures/Maps/Yukon/2019/2019_full_Yukon_0.7_.pdf"))
+include_graphics(here("Figures/Maps/Yukon/2021/2021_full_Yukon_0.7_.pdf"))
+```
+
+#CPUE vs otocatch for 2015-2018
+Haven't calculated for 2019,2021. Otocatch (black line) is the proportion of the totoal otolith catch collected at that time in the run. 
+
+```{r, echo=FALSE}
+include_graphics("Figures/Graphs/CPUE vs otocatch.pdf")
+```
