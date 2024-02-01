@@ -55,11 +55,16 @@ CV_and_change <- function(threshold) {
   prod_all$Str_length_2019 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2019_norm > .7])/1000
   prod_all$Str_length_2021 <- sum(Yukon_shapefile$Shape_Leng[prod_all$year_2021_norm > .7])/1000
   prod_all$avg_str_length <- mean(c(prod_all$Str_length_2015[1], prod_all$Str_length_2016[1], prod_all$Str_length_2017[1], prod_all$Str_length_2019[1], prod_all$Str_length_2021[1]))
-  
+  prod_all$within_year_CV_2015 <- sd(prod_2015$rescaled) / mean(prod_2015$rescaled) * 100
+  prod_all$within_year_CV_2016 <- sd(prod_2016$rescaled) / mean(prod_2016$rescaled) * 100
+  prod_all$within_year_CV_2017 <- sd(prod_2017$rescaled) / mean(prod_2017$rescaled) * 100
+  prod_all$within_year_CV_2019 <- sd(prod_2019$rescaled) / mean(prod_2019$rescaled) * 100
+  prod_all$within_year_CV_2021 <- sd(prod_2021$rescaled) / mean(prod_2021$rescaled) * 100
+  prod_all$mean_within_year_CV <- mean(c(prod_all$within_year_CV_2015[1], prod_all$within_year_CV_2016[1], prod_all$within_year_CV_2017[1], prod_all$within_year_CV_2019[1], prod_all$within_year_CV_2021[1]))
     
   # Export as a .csv
   write_csv(prod_all, here(paste0("Results/Variability/Yukon_Production_all_", threshold, ".csv")))
   
 }
 
-
+library(tidyverse)
