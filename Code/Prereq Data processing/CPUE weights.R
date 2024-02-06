@@ -163,10 +163,15 @@ exp_CPUE_2018$year<- 2018
 #2019 Yukon
 exp_CPUE_2019<- read_csv(here("Data/CPUE/2019_Yukon_expanded_CPUE.csv"))
 exp_CPUE_2019$year<- 2019
+#make sure data is a date, form month day year
+exp_CPUE_2019$Date<- as.Date(exp_CPUE_2019$Date, format = "%m/%d/%Y")
 
 #2021 Yukon
 exp_CPUE_2021<- read_csv(here("Data/CPUE/2021_Yukon_expanded_CPUE.csv"))
 exp_CPUE_2021$year<- 2021
+#make sure data is a date, form year month day 
+exp_CPUE_2021$Date<- as.Date(exp_CPUE_2021$Date, format = "%m/%d/%Y")
+
 
 
 
@@ -192,6 +197,6 @@ ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) +
   geom_line(size = 2) +
   geom_line(aes(y = oto_cumPROP), size = 1, color = "black")+
   labs(title = "CPUE by Year", x = "Day of Year", y = "CPUE") +
-  facet_wrap(~ year, nrow = 2, ncol = 2)
+  facet_wrap(~ year, nrow = 2, ncol = 3)
 
 
