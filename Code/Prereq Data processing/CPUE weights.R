@@ -193,10 +193,11 @@ ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) +
   geom_line() +
   labs(title = "CPUE by Year", x = "Day of Year", y = "CPUE")
 
-ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) + 
+CPUE_otocatch<- ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) + 
   geom_line(size = 2) +
   geom_line(aes(y = oto_cumPROP), size = 1, color = "black")+
   labs(title = "CPUE by Year", x = "Day of Year", y = "CPUE") +
   facet_wrap(~ year, nrow = 2, ncol = 3)
 
+ggsave(filename = "CPUE_otocatch.pdf", plot = CPUE_otocatch, path = here("Figures","Graphs"), dpi = 300)
 

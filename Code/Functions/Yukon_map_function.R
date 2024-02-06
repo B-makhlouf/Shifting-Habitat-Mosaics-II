@@ -38,6 +38,12 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 #' }
 #'
 #' @export
+year <- 2021 
+sensitivity_threshold <- .6
+filter_quartile_date <- NULL
+filter_half <- NULL
+plot_show <- FALSE
+
 
 Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, filter_half = NULL, plot_show = FALSE) {  
   
@@ -120,7 +126,6 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   #############################
   ###### ASSIGNMENTS HERE ##### 
   #############################
-
   ## loop for assingments
   for (i in 1:length(natal_origins[, 1])) {
 
@@ -142,13 +147,12 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
     #rescale so that all values are between 0 and 1 
     assign_rescaled <- assign_norm / max(assign_norm) 
-  
-    ## Remove diffuse probability by negating anything under a threshold
-    assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0 
-    assign_rescaled[assign_rescaled >= sensitivity_threshold] <- 1
-  
-    # Rescaled values are placed into the assignment matrix for that fish 
-    assignment_matrix[,i] <- assign_rescaled
+    
+    
+    percentile_80 <- quantile(assign_rescaled, probs = sensitivity_threshold)
+    assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, 1, 0)
+    
+    assignment_matrix[,i] <- assign_rescale_removed
   }
 
   ###------- BASIN SCALE VALUES ----------------------------------------
