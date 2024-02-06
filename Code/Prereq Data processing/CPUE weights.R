@@ -153,15 +153,26 @@ exp_CPUE_2018<- read_csv(here("Data/CPUE/2018_Yukon_expanded_CPUE.csv"))
 exp_CPUE_2018$year<- 2018
 
 #2017 Kusko
-exp_CPUE_2017_Kusko<- read_csv(here("Data/CPUE/2017_Kusko_expanded_CPUE.csv"))
-exp_CPUE_2017_Kusko$year<- 2017
+#exp_CPUE_2017_Kusko<- read_csv(here("Data/CPUE/2017_Kusko_expanded_CPUE.csv"))
+#exp_CPUE_2017_Kusko$year<- 2017
 
 #2018 Kusko
-exp_CPUE_2018_Kusko<- read_csv(here("Data/CPUE/2018_Kusko_expanded_CPUE.csv"))
-exp_CPUE_2018_Kusko$year<- 2018
+#exp_CPUE_2018_Kusko<- read_csv(here("Data/CPUE/2018_Kusko_expanded_CPUE.csv"))
+#exp_CPUE_2018_Kusko$year<- 2018
+
+#2019 Yukon
+exp_CPUE_2019<- read_csv(here("Data/CPUE/2019_Yukon_expanded_CPUE.csv"))
+exp_CPUE_2019$year<- 2019
+
+#2021 Yukon
+exp_CPUE_2021<- read_csv(here("Data/CPUE/2021_Yukon_expanded_CPUE.csv"))
+exp_CPUE_2021$year<- 2021
+
+
+
 
 #Combine all the CPUE dataframes into one
-all_exp_CPUE<- rbind(exp_CPUE_2015, exp_CPUE_2016, exp_CPUE_2017, exp_CPUE_2018)
+all_exp_CPUE<- rbind(exp_CPUE_2015, exp_CPUE_2016, exp_CPUE_2017, exp_CPUE_2018, exp_CPUE_2019, exp_CPUE_2021)
 
 #Export the combined CPUE dataframe
 filename<- "Yukon_all_exp_CPUE.csv"
