@@ -52,28 +52,27 @@ if (T){
     trib.rows <- which(Yukon_shapefile$reachid %in% INDX)
     return(trib.rows)
   })
+  
   names(TribRows) <- names(YukonTrib_IDs_ordered) #add name  
+  
+  Groupnames <- list(NA)
   
   YukonTable <- matrix(NA,nrow=5,ncol=4) %>% data.frame() # initialize kuskTable
   colnames(YukonTable) <- c('GroupID','PropProd','StrLeng','Prop_StrLeng') # add column names 
   StreamOrderPrior<- as.numeric(Yukon_shapefile$Str_Order > 2) # Define stream order prior 
-  
+
   # For each group... 
-  for(G in 1:length(unique(YukonGroups$IsoGroup) %>% na.omit())){
-    ind <- YukonGroups$Trib[YukonGroups$IsoGroup==G] %>% na.omit() #pull out trib names for that group
+  for(G in 1:length(unique(YukonGroups$GroupID) %>% na.omit())){
+    
+    ind <- YukonGroups$Trib[YukonGroups$GroupID==G] %>% na.omit() #pull out trib names for that group
+    
     trib.rows <- unlist(TribRows[ind]) 
-    YukonTable$GroupID[G] <- G # Add group ID number 
-    YukonTable$PropProd[G] <- normalized_basin_values[trib.rows] %>% sum() # Add normalized basin values for all of the tribs 
-    YukonTable$StrLeng[G] <- ((Yukon_shapefile$Length[trib.rows] * Yukon_shapefile$PriorSl2[trib.rows]*StreamOrderPrior[trib.rows]) %>% sum())/1000 # Calculate the stream length
     
-    BasinLength<-sum(Yukon_shapefile$Length*Yukon_shapefile$PriorSl2*StreamOrderPrior)/1000 #sum all possible habitat to get the denominator 
-    YukonTable$Prop_StrLeng <- YukonTable$StrLeng/BasinLength #Calculate the proportion of stream length 
-    YukonTable$TotalRun<-YukonTable$PropProd* run_size / 1000 # calculate the total run # for everywhere but the eek 
-  
-    filename<- paste0(identifier, "_iso_group_results.csv")
-    filepath<- file.path(here("Results/Isotope Group Production", filename))
-    write_csv(YukonTable, filepath)
-    
-    }
+    # Store trib.rows in the TribRows list
+    Groupnames[[G]] <- trib.rows
+  }
 }
-  
+
+
+
+
