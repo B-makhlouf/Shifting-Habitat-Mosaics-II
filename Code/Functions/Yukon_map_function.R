@@ -38,11 +38,6 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 #' }
 #'
 #' @export
-year <- 2021 
-sensitivity_threshold <- .6
-filter_quartile_date <- NULL
-filter_half <- NULL
-plot_show <- FALSE
 
 
 Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, filter_half = NULL, plot_show = FALSE) {  
