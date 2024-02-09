@@ -107,46 +107,51 @@ for (i in 1:samplenumbs){
   #rescale so that all values are between 0 and 1 
   assign_rescaled <- assign_norm / max(assign_norm) 
 
-  # Rescaled values are placed into the assignment matrix for that fish 
-  # until entire loop is finished 
-  assignment_matrix[,i] <- assign_rescaled
+  percentile_80 <- quantile(assign_rescaled, probs = sensitivity_threshold)
+  assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, 1, 0)
+  
+  assignment_matrix[,i] <- assign_rescale_removed
   
 }
 
-####-------- Basin scale assignment --------------------------------
+###------- BASIN SCALE VALUES ----------------------------------------
 
-## Basin scale assignments
 basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
-basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #normalized probability for each location
-basin_assign_norm <- basin_assign_rescale/max(basin_assign_rescale) #scale so entire basin of assignments ranges 0 to 1
+basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
+basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
 
-## Writes a csv of basin scale assignment, individual and basin level normalized and rescaled
-basin_df<- as.data.frame(basin_assign_rescale) #convert to data frame for export 
-filename<- paste0(identifier, "_basin_norm.csv")
+# Create a data frame, with one for each of the assignment types 
+
+basin_df <- data.frame(normalized = basin_assign_norm, 
+                       rescaled = basin_assign_rescale, 
+                       raw = basin_assign_sum
+)
+
+filename<- paste0(identifier, "_", sensitivity_threshold, "_basin_norm.csv")
 filepath<- file.path(here("Data", "Production", "Kusko", filename))
-write_csv(basin_df, filepath)
+write.csv(basin_df, filepath)
+
 
 ################################################################################
 ##### Mapping using base R 
 ################################################################################
-breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9) #comment in to change the breaks from standardized to scaled from the data. 
+
+# Save as PDF
+#breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+breaks <- c(0, .2, .4, .6, .7, .8, .9, 1)
 nclr <- length(breaks)
-filename <- paste0(identifier, ".pdf")
-filepath <- file.path(here("Figures", "Maps", "Kusko", filename))
+filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
+filepath <- file.path(here("Figures", "Maps", "Kusko", year, filename))
 pdf(file = filepath, width = 9, height = 6)
 plotvar <- basin_assign_norm
 class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
 plotclr <- brewer.pal(nclr, "YlOrRd")
 colcode <- findColours(class, plotclr, digits = 2)
-colcode[plotvar == 0] <- 'gray92'
-colcode[which(habitat_prior==0)] <- 'gray60'
-colcode[which(stream_order_pr ==0)] <- 'gray60'
-plot(st_geometry(basin), col = "gray60", border = "gray60", main = identifier)
-plot(st_geometry(isoscape), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar < 0.2, 0.05, .7))
-#0.9 * (exp(plotvar) - 1)))
-#legend_labels <- c("0", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "1")
-#legend("topright", legend = legend_labels, fill = brewer.pal(nclr, "YlOrRd"), title = "Legend")
+colcode[plotvar == 0] <- 'gray80'
+colcode[which(StreamOrderPrior == 0)] <- 'gray60'
+colcode[which(pid_prior == 0)] <- 'gray60'
+plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
+plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .7 * (exp(plotvar) - 1)))
 dev.off()
 
-rm(list = setdiff(ls(), "basin_df"))
 
