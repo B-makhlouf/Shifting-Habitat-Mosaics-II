@@ -11,15 +11,22 @@ library(stringr)
 library(lubridate)
 
 ##Kusko 2017 
-natal_values<- read.csv("Data/Natal Origin/2017 Kusko_natal_data.csv")
-CPUE_weights<- read.csv("Data/CPUE/CPUE_weights/2017 Kusko_CPUE weights.csv")
+natal_values<- read.csv(here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
+CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2017_Kusko_CPUE weights.csv")) 
 identifier<- "2017 Kusko"
-
 
 #Kusko 2018 
 natal_values<- read.csv("Data/Natal Origin/2018 Kusko_natal_data.csv")
 CPUE_weights<- read.csv("Data/CPUE/CPUE_weights/2018 Kusko_CPUE weights.csv")
-identifier<- "2018 Kusko"
+identifier<- "2018 Kusko" 
+
+#Kusko 2019 
+
+#Kusko 2020 
+
+#Kusko 2021 
+
+
 
 
 
