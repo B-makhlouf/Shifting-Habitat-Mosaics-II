@@ -16,15 +16,24 @@ CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2017_Kusko_CPUE weights.csv
 identifier<- "2017 Kusko"
 
 #Kusko 2018 
-natal_values<- read.csv("Data/Natal Origin/2018 Kusko_natal_data.csv")
-CPUE_weights<- read.csv("Data/CPUE/CPUE_weights/2018 Kusko_CPUE weights.csv")
-identifier<- "2018 Kusko" 
+natal_values<- read.csv(here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
+CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2017_Kusko_CPUE weights.csv")) 
+identifier<- "2017 Kusko"
 
 #Kusko 2019 
+natal_values<- read.csv(here("Data/Natal Origin/2019_Kusko_natal_data.csv"))
+CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2019_Kusko_CPUE weights.csv"))
+identifier<- "2019 Kusko"
 
 #Kusko 2020 
+natal_values<- read.csv(here("Data/Natal Origin/2020_Kusko_natal_data.csv"))
+CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2020_Kusko_CPUE weights.csv"))
+identifier<- "2020 Kusko"
 
 #Kusko 2021 
+natal_values<- read.csv(here("Data/Natal Origin/2021_Kusko_natal_data.csv"))
+CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2021_Kusko_CPUE weights.csv"))
+identifier<- "2021 Kusko"
 
 
 
@@ -89,6 +98,7 @@ for (i in 1:samplenumbs){
   
   ## Line below is Bayes Rule 
   assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o- isoscape_sr)^2/(2*error^2))) * habitat_prior * stream_order_pr
+ 
   
   # normalize so all values sum to 1 (probability distribution)
   assign_norm <- assign / sum(assign) 
@@ -96,10 +106,7 @@ for (i in 1:samplenumbs){
   
   #rescale so that all values are between 0 and 1 
   assign_rescaled <- assign_norm / max(assign_norm) 
-  
-  assign_rescaled[assign_rescaled < .4] <- 0 
-  assign_rescaled[assign_rescaled >= .4] <- 1
-  
+
   # Rescaled values are placed into the assignment matrix for that fish 
   # until entire loop is finished 
   assignment_matrix[,i] <- assign_rescaled
@@ -122,7 +129,6 @@ write_csv(basin_df, filepath)
 ################################################################################
 ##### Mapping using base R 
 ################################################################################
-
 breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9) #comment in to change the breaks from standardized to scaled from the data. 
 nclr <- length(breaks)
 filename <- paste0(identifier, ".pdf")
@@ -143,3 +149,4 @@ plot(st_geometry(isoscape), col = colcode, pch = 16, axes = FALSE, add = TRUE, l
 dev.off()
 
 rm(list = setdiff(ls(), "basin_df"))
+
