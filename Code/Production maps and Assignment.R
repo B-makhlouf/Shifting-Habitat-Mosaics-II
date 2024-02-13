@@ -160,7 +160,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     assignment_matrix[,i] <- assign_rescale_removed
     
     oto_info_df <- tibble(
-      fish.id = natal_origins[["fish_id"]], 
+      fish.id = natal_origins$fish.id[i], 
       natal_iso = iso_o, 
       UY_gen = genP[["Upper"]],
       MY_gen = genP[["Middle"]],
