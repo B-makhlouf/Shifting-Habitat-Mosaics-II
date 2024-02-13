@@ -22,6 +22,7 @@ sensitivity_threshold <- 0.7
 filter_quartile_date <- NULL
 filter_half <- NULL
 plot_show <- NULL
+i<-1
 }
 
 ########################################################
@@ -88,7 +89,6 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     }
   }
   
-  
   #Shapefile with the tributaries from the lower Yukon river basin 
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
   ly.gen_reachid <- ly.gen$reachid # reach ids of the lower Yukon tributaries
@@ -127,13 +127,14 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   l<-length(natal_origins[, 1])
   f.strata.vec <- rep(NA,l)
   assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
+  total_oto_info<- list()
   
   #############################
   ###### ASSIGNMENTS HERE ##### 
   #############################
   ## loop for assingments
   for (i in 1:length(natal_origins[, 1])) {
-    
+  
     iso_o <- natal_origins[i, "natal_iso_mean"] %>% as.numeric()  # Otolith ratio
     genP <- Genetics[i,] #genetic posterior for each
     gen.prior <- rep(0, length = length(pid_iso))
@@ -153,11 +154,30 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     #rescale so that all values are between 0 and 1 
     assign_rescaled <- assign_norm / max(assign_norm) 
     
-    
     percentile_80 <- quantile(assign_rescaled, probs = sensitivity_threshold)
     assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, 1, 0)
     
     assignment_matrix[,i] <- assign_rescale_removed
+    
+    oto_info_df <- tibble(
+      fish.id = natal_origins[["fish_id"]], 
+      natal_iso = iso_o, 
+      UY_gen = genP[["Upper"]],
+      MY_gen = genP[["Middle"]],
+      LY_gen = genP[["Lower"]], 
+
+    )
+  
+    oto_info_df <- oto_info_df %>%
+      mutate(max_gen = case_when(
+        UY_gen > MY_gen & UY_gen > LY_gen ~ "UY",
+        MY_gen > UY_gen & MY_gen > LY_gen ~ "MY",
+        LY_gen > UY_gen & LY_gen > MY_gen ~ "LY",
+        TRUE ~ "Equal" # Handle cases where values are equal
+      ))
+    
+    total_oto_info[[i]] <- oto_info_df
+  
   }
   
   ###------- BASIN SCALE VALUES ----------------------------------------
@@ -177,6 +197,11 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   filepath<- file.path(here("Data", "Production", "Yukon", filename))
   write.csv(basin_df, filepath)
   
+  # put everything from total_info_oto into a single dataframe
+  total_oto_info_df <- bind_rows(total_oto_info)
+  filename<- paste0(identifier, "_oto_info.csv")
+  filepath<- file.path(here("Data/Natal Origin/Natal origin and Genetics", filename))
+  write.csv(total_oto_info_df, filepath)
   
   ################################################################################
   ##### Mapping using base R 
@@ -206,30 +231,11 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
 ########## Producing All Maps
 ##############################################
 
-# List of reasonable sensitivity thresholds: .4-.9 
-sensitivity_thresholds <- seq(.7, .9, .1)
-
 # List of years with data
 years <- c(2015, 2016, 2017, 2019, 2021)
 
-# List of potential ways to divide the data into quartiles 
-Quartiles <- levels(factor(c("Q1", "Q2", "Q3", "Q4", NULL)))
 
-# Function to generate all combinations of years, thresholds, and quartiles
-combinations <- expand.grid(year = years, threshold = sensitivity_thresholds, quartile = Quartiles)
 
-# Loop through all combinations and produce a map for each
-for (i in 1:nrow(combinations)) {
-  Yukon_map(combinations$year[i], combinations$threshold[i], combinations$quartile[i])
-}
-
-# Do the same thing above but without cutting the data into quartiles
-for (year in years) {
-  for (threshold in sensitivity_thresholds) {
-    # Run the function without quartiles
-    Yukon_map( year,threshold)
-  }
-}
 
 
 

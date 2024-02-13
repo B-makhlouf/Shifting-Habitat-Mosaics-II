@@ -83,7 +83,7 @@ Kusko_map <- function(year, sensitivity_threshold) {
   ###### ASSIGNMENTS HERE ##### 
   #############################
   ## loop for assingments
-  i<-1
+  
   for (i in 1:length(natal_origins[, 1])) {
     
     iso_o <- natal_origins[i, "natal_iso_mean"] %>% as.numeric()  # Otolith ratio
