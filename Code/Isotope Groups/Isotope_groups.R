@@ -103,11 +103,15 @@ if(T){
     PlotCols[trib.rows] <- GroupColors[G]
   }
 
-  pdf(here("Data/reporting groups/kusko",paste0('Kusko_GroupMap','.pdf')),width=9,height=9)
+  pdf_path <- here("Data/reporting groups/kusko", paste0('Kusko_GroupMap','.pdf'))
+  
+  pdf(pdf_path, width=9, height=9)
   plot(st_geometry(kusk_basin), col = "gray", lwd=0.1)
-  plot(st_geometry(kusk_edges), col = PlotCols, pch=16, axes = F,add=TRUE, lwd=0.5)
-  legend("topleft", legend = paste(rep('Group',5),seq(1,5),sep=' '),
+  plot(st_geometry(kusk_edges), col = PlotCols, pch=16, axes = F, add=TRUE, lwd=0.5)
+  legend("topleft", legend = paste(rep('Group',5), seq(1,5), sep=' '),
          fill = GroupColors, cex=1, ncol=1)
+  dev.off()
+  
 }
 
 
