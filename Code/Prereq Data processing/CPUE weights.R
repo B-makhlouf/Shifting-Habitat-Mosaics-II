@@ -55,8 +55,14 @@ CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2019.csv"))
 identifier <- "2019_Kusko"
 
 #2020 Kusko
+natal_values<- read_csv(here("Data/Natal Origin/2020_Kusko_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2020.csv"))
+identifier <- "2020_Kusko"
 
 #2021 Kusko 
+natal_values<- read_csv(here("Data/Natal Origin/2021_Kusko_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2021.csv"))
+identifier <- "2021_Kusko"
 
 # ------------------------------------------------------------------------------
 ## Summarizes the # of fish caught on that day of the year.
@@ -175,12 +181,9 @@ exp_CPUE_2021$year<- 2021
 #make sure data is a date, form year month day 
 exp_CPUE_2021$Date<- as.Date(exp_CPUE_2021$Date, format = "%m/%d/%Y")
 
-
-
-
-
 #Combine all the CPUE dataframes into one
 all_exp_CPUE<- rbind(exp_CPUE_2015, exp_CPUE_2016, exp_CPUE_2017, exp_CPUE_2018, exp_CPUE_2019, exp_CPUE_2021)
+
 
 #Export the combined CPUE dataframe
 filename<- "Yukon_all_exp_CPUE.csv"
@@ -198,14 +201,35 @@ ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) +
 
 CPUE_otocatch<- ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.factor(year))) + 
   geom_line(size = 2) +
-  geom_line(aes(y = oto_cumPROP), size = 1, color = "black")+
+  geom_line(aes(y = (oto_cumPROP * 100)), size = 1, color = "black")+
   labs(title = "CPUE by Year", x = "Day of Year", y = "CPUE") +
   facet_wrap(~ year, nrow = 2, ncol = 3)
 
-ggsave(filename = "CPUE_otocatch.pdf", plot = CPUE_otocatch, path = here("Figures","Graphs"), dpi = 300)
+ggsave(filename = "CPUE_otocatch_Kusko.pdf", plot = CPUE_otocatch, path = here("Figures","Graphs"), dpi = 300)
 
 
+## Do the same process with Kusko 
 
+#Read in the Kusko CPUE data
 
+exp_CPUE_2017<- read_csv(here("Data/CPUE/2017_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2017$year<- 2017
+#remove cumulative CPUE 
+exp_CPUE_2017<- exp_CPUE_2017 %>% select(- `Cumulative CPUE`)
 
+exp_CPUE_2018<- read_csv(here("Data/CPUE/2018_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2018$year<- 2018
+#remove cumulative CPUE
+exp_CPUE_2018<- exp_CPUE_2018 %>% select(- `Cumulative CPUE`)
+
+exp_CPUE_2019<- read_csv(here("Data/CPUE/2019_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2019$year<- 2019
+
+exp_CPUE_2020<- read_csv(here("Data/CPUE/2020_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2020$year<- 2020
+
+exp_CPUE_2021<- read_csv(here("Data/CPUE/2021_Kusko_expanded_CPUE.csv"))
+exp_CPUE_2021$year<- 2021
+
+all_exp_CPUE<- rbind(exp_CPUE_2017, exp_CPUE_2018, exp_CPUE_2019, exp_CPUE_2020, exp_CPUE_2021)
 
