@@ -1,11 +1,12 @@
 library(here)
 library(tidyverse)
+library(RColorBrewer)
 
 
 #### Attempt to make a map of distinct isotope groups from the Yukon, doesnt work 2/14/24
 if(T){
   YukonGroups<- read_csv(here("data/reporting groups/yukon/Yukon_Tribs_byGroups.csv"))
- # source(here('FindUpstreamReaches_Kusko.R'))
+  source(here("Code/Isotope Groups/Find_Upstream_Reaches.R"))
   
   Yukon_tribs_all<- read_csv("Data/Reporting Groups/Yukon/ReachIDs_tributaries.csv")
   
@@ -37,6 +38,7 @@ if(T){
   GroupColors <- GroupColors <- c("red", "blue", "green", "orange", "purple", "cyan", "magenta", "yellow", "brown", "darkgreen", "darkblue", "darkred", "darkorange")
   
   PlotCols<-rep('gray60',length(yuk_edges$Prod17ig_n))
+  
   for(G in 1:length(UniG)){
     ind <- YukonGroups$Trib[YukonGroups$GroupID==G] %>% na.omit()
     trib.rows <- unlist(TribRows[ind])
@@ -58,24 +60,26 @@ if(T){
 
 if(T){
   
-  kuskGroups <- read.csv(here('Kusko_Tribs_byGroups.csv'),header=T,stringsAsFactors = F)
-  source(here('FindUpstreamReaches_Kusko.R'))
-  kuskTrib<-read.csv(here("Data/SSN/KuskoTribs_reachids.csv"),header=T,stringsAsFactors = F)
-  kuskTrib2<-read.csv(here('Data','SSN','Kusko2018','Kusko_ExtraTribs.csv'),header=T,stringsAsFactors = F)
-  kuskTrib_all <- kuskTrib %>% select(river,reachid) %>% bind_rows(kuskTrib2 %>% rename(river=TribName,reachid=ReachID))
-
+  kuskGroups <- read.csv(here("Data/reporting groups/kusko/Kusko_Tribs_byGroups.csv")) #Group associated with each trib
+  source(here("Code/Isotope Groups/Find_Upstream_Reaches.R")) #Source the code with the function FindUpstreamReachID_Kusk
   
+  kuskTrib<-read.csv(here("Data/reporting groups/kusko/KuskoTribs_reachids.csv")) #A bunch of reachids of tributaries
+  kuskTrib2<-read.csv(here("Data/reporting groups/kusko/Kusko_ExtraTribs.csv")) # Additional trib data 
+  kuskTrib_all <- kuskTrib %>% select(river,reachid) %>% bind_rows(kuskTrib2 %>% rename(river=TribName,reachid=ReachID)) #Combine the above two datasets
 
-  kuskTrib_IDs<-lapply(1:nrow(kuskTrib_all),FUN=function(x){
-    #x<-1
-    FindUpstreamReachID(kuskTrib_all$reachid[x])
+
+  kuskTrib_IDs<-lapply(1:nrow(kuskTrib_all),FUN=function(x){ # Run the function FindUpstreamReachID_Kusk on each reachid
+    FindUpstreamReachID_Kusk(kuskTrib_all$reachid[x])
   })
-  names(kuskTrib_IDs) <- kuskTrib_all$river
   
-  StreamExtentByTrib <- lapply(kuskTrib_IDs,FUN=function(x){sum(kusk_edges@data$Shape_Leng[which(kusk_edges@data$reachid %in% x)])}) %>% unlist()
-  kuskTrib_IDs_ordered <- kuskTrib_IDs[order(StreamExtentByTrib)]
-  names(kuskTrib_IDs_ordered) <- names(kuskTrib_IDs)[order(StreamExtentByTrib)]
+  names(kuskTrib_IDs) <- kuskTrib_all$river #Add the trib names to each list of reachids corresponding to that trib
   
+  StreamExtentByTrib <- lapply(kuskTrib_IDs,FUN=function(x){sum(kusk_edges$Shape_Leng[which(kusk_edges$reachid %in% x)])}) %>% unlist() #Calculate the streamlength of all of the tribuataries in each list summed
+  kuskTrib_IDs_ordered <- kuskTrib_IDs[order(StreamExtentByTrib)] #Order the lists by total streamlength
+  names(kuskTrib_IDs_ordered) <- names(kuskTrib_IDs)[order(StreamExtentByTrib)] #rename the lists appropriately 
+  
+  
+  ## Go through each list of reach ids, and find overlap between that and the next list.
   TribRows <- lapply(1:length(kuskTrib_IDs_ordered),FUN=function(i){
     onlythisTrib <- which(!(kuskTrib_IDs_ordered[[i]] %in% unlist(kuskTrib_IDs_ordered[1:(i-1)])))
     kuskTrib_IDs_ordered[[i]][onlythisTrib]
@@ -84,44 +88,26 @@ if(T){
     }else{
       INDX<-kuskTrib_IDs_ordered[[i]]
     }
-    trib.rows <- which(kusk_edges@data$reachid %in% INDX)
+    trib.rows <- which(kusk_edges$reachid %in% INDX)
     return(trib.rows)
   })
-  names(TribRows) <- names(kuskTrib_IDs_ordered)
-  UniG<-unique(kuskGroups$GroupID) %>% na.omit()
+  
+  names(TribRows) <- names(kuskTrib_IDs_ordered) #Tribrows now contains unique values for each tributary grouping, no overlap of upstream reaches. 
+  UniG<-unique(kuskGroups$GroupID) %>% na.omit() #How many Unique groupIDs are there? 
   GroupColors <- brewer.pal(5,'Set1')
-  PlotCols<-rep('gray60',length(Prod18_inorm_wscale_noEek))
+  PlotCols<-rep('gray60',length(kusk_edges$rid))
+  
   for(G in 1:length(UniG)){
     ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
-    trib.rows <- unlist(TribRows[ind])#which(kusk_edges@data$reachid %in% unlist(TribRows[ind]))
-    # if(G==1){
-    #   ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
-    #   trib.rows <- unlist(TribRows[ind])#which(kusk_edges@data$reachid %in% unlist(TribRows[ind]))
-    # }else if(G==2){
-    #   ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
-    #   trib.rows <- unlist(TribRows[ind])#which(kusk_edges@data$reachid %in% unlist(TribRows[ind]))
-    #   #Add in portion of stony and southfork
-    #   tribStony <- unlist(TribRows['Stony.River'])[which(kusk_edges@data$iso_pred[unlist(TribRows['Stony.River'])]<0.707)]
-    #   tribSF <- unlist(TribRows['South.Fork.Kuskokwim'])[which(kusk_edges@data$iso_pred[unlist(TribRows['South.Fork.Kuskokwim'])]<0.707)]
-    #   trib.rows <- c(trib.rows,tribStony,tribSF)
-    # }else if(G==3){
-    #   ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
-    #   trib.rows <- unlist(TribRows[ind])
-    #   #Add in portion of stony and southfork
-    #   tribStony <- unlist(TribRows['Stony.River'])[which(kusk_edges@data$iso_pred[unlist(TribRows['Stony.River'])]>=0.707)]
-    #   trib.rows <- c(trib.rows,tribStony,tribSF)
-    # }else if(G==4){
-    #   ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
-    #   trib.rows <- unlist(TribRows[ind])
-    #   tribSF <- unlist(TribRows['South.Fork.Kuskokwim'])[which(kusk_edges@data$iso_pred[unlist(TribRows['South.Fork.Kuskokwim'])]>=0.707)]
-    #   #Add in portion of stony and southfork
-    #   trib.rows <- c(trib.rows,tribSF)
-    # }else if(G==5){
-    #   ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
-    #   trib.rows <- unlist(TribRows[ind])
-    # }
+    trib.rows <- unlist(TribRows[ind])
     PlotCols[trib.rows] <- GroupColors[G]
   }
+
+  pdf(here("Data/reporting groups/kusko",paste0('Kusko_GroupMap','.pdf')),width=9,height=9)
+  plot(st_geometry(kusk_basin), col = "gray", lwd=0.1)
+  plot(st_geometry(kusk_edges), col = PlotCols, pch=16, axes = F,add=TRUE, lwd=0.5)
+  legend("topleft", legend = paste(rep('Group',5),seq(1,5),sep=' '),
+         fill = GroupColors, cex=1, ncol=1)
 }
 
 

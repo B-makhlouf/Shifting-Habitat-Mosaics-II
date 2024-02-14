@@ -39,7 +39,7 @@ FindUpstreamReachID <- function(ReachID){
 }
 
 # To test to see if it works 
-if(T){
+if(F){
   TribReachIDs <- FindUpstreamReachID(14438)
   
   quartz()
@@ -77,7 +77,7 @@ KuskoNetwork <- KuskoNodes %>% rename(child_s = fromnode, parent_s = tonode)
 #' @param ReachID Reach ID value for which upstream reaches need to be determined
 #' @return Vector of upstream reach IDs
 #' 
-FindUpstreamReachID <- function(ReachID) {
+FindUpstreamReachID_Kusk <- function(ReachID) {
   # Select the reach ID from the shapefile that corresponds to the ReachID value passed to the function argument
   TribStartRID <- kuskokwim_shapefile$rid[which(kuskokwim_shapefile$reachid == ReachID)]
   
