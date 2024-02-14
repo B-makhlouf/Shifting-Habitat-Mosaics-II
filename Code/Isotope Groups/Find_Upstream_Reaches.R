@@ -60,8 +60,8 @@ if(F){
 ################################################################################
 
 #Shapefile
-kuskokwim_shapefile <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
-basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
+kusk_edges <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
+kusk_basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
 
 # Load nodes for all tributaries
 KuskoNodes <- read.csv(here('data', 'reporting groups', 'kusko', 'kusko_noderelationships.csv'), header = TRUE, stringsAsFactors = FALSE)
