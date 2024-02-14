@@ -1,6 +1,7 @@
 library(here)
 library(tidyverse)
 library(RColorBrewer)
+library(classInt)
 
 
 #### Attempt to make a map of distinct isotope groups from the Yukon, doesnt work 2/14/24
@@ -56,7 +57,8 @@ if(T){
 
 
 #### Isotope Groups for the Kuskokwim 
-
+clean_Kusko<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Kusko_cleaned.shp")
+clean_Kusko$GroupID<-NA
 
 if(T){
   
@@ -101,8 +103,11 @@ if(T){
     ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit()
     trib.rows <- unlist(TribRows[ind])
     PlotCols[trib.rows] <- GroupColors[G]
+    clean_Kusko$Group[trib.rows] <- G
+    
   }
 
+  
   pdf_path <- here("Data/reporting groups/kusko", paste0('Kusko_GroupMap','.pdf'))
   
   pdf(pdf_path, width=9, height=9)
@@ -114,98 +119,53 @@ if(T){
   
 }
 
+#Export shapefile 
+st_write(clean_Kusko,("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp"))
 
 
 
+### Read in production values for all years 
+kusk_prod_2017<- read_csv(here("Data/Production/Kusko/2017 Kusko_basin_norm.csv"))
+kusk_prod_2018<- read_csv(here("Data/Production/Kusko/2018 Kusko_basin_norm.csv"))
+kusk_prod_2019<- read_csv(here("Data/Production/Kusko/2019 Kusko_basin_norm.csv"))
+kusk_prod_2020<- read_csv(here("Data/Production/Kusko/2020 Kusko_basin_norm.csv"))
+kusk_prod_2021<- read_csv(here("Data/Production/Kusko/2021 Kusko_basin_norm.csv"))
 
 
+# add group list from shapefile to each 
+
+kusk_prod_2017$GroupID<-clean_Kusko$GroupID
+kusk_prod_2018$GroupID<-clean_Kusko$GroupID
+kusk_prod_2019$GroupID<-clean_Kusko$GroupID
+kusk_prod_2020$GroupID<-clean_Kusko$GroupID
+kusk_prod_2021$GroupID<-clean_Kusko$GroupID
 
 
+#Sum by GroupID
+kusk_prod_2017_sum<-kusk_prod_2017 %>% 
+  group_by(GroupID) %>% 
+  summarise_all(sum) %>%
+  rename(prod = basin_assign_rescale)
 
 
+kusk_prod_2017 <- kusk_prod_2017 %>%
+  left_join(kusk_prod_2017_sum, by = "GroupID") %>%
+  #Assign those with a GroupID value of NA, 0 
+  mutate(prod = ifelse(is.na(GroupID), 0, prod))
 
 
+plotvar<- kusk_prod_2017$prod
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### Reads in the tributary list and "extra tributary" list 
-Kusko_extratribs<- read_csv(here("data/reporting groups/kusko/Kusko_ExtraTribs.csv"))
-Kusko_tribs<- read_csv(here("data/reporting groups/kusko/KuskoTribs_reachids.csv"))
-kuskGroups <- read.csv(here('data/reporting groups/kusko/Kusko_Tribs_byGroups.csv'),header=T,stringsAsFactors = F)
-
-#Combined these two into All_tribs_combined
-kuskTrib_all <- bind_rows(
-  Kusko_extratribs %>% rename(river = TribName, reachid = ReachID), #renames columns to match between files
-  Kusko_tribs %>% select(river, reachid) #selects only the necessary columns
-)
-rm(Kusko_tribs, Kusko_extratribs) #removes the old dataframes from the environment
-
-# This runs code which defines the Find_Upstream_reaches function
-source(here('code/Find_Upstream_Reaches_Kusko.R')) 
-
-# Apply the Find_Upstream_Reaches function to all tributaries.
-kuskTrib_IDs<-lapply(1:nrow(kuskTrib_all),FUN=function(x){
-  FindUpstreamReachID(kuskTrib_all$reachid[x])
-})
-names(kuskTrib_IDs) <- kuskTrib_all$river #Add names to each list 
-
-#Calculate the stream exentent of each of these calculated upstream regions
-StreamExtentByTrib <- lapply(kuskTrib_IDs,FUN=function(x){sum(kusk_edges$Shape_Leng[which(kusk_edges$reachid %in% x)])}) %>% unlist()
-kuskTrib_IDs_ordered <- kuskTrib_IDs[order(StreamExtentByTrib)] #order by stream extent 
-names(kuskTrib_IDs_ordered) <- names(kuskTrib_IDs)[order(StreamExtentByTrib)] #add names to each list
-
-#Find upstream tributaries which are unique to each downstream tributary, remove overlap. 
-TribRows <- lapply(1:length(kuskTrib_IDs_ordered),FUN=function(i){
-  onlythisTrib <- which(!(kuskTrib_IDs_ordered[[i]] %in% unlist(kuskTrib_IDs_ordered[1:(i-1)])))
-  
-  if(length(onlythisTrib)>0){ # calculate the part that ONLY belongs to that trib
-    INDX<-kuskTrib_IDs_ordered[[i]][onlythisTrib]
-  }else{
-    INDX<-kuskTrib_IDs_ordered[[i]]
-  }
-  trib.rows <- which(kusk_edges$reachid %in% INDX)
-  return(trib.rows)
-})
-names(TribRows) <- names(kuskTrib_IDs_ordered) #add name  
-
-kuskTable <- matrix(NA,nrow=5,ncol=4) %>% data.frame() # initialize kuskTable
-colnames(kuskTable) <- c('GroupID','PropProd_noEek','StrLeng','Prop_StrLeng') # add column names 
-StreamOrderPrior<- as.numeric(kusk_edges$Strahler >2) # Define stream order prior 
-
-# For each group... 
-for(G in 1:length(unique(kuskGroups$GroupID) %>% na.omit())){
-  ind <- kuskGroups$Trib[kuskGroups$GroupID==G] %>% na.omit() #pull out trib names for that group
-  trib.rows <- unlist(TribRows[ind]) 
-  kuskTable$GroupID[G] <- G # Add group ID number 
-  kuskTable$PropProd_noEek[G] <- normalized_basin_values[trib.rows] %>% sum() # Add normalized basin values for all of the tribs 
-  kuskTable$StrLeng[G] <- ((kusk_edges$Length[trib.rows] * kusk_edges$UniPrioh2o[trib.rows]*StreamOrderPrior[trib.rows]) %>% sum())/1000 # Calculate the stream length
-  
-  BasinLength<-sum(kusk_edges$Length*kusk_edges$UniPh2oNoE*StreamOrderPrior)/1000 #sum all possible habitat to get the denominator 
-  kuskTable$Prop_StrLeng <- kuskTable$StrLeng/BasinLength #Calculate the proportion of stream length 
-  kuskTable$TotalRun_noEek<-kuskTable$PropProd_noEek* run_size / 1000 # calculate the total run # for everywhere but the eek 
-  kuskTable$PerDiff_noEek<-((kuskTable$PropProd_noEek-kuskTable$Prop_StrLeng)/kuskTable$Prop_StrLeng) #calculate the difference between the rest and eek 
-  
-  filename<- paste0(identifier, "_iso_group_results.csv")
-  filepath<- file.path(here("results/Reporting group results", filename))
-  write_csv(kuskTable, filepath)
-  
-}
-
-
-
-
-
-
+breaks <- seq(min(plotvar), max(plotvar), length= 5)
+nclr <- length(breaks)
+filename <- ("2017 Kusko Group Prod_.pdf")
+filepath <- file.path(here("Data/reporting groups/kusko", filename))
+pdf(file = filepath, width = 9, height = 6)
+class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
+plotclr <- brewer.pal(nclr, "YlOrRd")
+colcode <- findColours(class, plotclr, digits = 2)
+colcode[plotvar == 0] <- 'gray80'
+plot(st_geometry(kusk_basin), col = 'gray60', border = 'gray48')
+plot(st_geometry(kusk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .7 * (exp(plotvar) - 1)))
+dev.off()
 
