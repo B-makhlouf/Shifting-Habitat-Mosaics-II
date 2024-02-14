@@ -61,7 +61,6 @@ if(T){
 
 #Shapefile
 kuskokwim_shapefile <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
-
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
 
 # Load nodes for all tributaries
