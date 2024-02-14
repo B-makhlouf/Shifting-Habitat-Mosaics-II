@@ -8,6 +8,7 @@
 library(lubridate)
 library(tidyverse)
 library(here)
+library(lubridate)
 
 ### Data 
 
@@ -48,7 +49,14 @@ natal_values<- read_csv(here("Data/Natal Origin/2018_Kusko_natal_data.csv"))
 CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2018.csv"))
 identifier <- "2018_Kusko"
 
+#2019 Kusko
+natal_values<- read_csv(here("Data/Natal Origin/2019_Kusko_natal_data.csv"))
+CPUE <- read_csv(here("Data/CPUE/Kusko CPUE 2019.csv"))
+identifier <- "2019_Kusko"
 
+#2020 Kusko
+
+#2021 Kusko 
 
 # ------------------------------------------------------------------------------
 ## Summarizes the # of fish caught on that day of the year.
@@ -97,6 +105,9 @@ for (i in 1:length(strat.wt)) {
   otomean <- mean(CPUE$otoPROP[which(strat == i)])  # Mean otoPROP for the stratum
   strat.wt[i] <- CPUEmean / otomean  # Calculate stratum weight
 }
+
+#make any NA values 0 
+strat.wt[is.na(strat.wt)] <- 0
 
 # Normalize the strata weight
 strat.wt <- strat.wt / sum(strat.wt)  
@@ -152,14 +163,6 @@ exp_CPUE_2017$year<- 2017
 exp_CPUE_2018<- read_csv(here("Data/CPUE/2018_Yukon_expanded_CPUE.csv"))
 exp_CPUE_2018$year<- 2018
 
-#2017 Kusko
-#exp_CPUE_2017_Kusko<- read_csv(here("Data/CPUE/2017_Kusko_expanded_CPUE.csv"))
-#exp_CPUE_2017_Kusko$year<- 2017
-
-#2018 Kusko
-#exp_CPUE_2018_Kusko<- read_csv(here("Data/CPUE/2018_Kusko_expanded_CPUE.csv"))
-#exp_CPUE_2018_Kusko$year<- 2018
-
 #2019 Yukon
 exp_CPUE_2019<- read_csv(here("Data/CPUE/2019_Yukon_expanded_CPUE.csv"))
 exp_CPUE_2019$year<- 2019
@@ -200,4 +203,9 @@ CPUE_otocatch<- ggplot(all_exp_CPUE, aes(x = DOY, y = dailyCPUE, color = as.fact
   facet_wrap(~ year, nrow = 2, ncol = 3)
 
 ggsave(filename = "CPUE_otocatch.pdf", plot = CPUE_otocatch, path = here("Figures","Graphs"), dpi = 300)
+
+
+
+
+
 
