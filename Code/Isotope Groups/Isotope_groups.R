@@ -6,6 +6,7 @@ library(classInt)
 
 #### Attempt to make a map of distinct isotope groups from the Yukon, doesnt work 2/14/24
 if(T){
+  clean_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_cleaned.shp")
   YukonGroups<- read_csv(here("data/reporting groups/yukon/Yukon_Tribs_byGroups.csv"))
   source(here("Code/Isotope Groups/Find_Upstream_Reaches.R"))
   
@@ -16,6 +17,7 @@ if(T){
   })
   
   names(YukonTrib_IDs) <- Yukon_tribs_all$river
+  
   StreamExtentByTrib <- lapply(YukonTrib_IDs,FUN=function(x){sum(yuk_edges$Shape_Leng[which(yuk_edges$reachid %in% x)])}) %>% unlist()
   YukonTrib_IDs_ordered <- YukonTrib_IDs[order(StreamExtentByTrib)]
   names(YukonTrib_IDs_ordered) <- names(YukonTrib_IDs)[order(StreamExtentByTrib)]
@@ -33,8 +35,20 @@ if(T){
     return(trib.rows)
   })
   
+  clean_Yukon$tributary_name<-NA
   names(TribRows) <- names(YukonTrib_IDs_ordered)
-
+  
+  for (trib_name in names(TribRows)) {
+    ind <- unlist(TribRows[[trib_name]])
+    clean_Yukon$tributary_name[ind] <- trib_name
+  }
+  
+  
+ # export shapefile using sf
+  
+  st_write(clean_Yukon, "/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
+  
+  
   UniG<-unique(YukonGroups$GroupID) %>% na.omit()
   GroupColors <- GroupColors <- c("red", "blue", "green", "orange", "purple", "cyan", "magenta", "yellow", "brown", "darkgreen", "darkblue", "darkred", "darkorange")
   
@@ -54,6 +68,10 @@ if(T){
          fill = GroupColors, cex=1, ncol=1)
   dev.off()
 }
+
+########################################################################################################
+########################################################################################################
+####################################### Kuskokwim ######################################################
 
 
 #### Isotope Groups for the Kuskokwim 
@@ -95,6 +113,16 @@ if(T){
   })
   
   names(TribRows) <- names(kuskTrib_IDs_ordered) #Tribrows now contains unique values for each tributary grouping, no overlap of upstream reaches. 
+  
+  for (trib_name in names(TribRows)) {
+    ind <- unlist(TribRows[[trib_name]])
+    clean_Kusko$tributary_name[ind] <- trib_name
+  }
+  
+  #export shapefile using sf
+  
+  st_write(clean_Kusko, "/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Kusko_w.tribnames.shp")
+  
   UniG<-unique(kuskGroups$GroupID) %>% na.omit() #How many Unique groupIDs are there? 
   GroupColors <- brewer.pal(5,'Set1')
   PlotCols<-rep('gray60',length(kusk_edges$rid))
@@ -121,6 +149,12 @@ if(T){
 
 #Export shapefile 
 st_write(clean_Kusko,("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp"))
+
+
+
+
+
+
 
 
 
