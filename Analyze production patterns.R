@@ -44,7 +44,10 @@ yuk_2021_all$Year<-2021
 #Combine all the years into one dataframe
 yuk_all<-rbind(yuk_2015_all,yuk_2016_all,yuk_2017_all,yuk_2019_all,yuk_2021_all)
 
-#Combine across years 
+
+
+########## Data frame to compare among years 
+
 yuk_across_years<- data_frame(tributary = yuk_2015_all$tribs, 
                               Stream_order = yuk_2015_all$stream_order,
                               stream_length = yuk_2015_all$stream_length,
@@ -53,25 +56,25 @@ yuk_across_years<- data_frame(tributary = yuk_2015_all$tribs,
                               yuk_2021 = yuk_2021_all$rescaled,
                               avg_mean = (yuk_2015_all$rescaled + yuk_2016_all$rescaled +  yuk_2021_all$rescaled)/5)
 
-#Add sd 
-yuk_across_years <- yuk_across_years %>%
+
+yuk_across_years <- yuk_across_years %>% #Standard deviation
   rowwise() %>%
   mutate(sd = sd(c(year_2015, year_2016, yuk_2021)))
 
-# Calculate the coefficient of variation for each row 
-yuk_across_years <- yuk_across_years %>%
+
+yuk_across_years <- yuk_across_years %>% #Coefficient of variation 
   rowwise() %>%
   mutate(cv = sd/avg_mean)
 
-
-# rescale all the production estimates to be between 0 and 1
-yuk_across_years$rescaled <- (yuk_across_years$avg_mean - min(yuk_across_years$avg_mean)) / (max(yuk_across_years$avg_mean) - min(yuk_across_years$avg_mean))
 
 ###### production estimates 
 
 fishcount2015<- 116000 #cumulative passage estimate
 fishcount2016<- 176900 
 fishcount2021<- 124874
+
+
+######## Same as Yuk_across_years but with fish values 
 
 fish_across_years <- data_frame(
   tributary = yuk_2015_all$tribs,
@@ -85,31 +88,34 @@ fish_across_years <- data_frame(
 fish_across_years <- mutate(fish_across_years,
                             avg_mean = (year_2015 + year_2016 + year_2021) / 3)
 
-fish_across_years <- fish_across_years %>%
+fish_across_years <- fish_across_years %>% #SD 
   rowwise() %>%
   mutate(sd = sd(c(year_2015, year_2016, year_2021)))
 
-fish_across_years <- fish_across_years %>%
+fish_across_years <- fish_across_years %>% #CV 
   rowwise() %>%
   mutate(cv = sd/avg_mean)
 
 tributary_names<-unique(yuk_across_years$tributary)
 
-#sum all the stream length values for each tributary name 
+
+###### Sorting by watershed size 
+
 tributary_length<- yuk_across_years %>%
   group_by(tributary) %>%
   summarize(total_length = sum(stream_length))
 
-#sort by tributary length largest to smallest 
 tributary_length<- tributary_length[order(-tributary_length$total_length),]
 
-#Remove NA tributary name and filter out the top 5 tributaries
 tributary_length<- tributary_length[!is.na(tributary_length$tributary),]
 
 Largest_tribs<- tributary_length[1:5,]
 
 
 
+######### Calculate CV vs Stream order 
+
+trib_data_list <- list()
 by_trib_cv<- data_frame(tributary = NA, 
                         StrOrd = NA, 
                         mean_cv = NA,
@@ -117,21 +123,15 @@ by_trib_cv<- data_frame(tributary = NA,
                         mean_prod = NA, 
                         range_prod = NA) 
 
-
-# Initialize an empty list to store data frames
-trib_data_list <- list()
-
-
 ###############-----------------------------------------------------------------
 
+### Calculate for 5 largest tribs and plot 
 
 for (x in 1:5) {
   
   current_trib <- fish_across_years %>%
     filter(tributary == Largest_tribs$tributary[x])
 
-  
-  # Initialize an empty list to store data frames for each i
   trib_data <- list()
   
   for (i in 3:7) {
@@ -139,8 +139,6 @@ for (x in 1:5) {
     current_trib_cv_select <- current_trib %>%
       filter(Stream_order <= i)
     
-    
-    # Create a data frame for the current i value
     by_trib_cv <- data.frame(
       Tributary = Largest_tribs$tributary[x],
       StrOrd = i,
@@ -157,10 +155,6 @@ for (x in 1:5) {
   trib_data_list[[x]] <- trib_data
   
 }
-
-
-
-
 names(trib_data_list) <- Largest_tribs$tributary
 
 combined_data <- bind_rows(unlist(trib_data_list, recursive = FALSE))
@@ -169,3 +163,57 @@ plot <- ggplot(combined_data, aes(x = StrOrd, y = mean_cv)) +
 geom_point() +
   facet_wrap(~ Tributary) +
   labs(x = "Mean Production", y = "Coefficient of Variation", title = "CV vs Mean Production by Tributary")
+
+
+############################################################################################################
+
+# Do the same thing, but for the top 10 tributaries by number of fish
+
+Most_productive <- fish_across_years %>%
+  group_by(tributary) %>%
+  summarize(total_prod = sum(avg_mean)) %>%
+  filter(!is.na(tributary)) %>%
+  arrange(desc(total_prod)) 
+  #head(10)
+
+trib_data_list <- list()
+
+for (x in 1:length(Most_productive$tributary)) {
+  
+  current_trib <- fish_across_years %>%
+    filter(tributary == Most_productive$tributary[x])
+
+  trib_data <- list()
+  
+  for (i in 3:7) {
+
+    current_trib_cv_select <- current_trib %>%
+      filter(Stream_order <= i)
+    
+    by_trib_cv <- data.frame(
+      Tributary = Most_productive$tributary[x],
+      StrOrd = i,
+      mean_cv = mean(current_trib_cv_select$cv),
+      mean_prod = mean(current_trib_cv_select$avg_mean)
+    )
+    
+    # Store the data frame in the list
+    trib_data[[i - 2]] <- by_trib_cv  # Store at index corresponding to i value
+    
+  }
+  
+  # Store the list of data frames for the current tributary in the main list
+  trib_data_list[[x]] <- trib_data
+  
+}
+
+names(trib_data_list) <- Most_productive$tributary
+
+combined_data <- bind_rows(unlist(trib_data_list, recursive = FALSE))
+
+#plot
+plot2 <- ggplot(combined_data, aes(x = StrOrd, y = mean_cv)) +
+  geom_point() +
+  facet_wrap(~ Tributary) +
+  labs(x = "Mean Production", y = "Coefficient of Variation", title = "CV vs Mean Production by Tributary")
+
