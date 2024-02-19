@@ -95,6 +95,19 @@ fish_across_years <- fish_across_years %>%
 
 tributary_names<-unique(yuk_across_years$tributary)
 
+#sum all the stream length values for each tributary name 
+tributary_length<- yuk_across_years %>%
+  group_by(tributary) %>%
+  summarize(total_length = sum(stream_length))
+
+#sort by tributary length largest to smallest 
+tributary_length<- tributary_length[order(-tributary_length$total_length),]
+
+#Remove NA tributary name and filter out the top 5 tributaries
+tributary_length<- tributary_length[!is.na(tributary_length$tributary),]
+
+Largest_tribs<- tributary_length[1:5,]
+
 
 
 by_trib_cv<- data_frame(tributary = NA, 
@@ -112,25 +125,24 @@ trib_data_list <- list()
 ###############-----------------------------------------------------------------
 
 
-
-for (x in 1:length(tributary_names)) {
+for (x in 1:5) {
   
   current_trib <- fish_across_years %>%
-    filter(tributary == tributary_names[x])
+    filter(tributary == Largest_tribs$tributary[x])
 
   
   # Initialize an empty list to store data frames for each i
   trib_data <- list()
   
-  for (i in 3:9) {
-    
+  for (i in 3:7) {
+
     current_trib_cv_select <- current_trib %>%
       filter(Stream_order <= i)
     
     
     # Create a data frame for the current i value
     by_trib_cv <- data.frame(
-      Tributary = tributary_names[x],
+      Tributary = Largest_tribs$tributary[x],
       StrOrd = i,
       mean_cv = mean(current_trib_cv_select$cv),
       mean_prod = mean(current_trib_cv_select$avg_mean)
@@ -149,7 +161,8 @@ for (x in 1:length(tributary_names)) {
 
 
 
-names(trib_data_list) <- tributary_names
+names(trib_data_list) <- Largest_tribs$tributary
+
 combined_data <- bind_rows(unlist(trib_data_list, recursive = FALSE))
 
 plot <- ggplot(combined_data, aes(x = StrOrd, y = mean_cv)) +
