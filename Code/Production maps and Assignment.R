@@ -20,9 +20,8 @@ if (T){
 year<- 2015
 sensitivity_threshold <- 0.7
 filter_quartile_date <- NULL
-filter_half <- NULL
+filter_half <- "H1"
 plot_show <- NULL
-i<-1
 }
 
 ########################################################
@@ -208,8 +207,9 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   ################################################################################
   
     # Save as PDF
-    #breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
-    breaks <- c(0, .2, .4, .6, .7, .8, .9, 1)
+   # breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+   # breaks <- c(0, .2, .4, .6, .7, .8, .9, 1)
+    breaks <- c(0, .3, .7, 1)
     nclr <- length(breaks)
     filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
     filepath <- file.path(here("Figures", "Maps", "Yukon", year, filename))
@@ -240,6 +240,15 @@ sensitivity_threshold<- .7
 for (i in 1:length(years)) {
   year <- years[i]
   Yukon_map(year, sensitivity_threshold)
+}
+
+#Create maps for H1 and H2 using the same sensitivity threshold 
+sensitivity_threshold<- .6
+
+for(i in 1:length(years)) {
+  year <- years[i]
+  Yukon_map(year, sensitivity_threshold, filter_half= "H1" )
+  Yukon_map(year, sensitivity_threshold, filter_half = "H2")
 }
 
 

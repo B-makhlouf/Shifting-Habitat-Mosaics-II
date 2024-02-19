@@ -2,9 +2,10 @@ library(here)
 library(tidyverse)
 library(RColorBrewer)
 library(classInt)
+library(sf)
 
+#################### YUKON 
 
-#### Attempt to make a map of distinct isotope groups from the Yukon, doesnt work 2/14/24
 if(T){
   clean_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_cleaned.shp")
   YukonGroups<- read_csv(here("data/reporting groups/yukon/Yukon_Tribs_byGroups.csv"))
@@ -43,8 +44,29 @@ if(T){
     clean_Yukon$tributary_name[ind] <- trib_name
   }
   
+  iso_by_trib<- list()
   
- # export shapefile using sf
+  for (trib_name in names(TribRows)){
+    ind <- unlist(TribRows[[trib_name]])
+    iso_by_trib[[trib_name]] <- clean_Yukon$iso_pred[ind]
+  }
+  
+  #Put all into one data frame 
+  iso_by_trib_df <- data.frame(tributary_name=rep(names(TribRows),times=sapply(iso_by_trib,length)),
+                               isotope=unlist(iso_by_trib))
+  
+  #order
+  tribs_ordered_iso <- iso_by_trib_df %>% group_by(tributary_name) %>% summarise(mean_isotope=mean(isotope)) %>% arrange(mean_isotope)
+  
+  ordered_iso_by_trib_df$tributary_name <- factor(ordered_iso_by_trib_df$tributary_name, 
+                                                  levels = unique(ordered_iso_by_trib_df$tributary_name))
+  
+  # Create boxplots
+  ggplot(ordered_iso_by_trib_df, aes(x = tributary_name, y = isotope)) + 
+    geom_boxplot() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  
+  # export shapefile using sf
   
   st_write(clean_Yukon, "/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
   
