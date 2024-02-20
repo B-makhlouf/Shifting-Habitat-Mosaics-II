@@ -11,35 +11,8 @@ library(stringr)
 library(lubridate)
 
 
-year<- 2017 
+year<- 2018
 sensitivity_threshold<- .7 
-
-
-##Kusko 2017 
-natal_origins<- read.csv(here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
-CPUE<- read.csv(here("Data/CPUE/CPUE_weights/2017_Kusko_CPUE weights.csv")) 
-CPUE<- CPUE %>% unlist() %>% as.numeric()
-identifier<- "2017 Kusko"
-
-#Kusko 2018 
-natal_values<- read.csv(here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
-CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2017_Kusko_CPUE weights.csv")) 
-identifier<- "2017 Kusko"
-
-#Kusko 2019 
-natal_values<- read.csv(here("Data/Natal Origin/2019_Kusko_natal_data.csv"))
-CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2019_Kusko_CPUE weights.csv"))
-identifier<- "2019 Kusko"
-
-#Kusko 2020 
-natal_values<- read.csv(here("Data/Natal Origin/2020_Kusko_natal_data.csv"))
-CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2020_Kusko_CPUE weights.csv"))
-identifier<- "2020 Kusko"
-
-#Kusko 2021 
-natal_values<- read.csv(here("Data/Natal Origin/2021_Kusko_natal_data.csv"))
-CPUE_weights<- read.csv(here("Data/CPUE/CPUE_weights/2021_Kusko_CPUE weights.csv"))
-identifier<- "2021 Kusko"
 
 
 
@@ -59,12 +32,13 @@ Kusko_map <- function(year, sensitivity_threshold) {
 
   # Read data based on the year
   natal_origins <- read.csv(paste("Data/Natal Origin/", year, "_Kusko_natal_data.csv", sep = ""))
-  CPUE <- read.csv(here("Data/CPUE/CPUE_weights/", paste(year, "_Kusko_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
-
+  #CPUE <- read.csv(here("Data/CPUE/CPUE_weights/", paste(year, "_Kusko_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  
   ## ----- Extract isoscape prediction + error values -----------------------------
   
   pid_iso <- kusk_edges$iso_pred # Sr8786 value
   pid_isose <- kusk_edges$isose_pred # Error
+  pid_isose[pid_isose < .0005] <- .0005 #bump up error in really low error places 
   pid_prior <- kusk_edges$UniPh2oNoE#Habitat prior ( RCA slope)
 
   ###----- Variance Generating Processes ------------------------------------------
@@ -96,18 +70,17 @@ Kusko_map <- function(year, sensitivity_threshold) {
     # normalize so all values sum to 1 (probability distribution)
     assign_norm <- assign / sum(assign) 
     
-    assign_norm <- assign_norm * CPUE[i] # multiply times the CPUE
+    assign_norm <- assign_norm #* CPUE[i] # multiply times the CPUE
     
     #rescale so that all values are between 0 and 1 
     assign_rescaled <- assign_norm / max(assign_norm) 
     
     
-    percentile <- quantile(assign_rescaled[!is.na(assign_rescaled) & assign_rescaled != 0], probs = sensitivity_threshold)
+    assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+    assignment_matrix[,i] <- assign_rescale_removed
     
-    # Apply the operation only to non-zero and non-NA values
-    assign_rescale_removed <- ifelse(!is.na(assign_rescaled) & assign_rescaled != 0 & assign_rescaled >= percentile, 1, 0)
+    #assignment_matrix[,i] <- assign_rescaled
     
-    assignment_matrix[,i] <- assign_rescaled
   }
   
   ###------- BASIN SCALE VALUES ----------------------------------------
@@ -133,8 +106,8 @@ Kusko_map <- function(year, sensitivity_threshold) {
   ################################################################################
   
   # Save as PDF
-  breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
-  #breaks <- c(0, .4, .6, .7, .8, .9, 1)
+  #breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+  breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
   nclr <- length(breaks)
   filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
   filepath <- file.path(here("Figures", "Maps", "Kusko", filename))
@@ -155,26 +128,29 @@ Kusko_map <- function(year, sensitivity_threshold) {
   ## Write out a time enabled shapefile
   ################################################################################
   
-  only_edges<- st_geometry(kusk_edges)
-  only_edges<- st_as_sf(only_edges)
+  #only_edges<- st_geometry(kusk_edges)
+  #only_edges<- st_as_sf(only_edges)
   
   #add production data
-  only_edges$production <- basin_assign_norm
+  #only_edges$production <- basin_assign_norm
   
   #add year 
-  only_edges$year <- year
+  #only_edges$year <- year
   
   #Export shapefile 
-  filename<- paste0(identifier, "_", ".shp")
-  filepath<- file.path(here("/Users/benjaminmakhlouf/Desktop/Animation_Shapefiles", filename))
+  #filename<- paste0(identifier, "_", ".shp")
+  #filepath<- file.path(here("/Users/benjaminmakhlouf/Desktop/Animation_Shapefiles", filename))
   
-  st_write(only_edges, filepath)
+  #st_write(only_edges, filepath)
 }
 
 
-Kusko_map(2017,.7)
-Kusko_map(2018,.7)
-Kusko_map(2019,.7)
-Kusko_map(2020,.7)
-Kusko_map(2021,.7)
+Kusko_map(2017,.75)
+Kusko_map(2018,.75)
+Kusko_map(2019,.75)
+Kusko_map(2020,.75)
+Kusko_map(2021,.75)
+
+summary(pid_isose)
+
 

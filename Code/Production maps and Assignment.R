@@ -153,9 +153,11 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     #rescale so that all values are between 0 and 1 
     assign_rescaled <- assign_norm / max(assign_norm) 
     
-    percentile_80 <- quantile(assign_rescaled, probs = sensitivity_threshold)
-    assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, 1, 0)
     
+    #percentile_80 <- quantile(assign_rescaled, probs = sensitivity_threshold)
+    #assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, assign_rescaled, 0)
+    
+    assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
     assignment_matrix[,i] <- assign_rescale_removed
     
     oto_info_df <- tibble(
@@ -181,6 +183,14 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
   ###------- BASIN SCALE VALUES ----------------------------------------
   
+  assignment_matrix_df<- as.data.frame(assignment_matrix)
+  
+  #export as csv 
+  filename<- paste0("ASSIGN_MATRIX", identifier, "_", sensitivity_threshold, ".csv")
+  filepath<- file.path(here("Data", "Production", "Yukon", filename))
+  write.csv(assignment_matrix_df, filepath)
+  
+
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
   basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
   basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
@@ -208,8 +218,8 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
     # Save as PDF
    # breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
-   # breaks <- c(0, .2, .4, .6, .7, .8, .9, 1)
-    breaks <- c(0, .3, .7, 1)
+    breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
+    #breaks <- c(0, .3, .7, 1)
     nclr <- length(breaks)
     filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
     filepath <- file.path(here("Figures", "Maps", "Yukon", year, filename))
@@ -218,11 +228,12 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
     plotclr <- brewer.pal(nclr, "YlOrRd")
     colcode <- findColours(class, plotclr, digits = 2)
-    colcode[plotvar == 0] <- 'gray80'
+    colcode[plotvar == 0] <- 'gray60'
+    colcode[plotvar < .2] <- 'gray80'
     colcode[which(StreamOrderPrior == 0)] <- 'gray60'
     colcode[which(pid_prior == 0)] <- 'gray60'
     plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
-    plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .7 * (exp(plotvar) - 1)))
+    plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
     dev.off()
   }
 
@@ -234,7 +245,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
 
 # List of years with data
 years <- c(2015, 2016, 2017, 2019, 2021)
-sensitivity_threshold<- .7
+sensitivity_threshold<- .75
 
 #iterate through all the years and run the function 
 for (i in 1:length(years)) {
@@ -243,7 +254,7 @@ for (i in 1:length(years)) {
 }
 
 #Create maps for H1 and H2 using the same sensitivity threshold 
-sensitivity_threshold<- .6
+sensitivity_threshold<- .75
 
 for(i in 1:length(years)) {
   year <- years[i]
