@@ -123,6 +123,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
   ###----- CREATE EMPTY MATRICES -------------------------------------------------
   output_matrix <- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(natal_origins))
+  max_matrix<- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(natal_origins))
   l<-length(natal_origins[, 1])
   f.strata.vec <- rep(NA,l)
   assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
@@ -158,7 +159,13 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     #assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, assign_rescaled, 0)
     
     assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+    
+    #keep only the maximum value, all others 0 
+    assign_max <- ifelse(assign_rescale_removed == max(assign_rescale_removed), assign_rescale_removed, 0)
+    
+    
     assignment_matrix[,i] <- assign_rescale_removed
+    max_matrix[,i] <- assign_max
     
     oto_info_df <- tibble(
       fish.id = natal_origins$fish.id[i], 
@@ -190,7 +197,11 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   filepath<- file.path(here("Data", "Production", "Yukon", filename))
   write.csv(assignment_matrix_df, filepath)
   
-
+  #export max matrix 
+  filename<- paste0("MAX_MATRIX", identifier, "_", sensitivity_threshold, ".csv")
+  filepath<- file.path(here("Data", "Production", "Yukon", filename))
+  write.csv(max_matrix, filepath)
+  
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
   basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
   basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 

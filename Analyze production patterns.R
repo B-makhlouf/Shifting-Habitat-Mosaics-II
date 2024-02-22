@@ -7,11 +7,11 @@ library(here)
 yuk_edges<-st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
 
 ## Read in all the data for the full years of the Yukon 
-yuk_2015_all<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.5_basin_norm.csv")) 
-yuk_2016_all<- read_csv(here("Data/Production/Yukon/2016_full_Yukon_0.5_basin_norm.csv"))
-yuk_2017_all<- read_csv(here("Data/Production/Yukon/2017_full_Yukon_0.5_basin_norm.csv"))
-yuk_2019_all<- read_csv(here("Data/Production/Yukon/2019_full_Yukon_0.5_basin_norm.csv"))
-yuk_2021_all<- read_csv(here("Data/Production/Yukon/2021_full_Yukon_0.5_basin_norm.csv"))
+yuk_2015_all<- read_csv(here("Data/Production/Yukon/2015_full_Yukon_0.75_basin_norm.csv")) 
+yuk_2016_all<- read_csv(here("Data/Production/Yukon/2016_full_Yukon_0.75_basin_norm.csv"))
+yuk_2017_all<- read_csv(here("Data/Production/Yukon/2017_full_Yukon_0.75_basin_norm.csv"))
+yuk_2019_all<- read_csv(here("Data/Production/Yukon/2019_full_Yukon_0.75_basin_norm.csv"))
+yuk_2021_all<- read_csv(here("Data/Production/Yukon/2021_full_Yukon_0.75_basin_norm.csv"))
 
 #Add stream order values to production estimates based on the indices of edges
 yuk_2015_all$stream_order<- yuk_edges$Str_Ord
@@ -43,7 +43,6 @@ yuk_2021_all$Year<-2021
 
 #Combine all the years into one dataframe
 yuk_all<-rbind(yuk_2015_all,yuk_2016_all,yuk_2017_all,yuk_2019_all,yuk_2021_all)
-
 
 
 ########## Data frame to compare among years 
@@ -126,13 +125,16 @@ by_trib_cv<- data_frame(tributary = NA,
 ###############-----------------------------------------------------------------
 
 ### Calculate for 5 largest tribs and plot 
-
+x<-1
 for (x in 1:5) {
   
   current_trib <- fish_across_years %>%
-    filter(tributary == Largest_tribs$tributary[x])
+    filter(tributary == Largest_tribs$tributary[x])%>% 
+    #Remove NA values 
+    na.omit()
 
-  trib_data <- list()
+ 
+     trib_data <- list()
   
   for (i in 3:7) {
 
@@ -163,6 +165,12 @@ plot <- ggplot(combined_data, aes(x = StrOrd, y = mean_cv)) +
 geom_point() +
   facet_wrap(~ Tributary) +
   labs(x = "Mean Production", y = "Coefficient of Variation", title = "CV vs Mean Production by Tributary")
+
+
+
+
+plot
+
 
 
 ############################################################################################################
@@ -217,3 +225,4 @@ plot2 <- ggplot(combined_data, aes(x = StrOrd, y = mean_cv)) +
   facet_wrap(~ Tributary) +
   labs(x = "Mean Production", y = "Coefficient of Variation", title = "CV vs Mean Production by Tributary")
 
+plot2

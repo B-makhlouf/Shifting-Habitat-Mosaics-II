@@ -15,9 +15,6 @@ year<- 2018
 sensitivity_threshold<- .7 
 
 
-
-
-
 #Isoscape and Basin Shapefile 
 kusk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
