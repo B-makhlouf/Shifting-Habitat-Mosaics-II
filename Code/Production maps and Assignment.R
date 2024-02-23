@@ -133,6 +133,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   ###### ASSIGNMENTS HERE ##### 
   #############################
   ## loop for assingments
+  
   for (i in 1:length(natal_origins[, 1])) {
   
     iso_o <- natal_origins[i, "natal_iso_mean"] %>% as.numeric()  # Otolith ratio
@@ -160,11 +161,13 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     
     assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
     
-    #keep only the maximum value, all others 0 
-    assign_max <- ifelse(assign_rescale_removed == max(assign_rescale_removed), assign_rescale_removed, 0)
+    max_value <- max(assign_rescale_removed)
     
+    # Assign 0 to all values except the maximum value
+    assign_max <- ifelse(assign_rescale_removed == max_value, assign_rescale_removed, 0)
     
     assignment_matrix[,i] <- assign_rescale_removed
+    
     max_matrix[,i] <- assign_max
     
     oto_info_df <- tibble(
@@ -198,9 +201,10 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   write.csv(assignment_matrix_df, filepath)
   
   #export max matrix 
+  max_matrix_df<- as.data.frame(max_matrix)
   filename<- paste0("MAX_MATRIX", identifier, "_", sensitivity_threshold, ".csv")
   filepath<- file.path(here("Data", "Production", "Yukon", filename))
-  write.csv(max_matrix, filepath)
+  write.csv(max_matrix_df, filepath)
   
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
   basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location

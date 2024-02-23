@@ -226,3 +226,83 @@ plot2 <- ggplot(combined_data, aes(x = StrOrd, y = mean_cv)) +
   labs(x = "Mean Production", y = "Coefficient of Variation", title = "CV vs Mean Production by Tributary")
 
 plot2
+
+
+########################### Explore most likely tributary 
+
+# Read in the files with only the most likely value as non0 
+most_likely_matrix_2015 <- read_csv(here("Data/Production/Yukon/MAX_MATRIX2015_full_Yukon_0.75.csv"))
+
+#read in the shapefile with tributaries 
+trib_shape <- read_sf(here("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp"))
+
+#Create a data frame with all tributary names and a count collumn 
+Trib_count_2015<- data_frame(tributary = unique(trib_shape$trbtry_), 
+                             count = 0)
+
+for (i in 1:ncol(most_likely_matrix_2015)) {
+  # Find the non-zero values in each column
+  non_zero_values <- most_likely_matrix_2015[, i][most_likely_matrix_2015[, i] != 0]
+  
+  # Find the corresponding tributary names
+  trib_names <- trib_shape$trbtry_[which(most_likely_matrix_2015[, i] != 0)]
+
+  row_index <- which(Trib_count_2015$tributary == trib_names)
+  
+  Trib_count_2015$count[row_index] <- Trib_count_2015$count[row_index] + 1
+  
+  Trib_count_2015$year<- 2015 
+}
+
+#Repeat this process for 2016 
+most_likely_matrix_2016 <- read_csv(here("Data/Production/Yukon/MAX_MATRIX2016_full_Yukon_0.75.csv"))
+
+# remove the first column 
+most_likely_matrix_2016 <- most_likely_matrix_2016[,-1]
+
+Trib_count_2016<- data_frame(tributary = unique(trib_shape$trbtry_), 
+                             count = 0)
+
+for (i in 1:ncol(most_likely_matrix_2016)) {
+  # Find the non-zero values in each column
+  non_zero_values <- most_likely_matrix_2016[, i][most_likely_matrix_2016[, i] != 0]
+  
+  # Find the corresponding tributary names
+  trib_names <- trib_shape$trbtry_[which(most_likely_matrix_2016[, i] != 0)]
+  
+  row_index <- which(Trib_count_2016$tributary == trib_names)
+  
+  Trib_count_2016$count[row_index] <- Trib_count_2016$count[row_index] + 1
+  
+  Trib_count_2016$year<- 2016 
+}
+# repeat for 2019 
+
+most_likely_matrix_2019 <- read_csv(here("Data/Production/Yukon/MAX_MATRIX2019_full_Yukon_0.75.csv"))
+
+# remove the first column
+most_likely_matrix_2019 <- most_likely_matrix_2019[,-1]
+
+Trib_count_2019<- data_frame(tributary = unique(trib_shape$trbtry_), 
+                             count = 0)
+
+for (i in 1:ncol(most_likely_matrix_2019)) {
+  # Find the non-zero values in each column
+  non_zero_values <- most_likely_matrix_2019[, i][most_likely_matrix_2019[, i] != 0]
+  
+  # Find the corresponding tributary names
+  trib_names <- trib_shape$trbtry_[which(most_likely_matrix_2019[, i] != 0)]
+  
+  row_index <- which(Trib_count_2019$tributary == trib_names)
+  
+  Trib_count_2019$count[row_index] <- Trib_count_2019$count[row_index] + 1
+  Trib_count_2019$year <- 2019
+}
+
+# Combine all three data frames 
+Trib_count_all <- bind_rows(Trib_count_2015, Trib_count_2016, Trib_count_2019)
+
+# Show count by year, separated by tributary 
+ggplot(Trib_count_all, aes(x = year, y = count, color = tributary)) +
+  geom_line() +
+  labs(x = "Year", y = "Count", title = "Count of Most Likely Tributary by Year")
