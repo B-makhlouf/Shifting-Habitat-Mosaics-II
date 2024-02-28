@@ -306,3 +306,23 @@ Trib_count_all <- bind_rows(Trib_count_2015, Trib_count_2016, Trib_count_2019)
 ggplot(Trib_count_all, aes(x = year, y = count, color = tributary)) +
   geom_line() +
   labs(x = "Year", y = "Count", title = "Count of Most Likely Tributary by Year")
+
+
+
+############################################## 
+
+
+# Explore variation by individual 
+
+Yuk_ind_2015<- read_csv(here("/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Data/Production/Yukon/ASSIGN_MATRIX2015_full_Yukon_0.9.csv"))
+
+#remove the first column
+Yuk_ind_2015 <- Yuk_ind_2015[,-1]
+
+#extract the first collumn, into a vector of values 
+Yuk_ind_2015_1 <- as.vector(Yuk_ind_2015$V1)
+
+# ggplot hist of vlues
+ggplot(Yuk_ind_2015, aes(x = V1)) +
+  geom_histogram(binwidth = 0.1) +
+  labs(x = "Value", y = "Count", title = "Distribution of Values in 2015")
