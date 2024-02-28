@@ -11,7 +11,8 @@ library(sf)
 
 ###----- Shapefiles ------------------------------------------------------------
 #Shapefiles
-yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_bigtribs.shp")
+#yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 
@@ -110,9 +111,9 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
   ## ----- Extract isoscape prediction + error values -----------------------------
   
-  pid_iso <- yuk_edges$iso_pred # Sr8786 value
-  pid_isose <- yuk_edges$isose_pred # Error
-  pid_prior <- yuk_edges$PriorSl2 #Habitat prior ( RCA slope)
+  pid_iso <- yuk_edges$iso_prd # Sr8786 value
+  pid_isose <- yuk_edges$iss_prd # Error
+  pid_prior <- yuk_edges$PrirSl2 #Habitat prior ( RCA slope)
   pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, pid_isose) #bumps super low error areas up, to avoid excessive bias towards them 
   
   ###----- Variance Generating Processes ------------------------------------------
@@ -133,7 +134,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   ###### ASSIGNMENTS HERE ##### 
   #############################
   ## loop for assingments
-  
+  i<-1
   for (i in 1:length(natal_origins[, 1])) {
   
     iso_o <- natal_origins[i, "natal_iso_mean"] %>% as.numeric()  # Otolith ratio
@@ -142,7 +143,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     gen.prior[LYsites] <- genP["Lower"] %>% as.numeric()
     gen.prior[MYsites] <- genP[2] %>% as.numeric()
     gen.prior[UYsites] <- genP[3] %>% as.numeric()
-    StreamOrderPrior <- as.numeric(yuk_edges$Str_Order > 2)
+    StreamOrderPrior <- as.numeric(yuk_edges$Str_Ord > 2)
     
     #####. BAYES RULE ASSIGNMENT. ##################
     
@@ -260,7 +261,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
 
 # List of years with data
 years <- c(2015, 2016, 2017, 2019, 2021)
-sensitivity_threshold<- .75
+sensitivity_threshold<- .9
 
 #iterate through all the years and run the function 
 for (i in 1:length(years)) {
@@ -269,7 +270,7 @@ for (i in 1:length(years)) {
 }
 
 #Create maps for H1 and H2 using the same sensitivity threshold 
-sensitivity_threshold<- .75
+sensitivity_threshold<- .6
 
 for(i in 1:length(years)) {
   year <- years[i]
