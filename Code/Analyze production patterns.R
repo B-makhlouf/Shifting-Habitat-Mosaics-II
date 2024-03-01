@@ -320,9 +320,10 @@ Yuk_ind_2015<- read_csv(here("/Users/benjaminmakhlouf/Research_repos/Shifting-Ha
 Yuk_ind_2015 <- Yuk_ind_2015[,-1]
 
 #extract the first collumn, into a vector of values 
-Yuk_ind_2015_1 <- as.vector(Yuk_ind_2015$V1)
+Yuk_ind_2015_1 <- as.vector(Yuk_ind_2015$V11)
 
-# ggplot hist of vlues
-ggplot(Yuk_ind_2015, aes(x = V1)) +
-  geom_histogram(binwidth = 0.1) +
-  labs(x = "Value", y = "Count", title = "Distribution of Values in 2015")
+#filter out 0 values 
+Yuk_ind_2015_1 <- Yuk_ind_2015_1[Yuk_ind_2015_1 != 0]
+
+#histogram 
+hist(Yuk_ind_2015_1, breaks = 100, main = "Yukon 2015 Individual Variation", xlab = "Production")
