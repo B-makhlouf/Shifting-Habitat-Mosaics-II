@@ -19,17 +19,14 @@ ind_2015<- ind_2015[,-1]
 identifier<- "2015 Yukon .9"
 
 ########## 2015 Yukon .95 
-
+ind_2015<- read_csv(here("Data/Production/Yukon/ASSIGN_MATRIX2015_full_Yukon_0.95.csv"))
+ind_2015<- ind_2015[,-1]
+identifier<- "2015 Yukon .95"
 
 ########## 2015 Yukon .97 
-
-
-
-
-
-
-
-
+ind_2015<- read_csv(here("Data/Production/Yukon/ASSIGN_MATRIX2015_full_Yukon_0.97.csv"))
+ind_2015<- ind_2015[,-1]
+identifier<- "2015 Yukon .97"
 
 ind_assignment_tributaries<- list() # list to store output
 
@@ -47,8 +44,6 @@ for ( i in 1:ncol(ind_2015)){ #for each collumn...
 
 result_df <- bind_rows(ind_assignment_tributaries, .id = "Individual")
 
-# Fill missing values with 0
-result_df <- table(result_df)
 
 # Write to csv
 filename<- paste0(identifier, "_tributaries.csv")
