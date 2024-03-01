@@ -261,13 +261,14 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
 
 # List of years with data
 years <- c(2015, 2016, 2017, 2019, 2021)
-sensitivity_threshold<- .9
+sensitivity_threshold<- .97
 
 #iterate through all the years and run the function 
 for (i in 1:length(years)) {
   year <- years[i]
   Yukon_map(year, sensitivity_threshold)
 }
+
 
 #Create maps for H1 and H2 using the same sensitivity threshold 
 sensitivity_threshold<- .6
