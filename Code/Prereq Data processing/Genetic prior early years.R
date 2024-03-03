@@ -7,6 +7,7 @@ library(RColorBrewer)
 library(fabricatr)
 library(ggplot2)
 library(sf)
+
 #Shapefiles
 yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
@@ -51,7 +52,7 @@ MYsites <- which(yuk_edges$GenLMU == "middle")
 UYsites <- which(yuk_edges$GenLMU == "upper")
 
 yuk2015_gen <- yuk_gen %>%
-  filter( QC_or_RR != "qc") %>% #only 2015 and NOT QC
+  #filter( QC_or_RR != "qc") %>% #only 2015 and NOT QC
   group_by(FishID, indiv, repunit) %>% #Group by.. Fish, individual, unit,
   summarise(P = sum(PofZ)) #Each individual's summed posterior probability of being in each genetic region. 
 
@@ -104,15 +105,11 @@ gen.prior <- data.frame(
   Upper = rep(0, length(fishid))
 )
 
-# Identify the rows corresponding to lower, middle, and upper in otogene
-lower_rows <- otogene$L > 0
-middle_rows <- otogene$M > 0
-upper_rows <- otogene$U > 0
 
-# Assign genetic posterior to gen.prior using vectorized operations
-gen.prior$Lower[lower_rows] <- otogene$L[lower_rows]
-gen.prior$Middle[middle_rows] <- otogene$M[middle_rows]
-gen.prior$Upper[upper_rows] <- otogene$U[upper_rows]
+#match the index of fish.id in gen.prior and otogene and assign the values of L, M, and U to the corresponding fish.id in gen.prior
+gen.prior$Lower[match(otogene$FishID, gen.prior$fish.id)] <- otogene$L
+gen.prior$Middle[match(otogene$FishID, gen.prior$fish.id)] <- otogene$M
+gen.prior$Upper[match(otogene$FishID, gen.prior$fish.id)] <- otogene$U
 
 #export as a .csv
 filename <- paste0(identifier, "_genetic_prior_", ".csv")
