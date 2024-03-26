@@ -11,15 +11,15 @@ library(sf)
 
 ###----- Shapefiles ------------------------------------------------------------
 #Shapefiles
-yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_bigtribs.shp")
-#yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+#yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_bigtribs.shp")
+yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 
 # For testing 
 if (T){
 year<- 2015
-sensitivity_threshold <- 0.7
+sensitivity_threshold <- 0.95
 filter_quartile_date <- NULL
 filter_half <- "H1"
 plot_show <- NULL
@@ -111,9 +111,9 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   
   ## ----- Extract isoscape prediction + error values -----------------------------
   
-  pid_iso <- yuk_edges$iso_prd # Sr8786 value
-  pid_isose <- yuk_edges$iss_prd # Error
-  pid_prior <- yuk_edges$PrirSl2 #Habitat prior ( RCA slope)
+  pid_iso <- yuk_edges$iso_pred # Sr8786 value
+  pid_isose <- yuk_edges$isose_pred # Error
+  pid_prior <- yuk_edges$PriorSl2 #Habitat prior ( RCA slope)
   pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, pid_isose) #bumps super low error areas up, to avoid excessive bias towards them 
   
   ###----- Variance Generating Processes ------------------------------------------
@@ -261,7 +261,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
 
 # List of years with data
 years <- c(2015, 2016, 2017, 2019, 2021)
-sensitivity_threshold<- .97
+sensitivity_threshold<- .9
 
 #iterate through all the years and run the function 
 for (i in 1:length(years)) {

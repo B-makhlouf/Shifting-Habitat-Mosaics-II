@@ -14,30 +14,25 @@ library(lubridate)
 
 #### Yukon ######## 
 
-#2010 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2010 Yukon_natal_data.csv"))
-CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2010.csv"))
-identifier <- "2010_Yukon"
-
 #2015 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2015_Yukon_natal_data.csv"))
-CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2015.csv"))
-identifier <- "2015_Yukon"
+#natal_values<- read_csv(here("Data/Natal Origin/2015_Yukon_natal_data.csv"))
+#CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2015.csv"))
+#identifier <- "2015_Yukon"
 
 #2016 Yukon
-natal_values<- read_csv(here("Data/Natal Origin/2016_Yukon_natal_data.csv"))
-CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2016.csv"))
-identifier <- "2016_Yukon"
+#natal_values<- read_csv(here("Data/Natal Origin/2016_Yukon_natal_data.csv"))
+#CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2016.csv"))
+#identifier <- "2016_Yukon"
 
 #2017 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2017_Yukon_natal_data.csv"))
-CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2017.csv"))
-identifier <- "2017_Yukon"
+#natal_values<- read_csv(here("Data/Natal Origin/2017_Yukon_natal_data.csv"))
+#CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2017.csv"))
+#identifier <- "2017_Yukon"
 
 #2018 Yukon 
-natal_values<- read_csv(here("Data/Natal Origin/2018_Yukon_natal_data.csv"))
-CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2018.csv"))
-identifier <- "2018_Yukon"
+#natal_values<- read_csv(here("Data/Natal Origin/2018_Yukon_natal_data.csv"))
+#CPUE <- read_csv(here("Data/CPUE/Yukon CPUE 2018.csv"))
+#identifier <- "2018_Yukon"
 
 #2017 Kusko
 natal_values<- read_csv(here("Data/Natal Origin/2017_Kusko_natal_data.csv"))
@@ -71,7 +66,6 @@ identifier <- "2021_Kusko"
 CPUE<- CPUE %>%
   #change the date format to the proper format
   mutate(Date = as.Date(Date, format = "%m/%d/%y")) %>%
-  rename( dailyCPUE = CPUE)
 
 otoCatch <- natal_values %>%
   rename(DOY = capture_date_julian)%>%
@@ -92,7 +86,11 @@ CPUE <- CPUE %>%
  #filter(otoCATCH > 0) %>% #keep only those with at least 1 fish caught
  mutate(otoPROP = otoCATCH / sum(otoCATCH), #calculate the otolith proportion
  oto_cumPROP = cumsum(otoPROP), #calculate the cumulative proportion    
- COratio = dailyPROP / otoPROP) #calculate the ratio of daily catch to otolith catch    
+ COratio = dailyPROP / otoPROP) #calculate the ratio of daily catch to otolith catch 
+ 
+#make any inf or NA values 0 
+CPUE$COratio[is.infinite(CPUE$COratio)] <- 0
+CPUE$COratio[is.na(CPUE$COratio)] <- 0
 
 #------ Creating strata for CPUE weighting -------------------------------------
 
@@ -112,8 +110,12 @@ for (i in 1:length(strat.wt)) {
   strat.wt[i] <- CPUEmean / otomean  # Calculate stratum weight
 }
 
+
 #make any NA values 0 
 strat.wt[is.na(strat.wt)] <- 0
+
+#make any inf values 0
+strat.wt[is.infinite(strat.wt)] <- 0
 
 # Normalize the strata weight
 strat.wt <- strat.wt / sum(strat.wt)  
@@ -150,6 +152,8 @@ filename<- paste0(identifier, "_expanded_CPUE.csv")
 filepath<- file.path(here("data", "CPUE", filename))
 write_csv(CPUE, filepath)
 
+
+---------------------------------------------------------------------------
 ## Read in all the expanded CPUE files and put them all in one dataframe 
 # Add "year" collumn to each dataframe
 
