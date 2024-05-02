@@ -8,6 +8,11 @@ library(fabricatr)
 library(ggplot2)
 library(sf)
 
+################################################################################
+###########################. YUKON ASSIGNMENT CODE #############################
+################################################################################
+################################################################################
+
 
 ###----- Shapefiles ------------------------------------------------------------
 #Shapefiles
@@ -194,11 +199,103 @@ for (i in 1:length(years)) {
   Yukon_map(year, sensitivity_threshold)
 }
 
+################################################################################
+###################### Kuskokwim Assignment Code ##################################
+################################################################################
+################################################################################
 
 
+#Isoscape and Basin Shapefile 
+kusk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
+basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
 
+########################################################
+#### Function to produce maps and production data 
+########################################################
 
-
+Kusko_map <- function(year, sensitivity_threshold) {  
+  
+  identifier <- paste(year, "Kusko", sep = "_")
+  
+  # Read data based on the year
+  natal_origins <- read.csv(paste("Data/Natal_Sr/", year, "_Kusko_NatalOrigins.csv", sep = ""))
+  #CPUE <- read.csv(here("Data/CPUE_weights/", paste(year, "_Kusko_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  
+  ## ----- Extract isoscape prediction + error values -----------------------------
+  pid_iso <- kusk_edges$iso_pred # Sr8786 value
+  pid_isose <- kusk_edges$isose_pred # Error
+  pid_isose[pid_isose < .0005] <- .0005 #bump up error in really low error places 
+  pid_prior <- kusk_edges$UniPh2oNoE#Habitat prior ( RCA slope)
+  
+  ###----- Variance Generating Processes ------------------------------------------
+  within_site <- 0.0003133684 / 1.96  # Prediction interval from oto vs. water regression. Pred intervals should be 2SD, analogous to CI which are 2SE
+  analyt <- 0.00011 / 2  # Mean 2 S.D. of shell standard measurements during an LA run. Error from the machine
+  within_pop <- within_site - analyt # Population error
+  error <- sqrt(pid_isose^2 + within_site^2 + analyt^2)  # COMBINED error 
+  
+  ###----- CREATE EMPTY MATRICES -------------------------------------------------
+  output_matrix <- matrix(NA, nrow = length(kusk_edges$iso_pred), ncol = nrow(natal_origins))
+  l<-length(natal_origins[, 1])
+  f.strata.vec <- rep(NA,l)
+  assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
+  
+  #############################
+  ###### ASSIGNMENTS HERE ##### 
+  #############################
+  ## loop for assingments
+  
+  for (i in 1:length(natal_origins[, 1])) {
+    
+    iso_o <- natal_origins[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
+    StreamOrderPrior <- as.numeric(kusk_edges$Strahler > 2)
+    
+    #####. BAYES RULE ASSIGNMENT. ##################
+    
+    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * StreamOrderPrior
+    
+    # normalize so all values sum to 1 (probability distribution)
+    assign_norm <- assign / sum(assign) 
+    
+    assign_norm <- assign_norm #* CPUE[i] # multiply times the CPUE
+    
+    #rescale so that all values are between 0 and 1 
+    assign_rescaled <- assign_norm / max(assign_norm) 
+    
+    assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+    assignment_matrix[,i] <- assign_rescale_removed
+    
+    #assignment_matrix[,i] <- assign_rescaled
+    
+  }
+  
+  ###------- BASIN SCALE VALUES ----------------------------------------
+  
+  basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
+  basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
+  basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
+  
+  ################################################################################
+  ##### Mapping using base R 
+  ################################################################################
+  
+  # Save as PDF
+  #breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+  breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
+  nclr <- length(breaks)
+  filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
+  filepath <- file.path(here("Figures", "Maps", filename))
+  pdf(file = filepath, width = 9, height = 6)
+  plotvar <- basin_assign_norm
+  class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
+  plotclr <- brewer.pal(nclr, "YlOrRd")
+  colcode <- findColours(class, plotclr, digits = 2)
+  colcode[plotvar == 0] <- 'gray80'
+  colcode[which(StreamOrderPrior == 0)] <- 'gray68'
+  colcode[which(pid_prior == 0)] <- 'gray60'
+  plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
+  plot(st_geometry(kusk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .7 * (exp(plotvar) - 1)))
+  dev.off()
+}
 
 
 
