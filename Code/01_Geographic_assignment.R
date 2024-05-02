@@ -258,6 +258,8 @@ Kusko_map <- function(year, sensitivity_threshold) {
   basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
   basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
   
+  #write.csv to outputs folder 
+  write.csv(basin_assign_rescale, file = here("Outputs", "Assignment Matrix", paste0(identifier, ".csv")), row.names = FALSE)
   ################################################################################
   ##### Mapping using base R 
   ################################################################################
@@ -279,8 +281,13 @@ Kusko_map <- function(year, sensitivity_threshold) {
   plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
   plot(st_geometry(kusk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .7 * (exp(plotvar) - 1)))
   dev.off()
+  
+  
 }
 
+
+#write.csv to outputs folder 
+write.csv(assignment_matrix, file = here("Outputs", "Assignment Matrix", paste0(identifier, ".csv")), row.names = FALSE)
 
 
 ##############################################
