@@ -20,9 +20,6 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 if (T){
 year<- 2015
 sensitivity_threshold <- 0.95
-filter_quartile_date <- NULL
-filter_half <- "H1"
-plot_show <- NULL
 }
 
 ########################################################
@@ -51,44 +48,15 @@ plot_show <- NULL
 #' @export
 
 
-Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, filter_half = NULL) {  
-  
-  # Construct the identifier based on the year and filtered quartile or half
-  if (!is.null(filter_quartile_date)) {
-    quartile_identifier <- paste("Q", which(filter_quartile_date == c("Q1", "Q2", "Q3", "Q4")), sep = "")
-  } else if (!is.null(filter_half)) {
-    quartile_identifier <- filter_half
-  } else {
-    quartile_identifier <- "full"
-  }
+Yukon_map <- function(year, sensitivity_threshold) {  
   
   identifier <- paste(year, quartile_identifier, "Yukon", sep = "_")
   
   # Read data based on the year
-  natal_origins <- read.csv(paste("Data/Natal Origin/", year, "_Yukon_natal_data.csv", sep = ""))
-  CPUE <- read.csv(here("Data/CPUE/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
-  Genetics <- read.csv(here("Data/Genetics/Genetic Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
-  
-  # Filter data based on the specified quartile of date
-  if (!is.null(filter_quartile_date)) {
-    quartile_values <- quantile(natal_origins$capture_date_julian, probs = c(0, 0.25, 0.5, 0.75, 1))
-    if (filter_quartile_date == "Q1") {
-      natal_origins <- natal_origins[natal_origins$capture_date_julian >= quartile_values[1] & natal_origins$capture_date_julian <= quartile_values[2], ]
-    } else if (filter_quartile_date == "Q2") {
-      natal_origins <- natal_origins[natal_origins$capture_date_julian > quartile_values[2] & natal_origins$capture_date_julian <= quartile_values[3], ]
-    } else if (filter_quartile_date == "Q3") {
-      natal_origins <- natal_origins[natal_origins$capture_date_julian > quartile_values[3] & natal_origins$capture_date_julian <= quartile_values[4], ]
-    } else if (filter_quartile_date == "Q4") {
-      natal_origins <- natal_origins[natal_origins$capture_date_julian > quartile_values[4], ]
-    }
-  } else if (!is.null(filter_half)) {
-    if (filter_half == "H1") {
-      natal_origins <- natal_origins[natal_origins$capture_date_julian <= median(natal_origins$capture_date_julian), ]
-    } else if (filter_half == "H2") {
-      natal_origins <- natal_origins[natal_origins$capture_date_julian > median(natal_origins$capture_date_julian), ]
-    }
-  }
-  
+  natal_origins <- read.csv(paste("Data/Natal_Sr/", year, "_Yukon_NatalOrigins.csv", sep = ""))
+  CPUE <- read.csv(here("Data/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  Genetics <- read.csv(here("Data/Genetic_Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
+
   #Shapefile with the tributaries from the lower Yukon river basin 
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
   ly.gen_reachid <- ly.gen$reachid # reach ids of the lower Yukon tributaries
@@ -128,7 +96,6 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
   l<-length(natal_origins[, 1])
   f.strata.vec <- rep(NA,l)
   assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
-  total_oto_info<- list()
   
   #############################
   ###### ASSIGNMENTS HERE ##### 
@@ -137,7 +104,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
 
   for (i in 1:length(natal_origins[, 1])) {
   
-    iso_o <- natal_origins[i, "natal_iso_mean"] %>% as.numeric()  # Otolith ratio
+    iso_o <- natal_origins[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
     genP <- Genetics[i,] #genetic posterior for each
     gen.prior <- rep(0, length = length(pid_iso))
     gen.prior[LYsites] <- genP["Lower"] %>% as.numeric()
@@ -156,77 +123,18 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     #rescale so that all values are between 0 and 1 
     assign_rescaled <- assign_norm / max(assign_norm) 
     
-    
-    #percentile_80 <- quantile(assign_rescaled, probs = sensitivity_threshold)
-    #assign_rescale_removed <- ifelse(assign_rescaled >= percentile_80, assign_rescaled, 0)
-    
     assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
     
-    max_value <- max(assign_rescale_removed)
-    
-    # Assign 0 to all values except the maximum value
-    assign_max <- ifelse(assign_rescale_removed == max_value, assign_rescale_removed, 0)
-    
-    assignment_matrix[,i] <- assign_rescale_removed
-    
-    max_matrix[,i] <- assign_max
-    
-    oto_info_df <- tibble(
-      fish.id = natal_origins$fish.id[i], 
-      natal_iso = iso_o, 
-      UY_gen = genP[["Upper"]],
-      MY_gen = genP[["Middle"]],
-      LY_gen = genP[["Lower"]], 
-
-    )
-  
-    oto_info_df <- oto_info_df %>%
-      mutate(max_gen = case_when(
-        UY_gen > MY_gen & UY_gen > LY_gen ~ "UY",
-        MY_gen > UY_gen & MY_gen > LY_gen ~ "MY",
-        LY_gen > UY_gen & LY_gen > MY_gen ~ "LY",
-        TRUE ~ "Equal" # Handle cases where values are equal
-      ))
-    
-    total_oto_info[[i]] <- oto_info_df
+    assignment_matrix[, i] <- assign_rescale_removed
   
   }
   
   ###------- BASIN SCALE VALUES ----------------------------------------
   
-  assignment_matrix_df<- as.data.frame(assignment_matrix)
-  
-  #export as csv 
-  filename<- paste0("ASSIGN_MATRIX", identifier, "_", sensitivity_threshold, ".csv")
-  filepath<- file.path(here("Data", "Production", "Yukon", filename))
-  write.csv(assignment_matrix_df, filepath)
-  
-  #export max matrix 
-  max_matrix_df<- as.data.frame(max_matrix)
-  filename<- paste0("MAX_MATRIX", identifier, "_", sensitivity_threshold, ".csv")
-  filepath<- file.path(here("Data", "Production", "Yukon", filename))
-  write.csv(max_matrix_df, filepath)
-  
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
   basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
   basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
-  
-  # Create a data frame, with one for each of the assignment types 
-  
-  basin_df <- data.frame(normalized = basin_assign_norm, 
-                         rescaled = basin_assign_rescale, 
-                         raw = basin_assign_sum
-  )
-  
-  filename<- paste0(identifier, "_", sensitivity_threshold, "_basin_norm.csv")
-  filepath<- file.path(here("Data", "Production", "Yukon", filename))
-  write.csv(basin_df, filepath)
-  
-  # put everything from total_info_oto into a single dataframe
-  total_oto_info_df <- bind_rows(total_oto_info)
-  filename<- paste0(identifier, "_oto_info.csv")
-  filepath<- file.path(here("Data/Natal Origin/Natal origin and Genetics", filename))
-  write.csv(total_oto_info_df, filepath)
+
   
   ################################################################################
   ##### Mapping using base R 
@@ -238,7 +146,7 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     #breaks <- c(0, .3, .7, 1)
     nclr <- length(breaks)
     filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
-    filepath <- file.path(here("Figures", "Maps", "Yukon", year, filename))
+    filepath <- file.path(here("Figures", "Maps", filename))
     pdf(file = filepath, width = 9, height = 6)
     plotvar <- basin_assign_norm
     class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
@@ -251,23 +159,71 @@ Yukon_map <- function(year, sensitivity_threshold, filter_quartile_date = NULL, 
     plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
     plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
     dev.off()
-  }
+    
+    
+    ########### Bring in tribs
+    
+    library(sf)
+    library(dplyr)
+    library(ggplot2)
+    
+    # Read shapefile
+    tribnames <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
+    
+    # Assuming basin_assign_norm is defined correctly
+    tribnames$assign_rescaled <- basin_assign_norm
+    
+    # Summarize by tributary
+    trib_summary <- tribnames %>% 
+      group_by(trbtry_) %>% 
+      summarize(totalprod = sum(assign_rescaled))
+    
+    # Rescale totalprod to sum to 1 
+    trib_summary$totalprod <- trib_summary$totalprod / sum(trib_summary$totalprod)
+    
+    #normalize total prod values to range from 0 - 1
+    trib_summary$totalprod <- trib_summary$totalprod / max(trib_summary$totalprod)
+    
+    # Add totalprod value to tribnames by matching on trbtry_
+    tribnames <- st_join(tribnames, trib_summary, by = "trbtry_")
+    
+    summary(tribnames$totalprod)
+    
+    
+    # Plot using ggplot
+    map <- ggplot(data = tribnames) +
+      geom_sf(aes(color = totalprod), lwd = .05) +  # Specify color aesthetic
+      scale_color_gradient(low = "dodgerblue", high = "firebrick") + # Adjust color gradient if needed
+      theme_void()+ 
+      labs(title = "Production by trib basin")  # Add title if desired
+    
+    tribnames$totalprod
+    # Save as a tif
+    filename <- paste0(identifier, "_", sensitivity_threshold, "_.tif")
+    filepath <- file.path("Figures", "Maps", filename)  # Assuming you don't need 'here' function
+    ggsave(filepath, plot = map, device = "tiff", width = 9, height = 6)
+}
 
 
+t
 ##############################################
 ########## Producing All Maps
 ##############################################
 
 
 # List of years with data
-years <- c(2015, 2016, 2017, 2019, 2021)
-sensitivity_threshold<- .9
+years <- c(2015, 2016, 2017)
+sensitivity_threshold<- .75
 
 #iterate through all the years and run the function 
 for (i in 1:length(years)) {
   year <- years[i]
   Yukon_map(year, sensitivity_threshold)
 }
+
+
+
+
 
 
 #Create maps for H1 and H2 using the same sensitivity threshold 
