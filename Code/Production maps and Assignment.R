@@ -19,53 +19,27 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 # For testing 
 if (T){
 year<- 2015
-sensitivity_threshold <- 0.95
+sensitivity_threshold <- 0.7
 }
 
 ########################################################
 #### Function to produce maps and production data 
 ########################################################
 
-
-#' Yukon Map Function
-#'
-#' This R script provides a function, `Yukon_map`, for generating basin-scale maps of the Yukon river. The maps are based on isoscape predictions, genetic data, and capture dates. The script includes functionality for filtering data by quartile or half, adjusting sensitivity thresholds, and saving maps as interactive displays or PDF files.
-#'
-#' @param year The target year for the analysis.
-#' @param sensitivity_threshold The threshold for rescaling probabilities in the Bayesian assignment process.
-#' @param filter_quartile_date Specify one of "Q1", "Q2", "Q3", or "Q4" to filter data based on the quartile of capture dates. Default is `NULL`.
-#' @param filter_half Specify "H1" or "H2" to filter data based on the first or second half of capture dates. Default is `NULL`.
-#' @param plot_show Set to `TRUE` to display the map interactively using base R graphics. Set to `FALSE` to save the map as a PDF file.
-#'
-#' @return The function generates basin-scale normalized probabilities, outputs an interactive map (if specified), and saves PDF maps.
-#'
-#' @examples
-#' \dontrun{
-#' # Example Usage:
-#' Yukon_map(year = 2022, sensitivity_threshold = 0.5, filter_quartile_date = "Q2", plot_show = TRUE)
-#' }
-#'
-#' @export
-
-
 Yukon_map <- function(year, sensitivity_threshold) {  
   
-  identifier <- paste(year, quartile_identifier, "Yukon", sep = "_")
+  identifier <- paste(year, "Yukon", sep = "_")
   
   # Read data based on the year
   natal_origins <- read.csv(paste("Data/Natal_Sr/", year, "_Yukon_NatalOrigins.csv", sep = ""))
   CPUE <- read.csv(here("Data/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
   Genetics <- read.csv(here("Data/Genetic_Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
 
-  #Shapefile with the tributaries from the lower Yukon river basin 
+  #Shapefile with the tributaries from the each genetic grouping
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
   ly.gen_reachid <- ly.gen$reachid # reach ids of the lower Yukon tributaries
-  
-  #Shapefile with the tributaries from the middle Yukon river basin
   my.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp", quiet = TRUE)
   my.gen_reachid <- my.gen$reachid # reach ids of the middle Yukon tributaries
-  
-  #Shapefile with the tributaries from the upper Yukon river basin 
   uy.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp", quiet = TRUE)
   uy.gen_reachid <- uy.gen$reachid #reach ids of the upper Yukon tributaries
   
@@ -92,7 +66,6 @@ Yukon_map <- function(year, sensitivity_threshold) {
   
   ###----- CREATE EMPTY MATRICES -------------------------------------------------
   output_matrix <- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(natal_origins))
-  max_matrix<- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(natal_origins))
   l<-length(natal_origins[, 1])
   f.strata.vec <- rep(NA,l)
   assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
@@ -163,49 +136,49 @@ Yukon_map <- function(year, sensitivity_threshold) {
     
     ########### Bring in tribs
     
-    library(sf)
-    library(dplyr)
-    library(ggplot2)
+    #library(sf)
+    #library(dplyr)
+    #library(ggplot2)
     
     # Read shapefile
-    tribnames <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
+    #tribnames <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
     
     # Assuming basin_assign_norm is defined correctly
-    tribnames$assign_rescaled <- basin_assign_norm
+    #tribnames$assign_rescaled <- basin_assign_norm
     
     # Summarize by tributary
-    trib_summary <- tribnames %>% 
-      group_by(trbtry_) %>% 
-      summarize(totalprod = sum(assign_rescaled))
+    #trib_summary <- tribnames %>% 
+    #  group_by(trbtry_) %>% 
+    #  summarize(totalprod = sum(assign_rescaled))
     
     # Rescale totalprod to sum to 1 
-    trib_summary$totalprod <- trib_summary$totalprod / sum(trib_summary$totalprod)
+    #trib_summary$totalprod <- trib_summary$totalprod / sum(trib_summary$totalprod)
     
     #normalize total prod values to range from 0 - 1
-    trib_summary$totalprod <- trib_summary$totalprod / max(trib_summary$totalprod)
+    #trib_summary$totalprod <- trib_summary$totalprod / max(trib_summary$totalprod)
     
     # Add totalprod value to tribnames by matching on trbtry_
-    tribnames <- st_join(tribnames, trib_summary, by = "trbtry_")
+    #tribnames <- st_join(tribnames, trib_summary, by = "trbtry_")
     
-    summary(tribnames$totalprod)
+    #summary(tribnames$totalprod)
     
-    
-    # Plot using ggplot
-    map <- ggplot(data = tribnames) +
-      geom_sf(aes(color = totalprod), lwd = .05) +  # Specify color aesthetic
-      scale_color_gradient(low = "dodgerblue", high = "firebrick") + # Adjust color gradient if needed
-      theme_void()+ 
-      labs(title = "Production by trib basin")  # Add title if desired
-    
-    tribnames$totalprod
-    # Save as a tif
-    filename <- paste0(identifier, "_", sensitivity_threshold, "_.tif")
-    filepath <- file.path("Figures", "Maps", filename)  # Assuming you don't need 'here' function
-    ggsave(filepath, plot = map, device = "tiff", width = 9, height = 6)
+    # 
+    # # Plot using ggplot
+    # map <- ggplot(data = tribnames) +
+    #   geom_sf(aes(color = totalprod), lwd = .05) +  # Specify color aesthetic
+    #   scale_color_gradient(low = "dodgerblue", high = "firebrick") + # Adjust color gradient if needed
+    #   theme_void()+
+    #   labs(title = "Production by trib basin")  # Add title if desired
+    # 
+    # tribnames$totalprod
+    # # Save as a tif
+    # filename <- paste0(identifier, "_", sensitivity_threshold, "_.tif")
+    # filepath <- file.path("Figures", "Maps", filename)  # Assuming you don't need 'here' function
+    # ggsave(filepath, plot = map, device = "tiff", width = 9, height = 6)
 }
 
 
-t
+
 ##############################################
 ########## Producing All Maps
 ##############################################
@@ -221,19 +194,6 @@ for (i in 1:length(years)) {
   Yukon_map(year, sensitivity_threshold)
 }
 
-
-
-
-
-
-#Create maps for H1 and H2 using the same sensitivity threshold 
-sensitivity_threshold<- .6
-
-for(i in 1:length(years)) {
-  year <- years[i]
-  Yukon_map(year, sensitivity_threshold, filter_half= "H1" )
-  Yukon_map(year, sensitivity_threshold, filter_half = "H2")
-}
 
 
 
