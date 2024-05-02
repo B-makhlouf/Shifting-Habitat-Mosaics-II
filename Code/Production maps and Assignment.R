@@ -183,22 +183,6 @@ Yukon_map <- function(year, sensitivity_threshold) {
 }
 
 
-
-##############################################
-########## Producing All Maps
-##############################################
-
-
-# List of years with data
-years <- c(2015, 2016, 2017)
-sensitivity_threshold<- .75
-
-#iterate through all the years and run the function 
-for (i in 1:length(years)) {
-  year <- years[i]
-  Yukon_map(year, sensitivity_threshold)
-}
-
 ################################################################################
 ###################### Kuskokwim Assignment Code ##################################
 ################################################################################
@@ -299,6 +283,29 @@ Kusko_map <- function(year, sensitivity_threshold) {
 
 
 
+##############################################
+########## Producing All Maps
+##############################################
+
+
+# List of years with data
+years <- c(2015, 2016, 2017)
+sensitivity_threshold<- .75
+
+# Yukon Mapping 
+for (i in 1:length(years)) {
+  year <- years[i]
+  Yukon_map(year, sensitivity_threshold)
+}
+
+years <- c(2017, 2018)
+sensitivity_threshold<- .75
+
+#Kusko mapping
+for (i in 1:length(years)) {
+  year <- years[i]
+  Kusko_map(year, sensitivity_threshold)
+}
 
 
 
