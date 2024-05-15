@@ -27,6 +27,7 @@ year<- 2015
 sensitivity_threshold <- 0.7
 }
 
+
 ########################################################
 #### Function to produce maps and production data 
 ########################################################
@@ -36,7 +37,7 @@ Yukon_map <- function(year, sensitivity_threshold) {
   identifier <- paste(year, "Yukon", sep = "_")
   
   # Read data based on the year
-  natal_origins <- read.csv(paste("Data/Natal_Sr/", year, "_Yukon_NatalOrigins.csv", sep = ""))
+  natal_origins <- read.csv( paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/03_Extracted Data/Natal Origins/Cleaned/Yukon_",year,"_Cleaned_Natal_Origins.csv"))                        
   CPUE <- read.csv(here("Data/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
   Genetics <- read.csv(here("Data/Genetic_Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
 
@@ -110,11 +111,15 @@ Yukon_map <- function(year, sensitivity_threshold) {
   ###------- BASIN SCALE VALUES ----------------------------------------
   
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
-  basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
-  basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
+  basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) # SUMS to 1 
+  basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) # All values are between 0 and 1, for visualization
 
   
+  
 }
+
+
+
 
 
 ################################################################################
@@ -194,6 +199,14 @@ Kusko_map <- function(year, sensitivity_threshold, identifier) {
   write.csv(basin_assign_rescale, file = here("Outputs", "Assignment Matrix", filename), row.names = FALSE)
  
 }
+
+
+
+
+
+
+
+
 
 
 
