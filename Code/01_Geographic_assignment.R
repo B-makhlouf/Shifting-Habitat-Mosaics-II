@@ -38,8 +38,8 @@ Yukon_map <- function(year, sensitivity_threshold) {
   
   # Read data based on the year
   natal_origins <- read.csv( paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/03_Extracted Data/Natal Origins/Cleaned/Yukon_",year,"_Cleaned_Natal_Origins.csv"))                        
-  CPUE <- read.csv(here("Data/CPUE_weights/", paste(year, "_Yukon_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
-  Genetics <- read.csv(here("Data/Genetic_Prior", paste(year, "_Yukon_genetic_prior_.csv", sep = "")))
+  CPUE <- read.csv(here(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/04_CPUE Data/",year,"_Yukon_CPUE weights.csv")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  Genetics <- read.csv(here(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/02_Genetic Data/03_Genetic Prior/",year," Yukon_genetic_prior_.csv", sep = "")))
 
   #Shapefile with the tributaries from the each genetic grouping
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
