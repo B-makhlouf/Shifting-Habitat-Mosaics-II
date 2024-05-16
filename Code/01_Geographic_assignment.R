@@ -23,7 +23,7 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 
 # For testing 
 if (T){
-year<- 2015
+year<- 2017
 sensitivity_threshold <- 0.7
 }
 
@@ -32,22 +32,30 @@ sensitivity_threshold <- 0.7
 #### Function to produce maps and production data 
 ########################################################
 
+library(dplyr)
+library(sf)
+library(here)
+
+library(dplyr)
+library(sf)
+library(here)
+
 Yukon_map <- function(year, sensitivity_threshold) {  
   
   identifier <- paste(year, "Yukon", sep = "_")
   
   # Read data based on the year
-  natal_origins <- read.csv( paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/03_Extracted Data/Natal Origins/Cleaned/Yukon_",year,"_Cleaned_Natal_Origins.csv"))                        
-  CPUE <- read.csv(here(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/04_CPUE Data/",year,"_Yukon_CPUE weights.csv")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
-  Genetics <- read.csv(here(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/02_Genetic Data/03_Genetic Prior/",year," Yukon_genetic_prior_.csv", sep = "")))
-
-  #Shapefile with the tributaries from the each genetic grouping
+  natal_origins <- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/03_Extracted Data/Natal Origins/Cleaned/Yukon_", year, "_Cleaned_Natal_Origins.csv"))                        
+  CPUE <- read.csv(here(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/04_CPUE Data/", year, "_Yukon_CPUE weights.csv")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  Genetics <- read.csv(here(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/02_Genetic Data/03_Genetic Prior/", year, " Yukon_genetic_prior_.csv", sep = "")))
+  
+  # Shapefile with the tributaries from each genetic grouping
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
   ly.gen_reachid <- ly.gen$reachid # reach ids of the lower Yukon tributaries
   my.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp", quiet = TRUE)
   my.gen_reachid <- my.gen$reachid # reach ids of the middle Yukon tributaries
   uy.gen <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp", quiet = TRUE)
-  uy.gen_reachid <- uy.gen$reachid #reach ids of the upper Yukon tributaries
+  uy.gen_reachid <- uy.gen$reachid # reach ids of the upper Yukon tributaries
   
   yuk_edges$GenLMU <- 0
   yuk_edges$GenLMU[yuk_edges$reachid %in% ly.gen_reachid] <- "lower"
@@ -61,63 +69,87 @@ Yukon_map <- function(year, sensitivity_threshold) {
   
   pid_iso <- yuk_edges$iso_pred # Sr8786 value
   pid_isose <- yuk_edges$isose_pred # Error
-  pid_prior <- yuk_edges$PriorSl2 #Habitat prior ( RCA slope)
-  pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, pid_isose) #bumps super low error areas up, to avoid excessive bias towards them 
+  pid_prior <- yuk_edges$PriorSl2 # Habitat prior (RCA slope)
+  pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, pid_isose) # bumps super low error areas up, to avoid excessive bias towards them 
   
   ###----- Variance Generating Processes ------------------------------------------
   within_site <- 0.0003133684 / 1.96  # Prediction interval from oto vs. water regression. Pred intervals should be 2SD, analogous to CI which are 2SE
   analyt <- 0.00011 / 2  # Mean 2 S.D. of shell standard measurements during an LA run. Error from the machine
   within_pop <- within_site - analyt # Population error
   error <- sqrt(pid_isose_mod^2 + within_site^2 + analyt^2)  # COMBINED error 
+  ###----- Filter to various quartiles 
   
-  ###----- CREATE EMPTY MATRICES -------------------------------------------------
-  output_matrix <- matrix(NA, nrow = length(yuk_edges$iso_pred), ncol = nrow(natal_origins))
-  l<-length(natal_origins[, 1])
-  f.strata.vec <- rep(NA,l)
-  assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
+  # Find the 4 Quartiles of the natal origin data based on Days_into_run
+  natal_origins$quartile <- cut(natal_origins$Days_into_run, breaks = quantile(natal_origins$Days_into_run, probs = c(0, 0.25, 0.5, 0.75, 1)), labels = c("Q1", "Q2", "Q3", "Q4"))
+  # give the first value Q1
+  natal_origins$quartile[is.na(natal_origins$quartile)] <- "Q1"
   
-  #############################
-  ###### ASSIGNMENTS HERE ##### 
-  #############################
-  ## loop for assingments
-
-  for (i in 1:length(natal_origins[, 1])) {
+  quartiles <- c("Q1", "Q2", "Q3", "Q4", "Total")
+  result_list <- list()
   
-    iso_o <- natal_origins[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
-    genP <- Genetics[i,] #genetic posterior for each
-    gen.prior <- rep(0, length = length(pid_iso))
-    gen.prior[LYsites] <- genP["Lower"] %>% as.numeric()
-    gen.prior[MYsites] <- genP[2] %>% as.numeric()
-    gen.prior[UYsites] <- genP[3] %>% as.numeric()
-    StreamOrderPrior <- as.numeric(yuk_edges$Str_Ord > 2)
+  for (q in quartiles) {
+    if (q == "Total") {
+      filtered_data <- natal_origins
+    } else {
+      filtered_data <- natal_origins %>% filter(quartile == q)
+    }
     
-    #####. BAYES RULE ASSIGNMENT. ##################
+    l <- nrow(filtered_data)
     
-    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior
+    if (l == 0) {
+      result_list[[q]] <- rep(NA, length(pid_iso))
+      next
+    }
     
-    # normalize so all values sum to 1 (probability distribution)
-    assign_norm <- assign / sum(assign) 
-    assign_norm <- assign_norm * CPUE[i] # multiply times the CPUE
+    assignment_matrix <- matrix(NA, nrow = length(pid_iso), ncol = l)
     
-    #rescale so that all values are between 0 and 1 
-    assign_rescaled <- assign_norm / max(assign_norm) 
+    for (i in 1:l) {
+      iso_o <- filtered_data[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
+      genP <- Genetics[i, ] # genetic posterior for each
+      gen.prior <- rep(0, length = length(pid_iso))
+      gen.prior[LYsites] <- genP[3] %>% as.numeric()
+      gen.prior[MYsites] <- genP[4] %>% as.numeric()
+      gen.prior[UYsites] <- genP[5] %>% as.numeric()
+      StreamOrderPrior <- as.numeric(yuk_edges$Str_Ord > 2)
+      
+      #####. BAYES RULE ASSIGNMENT. ##################
+      
+      assign <- (1 / sqrt((2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2))) * pid_prior * gen.prior * StreamOrderPrior
+      
+      # normalize so all values sum to 1 (probability distribution)
+      assign_norm <- assign / sum(assign) 
+      assign_norm <- assign_norm * CPUE[i] # multiply times the CPUE
+      
+      # rescale so that all values are between 0 and 1 
+      assign_rescaled <- assign_norm / max(assign_norm) 
+      assign_rescale_removed <- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+      assignment_matrix[, i] <- assign_rescale_removed
+      
+    }
     
-    assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+    ###------- BASIN SCALE VALUES ----------------------------------------
     
-    assignment_matrix[, i] <- assign_rescale_removed
-  
+    basin_assign_sum <- apply(assignment_matrix, 1, sum) # total probability for each location
+    basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum) # SUMS to 1 
+    
+    result_list[[q]] <- basin_assign_rescale
   }
   
-  ###------- BASIN SCALE VALUES ----------------------------------------
+  result_df <- data.frame(
+    Location = 1:length(pid_iso),
+    Q1 = result_list[["Q1"]],
+    Q2 = result_list[["Q2"]],
+    Q3 = result_list[["Q3"]],
+    Q4 = result_list[["Q4"]],
+    Total = result_list[["Total"]]
+  )
   
-  basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
-  basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) # SUMS to 1 
-  basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) # All values are between 0 and 1, for visualization
-
-  
-  
+  return(result_df)
 }
 
+# Example usage
+results_2024 <- Yukon_map(2017, 0.7)
+print(results_2024)
 
 
 
