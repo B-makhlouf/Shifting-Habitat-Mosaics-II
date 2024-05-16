@@ -32,13 +32,7 @@ sensitivity_threshold <- 0.7
 #### Function to produce maps and production data 
 ########################################################
 
-library(dplyr)
-library(sf)
-library(here)
 
-library(dplyr)
-library(sf)
-library(here)
 
 Yukon_map <- function(year, sensitivity_threshold) {  
   
@@ -107,9 +101,11 @@ Yukon_map <- function(year, sensitivity_threshold) {
       iso_o <- filtered_data[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
       genP <- Genetics[i, ] # genetic posterior for each
       gen.prior <- rep(0, length = length(pid_iso))
+      
       gen.prior[LYsites] <- genP[3] %>% as.numeric()
       gen.prior[MYsites] <- genP[4] %>% as.numeric()
       gen.prior[UYsites] <- genP[5] %>% as.numeric()
+      
       StreamOrderPrior <- as.numeric(yuk_edges$Str_Ord > 2)
       
       #####. BAYES RULE ASSIGNMENT. ##################
@@ -125,6 +121,8 @@ Yukon_map <- function(year, sensitivity_threshold) {
       assign_rescale_removed <- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
       assignment_matrix[, i] <- assign_rescale_removed
       
+      # TEMPORARILY, Asssign all NAs a 0 
+      assignment_matrix[is.na(assignment_matrix)] <- 0
     }
     
     ###------- BASIN SCALE VALUES ----------------------------------------
@@ -148,8 +146,12 @@ Yukon_map <- function(year, sensitivity_threshold) {
 }
 
 # Example usage
-results_2024 <- Yukon_map(2017, 0.7)
-print(results_2024)
+Basin_full_year <- Yukon_map(2017, 0.7)
+
+# Write the output to a CSV file
+filename<- here(paste0("Outputs/Assignment Matrix/Yukon_", year,"_", sensitivity_threshold, "_basin_assignments.csv"))
+write.csv(Basin_full_year, filename, row.names = FALSE)
+
 
 
 
