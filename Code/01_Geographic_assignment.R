@@ -153,12 +153,14 @@ Yukon_map <- function(year, sensitivity_threshold) {
 Basin_full_year <- Yukon_map(2015, 0.7)
 Basin_full_year <- Yukon_map(2016, .7)
 Basin_full_year <- Yukon_map(2017, .7)
+Basin_full_year <- Yukon_map(2018, .7)
 
 # Write the output to a CSV file
 filename<- here(paste0("Outputs/Assignment Matrix/Yukon_", year,"_", sensitivity_threshold, "_basin_assignments.csv"))
 write.csv(Basin_full_year, filename, row.names = FALSE)
 
-
+year<-2016
+sensitivity_threshold<-0.7
 
 
 

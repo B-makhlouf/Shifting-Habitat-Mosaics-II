@@ -1,109 +1,31 @@
-library(sf)
-library(tidyverse)
-library(here)
-install.packages("RColorBrewer")
-library(RColorBrewer)
+library(classInt)
+
+Yuk2015_assignment<- read.csv("/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Outputs/Assignment Matrix/Yukon_2015_0.7_basin_assignments.csv")
+
+<- Yuk2017_assignment$Q1
 
 
-### This is the script that will be used for mapping 
-
-# For a given year, read in the full assignment matrix for that year
-assignments<- read.csv(here("Outputs/Assignment Matrix/Yukon_2017_0.7_basin_assignments.csv"))
-
-# Read in the shapefile for the edges
-edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_cleaned.shp")
-background<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
-
-# Merge the shapefile and the data frame into an sf object 
-assignments$index <- 1:nrow(assignments)
-edges$index <- 1:nrow(edges)
-
-# Step 4: Merge the shapefile and the data frame by the index
-merged_data <- edges %>%
-  left_join(assignments, by = "index")
-
-# Step 5: Ensure the merged object is an sf object
-spatial_assignments <- st_as_sf(merged_data)
-
-tidy_assignments <- assignments %>%
-  pivot_longer(cols = starts_with("Q"), 
-               names_to = "Time", 
-               values_to = "Assignment")
-
-# Create a ggplot map with edges colored by the assignment value for each quartile 
-Q1_plot <- ggplot() +
-  geom_sf(data = background, fill = "grey90") +
-  geom_sf(data = spatial_assignments, aes(color = Q1), lwd = .3) +
-  scale_color_gradient(
-    low = "grey90",
-    high = "firebrick4",
-    na.value = "grey90"  # Set the color of 0 values to white
-  ) +
-  theme_void() +
-  theme(
-    panel.background = element_rect(fill = "grey70"),  # Set background color to grey
-    panel.grid = element_blank()  # Remove grid lines
-  )
-
-Q2_plot <- ggplot() +
-  geom_sf(data = background, fill = "grey90") +
-  geom_sf(data = spatial_assignments, aes(color = Q2), lwd = .3) +
-  scale_color_gradient(
-    low = "grey90",
-    high = "firebrick4",
-    na.value = "grey90"  # Set the color of 0 values to white
-  ) +
-  theme_void() +
-  theme(
-    panel.background = element_rect(fill = "grey70"),  # Set background color to grey
-    panel.grid = element_blank()  # Remove grid lines
-  )
-
-Q3_plot <- ggplot() +
-  geom_sf(data = background, fill = "grey90") +
-  geom_sf(data = spatial_assignments, aes(color = Q3), lwd = .3) +
-  scale_color_gradient(
-    low = "grey90",
-    high = "firebrick4",
-    na.value = "grey90"  # Set the color of 0 values to white
-  ) +
-  theme_void() +
-  theme(
-    panel.background = element_rect(fill = "grey70"),  # Set background color to grey
-    panel.grid = element_blank()  # Remove grid lines
-  )
-
-Q4_plot <- ggplot() +
-  geom_sf(data = background, fill = "grey90") +
-  geom_sf(data = spatial_assignments, aes(color = Q4), lwd = .3) +
-  scale_color_gradient(
-    low = "grey90",
-    high = "firebrick4",
-    na.value = "grey90"  # Set the color of 0 values to white
-  ) +
-  theme_void() +
-  theme(
-    panel.background = element_rect(fill = "grey70"),  # Set background color to grey
-    panel.grid = element_blank()  # Remove grid lines
-  )
-
-###################
+################################################################################
+##### Mapping using base R 
+################################################################################
 
 
-
-# Export as a tif 
-filename <- paste0("Yukon_2017_0.7_basin_assignments_Q1.tif")
+# breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
+#breaks <- c(0, .3, .7, 1)
+nclr <- length(breaks)
+filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
+filename <- "2015 Yukon Q1 .7.pdf"
 filepath <- file.path(here("Figures", "Maps", filename))
-ggsave(filepath, plot = Q1_plot, device = "tiff", width = 9, height = 6)
-
-filename <- paste0("Yukon_2017_0.7_basin_assignments_Q2.tif")
-filepath <- file.path(here("Figures", "Maps", filename))
-ggsave(filepath, plot = Q2_plot, device = "tiff", width = 9, height = 6)
-
-filename <- paste0("Yukon_2017_0.7_basin_assignments_Q3.tif")
-filepath <- file.path(here("Figures", "Maps", filename))
-ggsave(filepath, plot = Q3_plot, device = "tiff", width = 9, height = 6)
-
-filename <- paste0("Yukon_2017_0.7_basin_assignments_Q4.tif")
-filepath <- file.path(here("Figures", "Maps", filename))
-ggsave(filepath, plot = Q4_plot, device = "tiff", width = 9, height = 6)
+pdf(file = filepath, width = 9, height = 6)
+plotvar <- Yuk2017_assignment$Q1
+class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
+plotclr <- brewer.pal(nclr, "YlOrRd")
+colcode <- findColours(class, plotclr, digits = 2)
+colcode[plotvar == 0] <- 'gray60'
+colcode[plotvar < .2] <- 'gray80'
+colcode[which(StreamOrderPrior == 0)] <- 'gray60'
+colcode[which(pid_prior == 0)] <- 'gray60'
+plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
+plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
+dev.off()
