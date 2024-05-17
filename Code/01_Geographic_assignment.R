@@ -27,6 +27,8 @@ year<- 2017
 sensitivity_threshold <- 0.7
 }
 
+year<- 2015
+sensitivity_threshold <- 0.7
 
 ########################################################
 #### Function to produce maps and production data 
@@ -72,6 +74,8 @@ Yukon_map <- function(year, sensitivity_threshold) {
   within_pop <- within_site - analyt # Population error
   error <- sqrt(pid_isose_mod^2 + within_site^2 + analyt^2)  # COMBINED error 
   ###----- Filter to various quartiles 
+  
+
   
   # Find the 4 Quartiles of the natal origin data based on Days_into_run
   natal_origins$quartile <- cut(natal_origins$Days_into_run, breaks = quantile(natal_origins$Days_into_run, probs = c(0, 0.25, 0.5, 0.75, 1)), labels = c("Q1", "Q2", "Q3", "Q4"))
@@ -146,7 +150,9 @@ Yukon_map <- function(year, sensitivity_threshold) {
 }
 
 # Example usage
-Basin_full_year <- Yukon_map(2017, 0.7)
+Basin_full_year <- Yukon_map(2015, 0.7)
+Basin_full_year <- Yukon_map(2016, .7)
+Basin_full_year <- Yukon_map(2017, .7)
 
 # Write the output to a CSV file
 filename<- here(paste0("Outputs/Assignment Matrix/Yukon_", year,"_", sensitivity_threshold, "_basin_assignments.csv"))
