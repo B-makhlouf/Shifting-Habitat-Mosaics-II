@@ -68,6 +68,22 @@ meanProdMap <- ggplot(yukon_withTribs) +
 ggsave(here("Figures/Maps/meanProdMap.pdf"), plot = meanProdMap, width = 10, height = 10, units = "in", dpi = 300)
 
 
+################# 
+#### Variability by Stream Order resolution
+
+
+# Find all of the lowest sections of Trib with a given StrOrd starting at 6, (touching a trib with one higher stream order) 
+# Find all of the upstream reaches of that trib 
+# Group all together with some sort of ID
+# Calculate the mean production of that aggregate section 
+# Calculate the Sd of that aggregate section 
+# Calculate the CV of that aggregate section
+
+##################
+
+
+
+
 
 
 
