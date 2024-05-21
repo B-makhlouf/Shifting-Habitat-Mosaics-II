@@ -2,6 +2,9 @@ library("tidyverse")
 library("here")
 library("sf")
 
+
+##---  Quantify variability across the landscape 
+
 ## Read in all of the assignment matrices 
 yuk2015_assign<- read_csv(here("Outputs/Assignment Matrix/Yukon_2015_0.7_basin_assignments.csv"))
 yuk2016_assign<- read_csv(here("Outputs/Assignment Matrix/Yukon_2016_0.7_basin_assignments.csv"))
@@ -21,6 +24,42 @@ yukon_withTribs<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yuko
 yukon_withTribs$yuk2015<- full_yukon_assign$yuk2015
 yukon_withTribs$yuk2016<- full_yukon_assign$yuk2016
 yukon_withTribs$yuk2017<- full_yukon_assign$yuk2017
+
+
+# Calculate the CV for each row across the three years 
+yukon_withTribs <- yukon_withTribs %>%
+  rowwise() %>%
+  mutate(
+    mean_prod = mean(c(yuk2015, yuk2016, yuk2017), na.rm = TRUE),
+    sd_prod = sd(c(yuk2015, yuk2016, yuk2017), na.rm = TRUE),
+    cv = sd_prod / mean_prod * 100
+  ) %>%
+  #assign NA a 0 
+  mutate(cv = ifelse(is.na(cv), 0, cv))
+
+CVmap <- ggplot() +
+  geom_sf(data = yukon_withTribs, aes(color = cv)) +
+  scale_color_gradient2(
+    low = "white",
+    high = "firebrick"
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Coefficient of Variation in Production Across the Yukon Basin", color = "Coefficient of Variation")
+
+# Export as a tiff
+ggsave(here("Figures/Maps/CVmap.pdf"), plot = CVmap, width = 10, height = 10, units = "in", dpi = 300)
+
+
+
+
+?scale_fill_brewer
+?scale_color_gradient2
+
+
+
+
+
 
 # Start a new data frame, and sum the total production by tributary for each year 
 yukon_trib_summary<- yukon_withTribs %>% 
