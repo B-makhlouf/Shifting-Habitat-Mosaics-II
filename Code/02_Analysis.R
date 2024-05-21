@@ -1,54 +1,76 @@
-library("tidyverse")
-library("here")
-library("sf")
+library(tidyverse)
+library(here)
+library(sf)
 
+# Function to read and extract the 'Total' column from CSV files
+read_total_column <- function(file_path) {
+  read_csv(here(file_path)) %>% select(Total)
+}
 
-##---  Quantify variability across the landscape 
+# List of file paths
+file_paths <- list(
+  "Outputs/Assignment Matrix/Yukon_2015_0.7_basin_assignments.csv",
+  "Outputs/Assignment Matrix/Yukon_2016_0.7_basin_assignments.csv",
+  "Outputs/Assignment Matrix/Yukon_2015_0.7_basin_assignments.csv",
+  "Outputs/Assignment Matrix/Yukon_2017_0.7_basin_assignments.csv"
+)
 
-## Read in all of the assignment matrices 
-yuk2015_assign<- read_csv(here("Outputs/Assignment Matrix/Yukon_2015_0.7_basin_assignments.csv"))
-yuk2016_assign<- read_csv(here("Outputs/Assignment Matrix/Yukon_2016_0.7_basin_assignments.csv"))
-yuk2017_assign<- read_csv(here("Outputs/Assignment Matrix/Yukon_2015_0.7_basin_assignments.csv"))
-yuk2018_assign<- read_csv(here("Outputs/Assignment Matrix/Yukon_2017_0.7_basin_assignments.csv"))
-
-# Combine all of the total assignments into one data frame 
-full_yukon_assign<- bind_cols(yuk2015_assign$Total, yuk2016_assign$Total, yuk2017_assign$Total, yuk2018_assign$Total)
-
-# Give collumn names yuk2015, yuk2016, yuk2017, yuk2018
-colnames(full_yukon_assign)<- c("yuk2015", "yuk2016", "yuk2017", "yuk2018")
+# Read in all assignment matrices and combine them
+full_yukon_assign <- file_paths %>%
+  map_dfc(read_total_column) %>%
+  rename_with(~c("yuk2015", "yuk2016", "yuk2017", "yuk2018"))
 
 # Read in the shape file with the Tributary Names
-yukon_withTribs<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
+yukon_withTribs <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
 
 # Merge the full yukon assign data frame into the yukon_withTribs data frame
-yukon_withTribs$yuk2015<- full_yukon_assign$yuk2015
-yukon_withTribs$yuk2016<- full_yukon_assign$yuk2016
-yukon_withTribs$yuk2017<- full_yukon_assign$yuk2017
-
-
-# Calculate the CV for each row across the three years 
 yukon_withTribs <- yukon_withTribs %>%
+  bind_cols(full_yukon_assign) %>%
   rowwise() %>%
   mutate(
-    mean_prod = mean(c(yuk2015, yuk2016, yuk2017), na.rm = TRUE),
-    sd_prod = sd(c(yuk2015, yuk2016, yuk2017), na.rm = TRUE),
-    cv = sd_prod / mean_prod * 100
+    mean_prod = mean(c_across(yuk2015:yuk2017), na.rm = TRUE),
+    sd_prod = sd(c_across(yuk2015:yuk2017), na.rm = TRUE),
+    cv = if_else(is.na(sd_prod / mean_prod * 100), 0, sd_prod / mean_prod * 100)
   ) %>%
-  #assign NA a 0 
-  mutate(cv = ifelse(is.na(cv), 0, cv))
+  ungroup()
 
-CVmap <- ggplot() +
-  geom_sf(data = yukon_withTribs, aes(color = cv)) +
-  scale_color_gradient2(
-    low = "white",
-    high = "firebrick"
-  ) +
+
+
+####################
+###### CV and production by trib section
+####################
+
+#### How is variability distributed by trib section across the riverscape 
+
+# Plot the CV map
+CVmap <- ggplot(yukon_withTribs) +
+  geom_sf(aes(color = cv)) +
+  scale_color_gradient2(low = "white", high = "firebrick") +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(title = "Coefficient of Variation in Production Across the Yukon Basin", color = "Coefficient of Variation")
 
-# Export as a tiff
+# Export as a pdf
 ggsave(here("Figures/Maps/CVmap.pdf"), plot = CVmap, width = 10, height = 10, units = "in", dpi = 300)
+
+
+##### How is mean production distributed by trib section across the riverscape
+
+# Plot the mean production map
+meanProdMap <- ggplot(yukon_withTribs) +
+  geom_sf(aes(color = mean_prod)) +
+  scale_color_gradient2(low = "white", high = "firebrick") +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Mean Production Across the Yukon Basin", color = "Mean Production")
+
+# Export as a pdf
+ggsave(here("Figures/Maps/meanProdMap.pdf"), plot = meanProdMap, width = 10, height = 10, units = "in", dpi = 300)
+
+
+
+
+
 
 
 
