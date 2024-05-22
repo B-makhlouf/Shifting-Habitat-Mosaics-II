@@ -2,6 +2,10 @@ library(tidyverse)
 library(here)
 library(sf)
 
+Yukon_basemap<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_alb.shp")
+
+
+
 # Function to read and extract the 'Total' column from CSV files
 read_total_column <- function(file_path) {
   read_csv(here(file_path)) %>% select(Total)
@@ -68,7 +72,51 @@ meanProdMap <- ggplot(yukon_withTribs) +
 ggsave(here("Figures/Maps/meanProdMap.pdf"), plot = meanProdMap, width = 10, height = 10, units = "in", dpi = 300)
 
 
-################# 
+#################
+# Aggregate by tributary 
+
+# Start a new data frame, and sum the total production by tributary for each year
+
+yukon_trib_summary <- yukon_withTribs %>%
+  group_by(trbtry_) %>%
+  summarize(
+    totalprod2015 = sum(yuk2015, na.rm = TRUE),
+    totalprod2016 = sum(yuk2016, na.rm = TRUE),
+    totalprod2017 = sum(yuk2017, na.rm = TRUE),
+    total_stream_length = sum(Shp_Lng, na.rm = TRUE)  # Summarize the sum of Shp_lng per tributary
+  ) %>%
+  rowwise() %>%  # Ensure operations are row-wise
+  mutate(
+    mean_prod = mean(c(totalprod2015, totalprod2016, totalprod2017), na.rm = TRUE),
+    sd_prod = sd(c(totalprod2015, totalprod2016, totalprod2017), na.rm = TRUE),
+    cv = if_else(is.na(sd_prod / mean_prod * 100), 0, sd_prod / mean_prod * 100), 
+    prod_per_stream_length = mean_prod / total_stream_length
+  ) %>%
+  ungroup()
+
+# Read in polygon shapefile 
+trib_polygons<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/trib_polygons.shp")
+
+#Make yukon_trib_summary a df and remove geometry 
+yukon_trib_summary_df <- as.data.frame(yukon_trib_summary)
+yukon_trib_summary_df <- yukon_trib_summary_df %>% select(-geometry)
+
+#Join the df into the sf object 
+trib_polygons <- left_join(trib_polygons, yukon_trib_summary_df, by = c("Trib" = "trbtry_"))
+
+trib_polygons_map <- ggplot() +
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) +  # Add basemap layer
+  geom_sf(data = trib_polygons, aes(fill = prod_per_stream_length), color = "white") +
+  scale_fill_gradient2(low = "navyblue", mid = "white", high = "firebrick4", midpoint = mean(trib_polygons$prod_per_stream_length, na.rm = TRUE)) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "Coefficient of Variation in Production Across the Yukon Basin", fill = "Coefficient of Variation")
+
+print(trib_polygons_map)
+
+
+
+
 #### Variability by Stream Order resolution
 
 
@@ -79,10 +127,18 @@ ggsave(here("Figures/Maps/meanProdMap.pdf"), plot = meanProdMap, width = 10, hei
 # Calculate the Sd of that aggregate section 
 # Calculate the CV of that aggregate section
 
+
+
+
 ##################
+#### Demonstrate the Variability lost by aggregating at genetic resolution for Canada 
 
+# Break Canada Tribs into 5th or lower
+# Calculate CV for Canada region as a whole 
+# Calculate the CV for each tributary grouping 
+# Compare 
 
-
+#################
 
 
 
