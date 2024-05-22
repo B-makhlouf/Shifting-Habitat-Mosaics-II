@@ -1,6 +1,13 @@
 library(tidyverse)
 library(here)
 library(sf)
+library(biscale) #bivariate choropleths
+library(cowplot) #combine map and legend bivariate choropleth
+library(scatterpie) #proportional symbols pie charts
+library(here) #setup
+library(sf) #vector data         
+library(tidyverse) #data manipulation
+library(spData) #datasets
 
 Yukon_basemap<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_alb.shp")
 
@@ -107,15 +114,52 @@ trib_polygons <- left_join(trib_polygons, yukon_trib_summary_df, by = c("Trib" =
 trib_polygons_map <- ggplot() +
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) +  # Add basemap layer
   geom_sf(data = trib_polygons, aes(fill = prod_per_stream_length), color = "white") +
-  scale_fill_gradient2(low = "navyblue", mid = "white", high = "firebrick4", midpoint = mean(trib_polygons$prod_per_stream_length, na.rm = TRUE)) +
+  scale_fill_gradient2(low = "steelblue4", mid = "white", high = "firebrick4", midpoint = mean(trib_polygons$prod_per_stream_length, na.rm = TRUE)) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(title = "Coefficient of Variation in Production Across the Yukon Basin", fill = "Coefficient of Variation")
 
 print(trib_polygons_map)
 
+##### Bivariate Cloropleth Map of Production per Stream Length and CV
+
+trib_polygons <- trib_polygons %>%
+  mutate(
+    prod_per_stream_length = ifelse(is.na(prod_per_stream_length), 0, prod_per_stream_length),
+    cv = ifelse(is.na(cv), 0, cv)
+  )
 
 
+bivariate_data<- bi_class(
+  trib_polygons, 
+  x = "prod_per_stream_length",
+  y = "cv", 
+  style = "quantile", 
+  dim = 3
+)
+
+bivariate_map<- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) +  # Add basemap layer 
+  geom_sf(
+    data = bivariate_data, 
+    mapping = aes(fill = bi_class), color = "white", 
+    size = .1, show.legend = FALSE
+  ) + 
+  bi_scale_fill(pal = "BlueOr", dim = 3) + 
+  bi_theme()
+
+bivch_legend <- bi_legend(
+  pal = "BlueOr", 
+  dim = 3, 
+  xlab = "Higher production per stream length", 
+  ylab = "Higher Variability", 
+  size = 8 
+) 
+
+?bi_pal
+ggdraw() + 
+  draw_plot(bivariate_map, 0,0,1,1) + 
+  draw_plot(bivch_legend, 0,0,.3,.3)
 
 #### Variability by Stream Order resolution
 
