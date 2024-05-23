@@ -11,8 +11,6 @@ library(spData) #datasets
 
 Yukon_basemap<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_alb.shp")
 
-
-
 # Function to read and extract the 'Total' column from CSV files
 read_total_column <- function(file_path) {
   read_csv(here(file_path)) %>% select(Total)
@@ -54,8 +52,9 @@ yukon_withTribs <- yukon_withTribs %>%
 #### How is variability distributed by trib section across the riverscape 
 
 # Plot the CV map
-CVmap <- ggplot(yukon_withTribs) +
-  geom_sf(aes(color = cv)) +
+CVmap <- ggplot() +
+  geom_sf(data = Yukon_basemap)+ 
+  geom_sf(data = yukon_withTribs, aes(color = cv)) +
   scale_color_gradient2(low = "white", high = "firebrick") +
   theme_void() +
   theme(legend.position = "bottom") +
@@ -112,12 +111,17 @@ yukon_trib_summary_df <- yukon_trib_summary_df %>% select(-geometry)
 trib_polygons <- left_join(trib_polygons, yukon_trib_summary_df, by = c("Trib" = "trbtry_"))
 
 trib_polygons_map <- ggplot() +
-  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) +  # Add basemap layer
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
   geom_sf(data = trib_polygons, aes(fill = prod_per_stream_length), color = "white") +
   scale_fill_gradient2(low = "steelblue4", mid = "white", high = "firebrick4", midpoint = mean(trib_polygons$prod_per_stream_length, na.rm = TRUE)) +
   theme_void() +
-  theme(legend.position = "bottom") +
-  labs(title = "Coefficient of Variation in Production Across the Yukon Basin", fill = "Coefficient of Variation")
+  theme(legend.position = "bottom",
+        legend.key.height = unit(2, "cm"),  # Adjust the height of the legend key
+        legend.key.width = unit(2, "cm"),   # Adjust the width of the legend key
+        legend.text = element_text(size = 10), 
+        plot.title = element_text(hjust = 0.5), ) +  # Adjust the font size of legend labels
+  labs(title = "Production per km of stream length by Tributary group",  # Main title
+       fill = "Production per Stream Length") 
 
 print(trib_polygons_map)
 
@@ -139,14 +143,15 @@ bivariate_data<- bi_class(
 )
 
 bivariate_map<- ggplot() + 
-  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) +  # Add basemap layer 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + # Add basemap layer 
   geom_sf(
     data = bivariate_data, 
     mapping = aes(fill = bi_class), color = "white", 
     size = .1, show.legend = FALSE
   ) + 
   bi_scale_fill(pal = "BlueOr", dim = 3) + 
-  bi_theme()
+  bi_theme()+ 
+  ggtitle("Mean Production vs Variability by Tributary grouping") 
 
 bivch_legend <- bi_legend(
   pal = "BlueOr", 
@@ -156,10 +161,9 @@ bivch_legend <- bi_legend(
   size = 8 
 ) 
 
-?bi_pal
 ggdraw() + 
   draw_plot(bivariate_map, 0,0,1,1) + 
-  draw_plot(bivch_legend, 0,0,.3,.3)
+  draw_plot(bivch_legend, 0,0,.2,.2)
 
 #### Variability by Stream Order resolution
 
@@ -177,22 +181,23 @@ ggdraw() +
 ##################
 #### Demonstrate the Variability lost by aggregating at genetic resolution for Canada 
 
-# Break Canada Tribs into 5th or lower
 # Calculate CV for Canada region as a whole 
 # Calculate the CV for each tributary grouping 
 # Compare 
 
+#Bring in the Canadian edges shapefile 
+
+
+
+
+
+
+
+
+
 #################
 
 
-
-
-
-
-
-
-?scale_fill_brewer
-?scale_color_gradient2
 
 
 

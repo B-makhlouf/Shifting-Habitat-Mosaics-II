@@ -16,7 +16,7 @@ yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yuko
 #Basin
 yuk_basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
-YukonNodes <- read.csv(here("data/reporting groups/yukon/yukon_noderelationships.csv"),header=T,stringsAsFactors = F)#Node to reach relationships
+YukonNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Yukon/Chinook/Reporting Groups/yukon_noderelationships.csv"),header=T,stringsAsFactors = F)#Node to reach relationships
 YukonNetwork<-YukonNodes %>% rename(child_s=fromnode,parent_s=tonode)#rename(child_s=fromnode,parent_s=tonode) #Rename as child and parent nodes 
 
 FindUpstreamReachID <- function(ReachID){
@@ -60,63 +60,63 @@ if(F){
 ################################################################################
 
 #Shapefile
-kusk_edges <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
-kusk_basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
+#kusk_edges <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
+#kusk_basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
 
 # Load nodes for all tributaries
-KuskoNodes <- read.csv(here('data', 'reporting groups', 'kusko', 'kusko_noderelationships.csv'), header = TRUE, stringsAsFactors = FALSE)
+#KuskoNodes <- read.csv(here('data', 'reporting groups', 'kusko', 'kusko_noderelationships.csv'), header = TRUE, stringsAsFactors = FALSE)
 
 # Load Kuskokwim Shapefile
 ## Must be this version of the shapefile!
-kuskokwim_shapefile <- st_read('/Users/benjaminmakhlouf/Downloads/kusko_network_20210717/kusko_edges_20210717.shp')
+#kuskokwim_shapefile <- st_read('/Users/benjaminmakhlouf/Downloads/kusko_network_20210717/kusko_edges_20210717.shp')
 
 # Rename fromnode to child_s and tonode to parent_s
-KuskoNetwork <- KuskoNodes %>% rename(child_s = fromnode, parent_s = tonode)
+#KuskoNetwork <- KuskoNodes %>% rename(child_s = fromnode, parent_s = tonode)
 
 # Function to find upstream reach IDs
 #' @param ReachID Reach ID value for which upstream reaches need to be determined
 #' @return Vector of upstream reach IDs
 #' 
-FindUpstreamReachID_Kusk <- function(ReachID) {
+#FindUpstreamReachID_Kusk <- function(ReachID) {
   # Select the reach ID from the shapefile that corresponds to the ReachID value passed to the function argument
-  TribStartRID <- kuskokwim_shapefile$rid[which(kuskokwim_shapefile$reachid == ReachID)]
+#  TribStartRID <- kuskokwim_shapefile$rid[which(kuskokwim_shapefile$reachid == ReachID)]
   
   # Create an empty list called tributary_indices
-  tributary_indices <- c()
+#  tributary_indices <- c()
   
   # Find the parent reach ID value for the starting tributary
-  StartParent <- KuskoNetwork$parent_s[which(KuskoNetwork$rid == TribStartRID)]
+#  StartParent <- KuskoNetwork$parent_s[which(KuskoNetwork$rid == TribStartRID)]
   
   # Find the first child reach ID value for the starting tributary
-  StartChild <- KuskoNetwork$child_s[which(KuskoNetwork$rid == TribStartRID)]
+#  StartChild <- KuskoNetwork$child_s[which(KuskoNetwork$rid == TribStartRID)]
   
   # Concatenate these together
-  tributary_indices <- c(tributary_indices, StartChild)
+#  tributary_indices <- c(tributary_indices, StartChild)
   
   # Go find all child reach ID values which have a parent value of the specified starting child value
-  ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s == StartChild)]
+#  ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s == StartChild)]
   
   # As long as there are some "child" tributaries
-  while (length(ChildList) > 0) {
-    # Add the new child values to the existing tributary_indices
-    tributary_indices <- c(tributary_indices, ChildList)
-    
-    # Find the next set of child values
-    ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s %in% ChildList)]
-  }
-  
-  # Find the indices of elements in KuskoNetwork$child_s that match values in tributary_indices
-  indices_in_child_s <- match(tributary_indices, KuskoNetwork$child_s)
-  
-  # Extract the values from KuskoNetwork$rid corresponding to the matched indices
-  rid_values <- KuskoNetwork$rid[indices_in_child_s]
-  
-  # Find the indices of the values obtained in Step 2 within kuskokwim_shapefile$rid
-  indices_in_shapefile <- match(rid_values, kuskokwim_shapefile$rid)
-  
-  # Extract the values from kuskokwim_shapefile$reachid using the indices obtained in Step 3
-  upstream_reach_ids <- kuskokwim_shapefile$reachid[indices_in_shapefile]
-  
-  # Return the resulting vector upstream_reach_ids
-  return(upstream_reach_ids)
-}
+#   while (length(ChildList) > 0) {
+#     # Add the new child values to the existing tributary_indices
+#     tributary_indices <- c(tributary_indices, ChildList)
+#     
+#     # Find the next set of child values
+#     ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s %in% ChildList)]
+#   }
+#   
+#   # Find the indices of elements in KuskoNetwork$child_s that match values in tributary_indices
+#   indices_in_child_s <- match(tributary_indices, KuskoNetwork$child_s)
+#   
+#   # Extract the values from KuskoNetwork$rid corresponding to the matched indices
+#   rid_values <- KuskoNetwork$rid[indices_in_child_s]
+#   
+#   # Find the indices of the values obtained in Step 2 within kuskokwim_shapefile$rid
+#   indices_in_shapefile <- match(rid_values, kuskokwim_shapefile$rid)
+#   
+#   # Extract the values from kuskokwim_shapefile$reachid using the indices obtained in Step 3
+#   upstream_reach_ids <- kuskokwim_shapefile$reachid[indices_in_shapefile]
+#   
+#   # Return the resulting vector upstream_reach_ids
+#   return(upstream_reach_ids)
+# }
