@@ -187,13 +187,12 @@ ggdraw() +
 
 #Bring in the Canadian edges shapefile 
 
+upperGenCanada<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp")
 
+upperGenCanada$Canada<- "Canada"
 
-
-
-
-
-
+#Join by geometry
+joined<- st_join( yukon_withTribs,upperGenCanada, join = st_overlaps)
 
 #################
 
