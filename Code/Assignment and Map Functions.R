@@ -13,30 +13,17 @@ library(sf)
 ################################################################################
 ################################################################################
 
-
 ###----- Shapefiles ------------------------------------------------------------
 #Shapefiles
 #yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_bigtribs.shp")
 yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
-
-# For testing 
-if (T){
-year<- 2017
-sensitivity_threshold <- 0.7
-}
-
-year<- 2015
-sensitivity_threshold <- 0.7
-
 ########################################################
 #### Function to produce maps and production data 
 ########################################################
 
-
-
-Yukon_map <- function(year, sensitivity_threshold) {  
+Yukon_assign <- function(year, sensitivity_threshold) {  
   
   identifier <- paste(year, "Yukon", sep = "_")
   
@@ -178,17 +165,17 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Ku
 #### Function to produce maps and production data 
 ########################################################
 
-Kusko_map <- function(year, sensitivity_threshold, identifier) {  
+Kusko_assign <- function(year, sensitivity_threshold) {  
   
   # Read data based on the year
   natal_origins <- read.csv(paste("Data/Natal_Sr/", year, "_Kusko_NatalOrigins.csv", sep = ""))
-  #CPUE <- read.csv(here("Data/CPUE_weights/", paste(year, "_Kusko_CPUE weights.csv", sep = "")), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  CPUE <- read.csv(here(paste("Data/CPUE_weights/", paste(year, "_Kusko_CPUE weights.csv", sep = ""))), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
   
   ## ----- Extract isoscape prediction + error values -----------------------------
   pid_iso <- kusk_edges$iso_pred # Sr8786 value
   pid_isose <- kusk_edges$isose_pred # Error
-  pid_isose[pid_isose < .0005] <- .0005 #bump up error in really low error places 
-  pid_prior <- kusk_edges$UniPh2oNoE#Habitat prior ( RCA slope)
+  pid_isose[pid_isose < .0005] <- .0005 # bump up error in really low error places 
+  pid_prior <- kusk_edges$UniPh2oNoE # Habitat prior (RCA slope)
   
   ###----- Variance Generating Processes ------------------------------------------
   within_site <- 0.0003133684 / 1.96  # Prediction interval from oto vs. water regression. Pred intervals should be 2SD, analogous to CI which are 2SE
@@ -196,89 +183,79 @@ Kusko_map <- function(year, sensitivity_threshold, identifier) {
   within_pop <- within_site - analyt # Population error
   error <- sqrt(pid_isose^2 + within_site^2 + analyt^2)  # COMBINED error 
   
-  ###----- CREATE EMPTY MATRICES -------------------------------------------------
-  output_matrix <- matrix(NA, nrow = length(kusk_edges$iso_pred), ncol = nrow(natal_origins))
-  l<-length(natal_origins[, 1])
-  f.strata.vec <- rep(NA,l)
-  assignment_matrix <- matrix(NA,nrow=length(pid_iso),ncol=l)
+  ###----- Filter to various quartiles --------------------------------------------
   
-  #############################
-  ###### ASSIGNMENTS HERE ##### 
-  #############################
-  ## loop for assingments
+  # Find the 4 Quartiles of the natal origin data based on Days_into_run
+  natal_origins$quartile <- cut(natal_origins$Days_into_run, breaks = quantile(natal_origins$Days_into_run, probs = c(0, 0.25, 0.5, 0.75, 1)), labels = c("Q1", "Q2", "Q3", "Q4"))
+  # give the first value Q1
+  natal_origins$quartile[is.na(natal_origins$quartile)] <- "Q1"
   
-  for (i in 1:length(natal_origins[, 1])) {
+  quartiles <- c("Q1", "Q2", "Q3", "Q4", "Total")
+  result_list <- list()
+  
+  for (q in quartiles) {
+    if (q == "Total") {
+      filtered_data <- natal_origins
+    } else {
+      filtered_data <- natal_origins %>% filter(quartile == q)
+    }
     
-    iso_o <- natal_origins[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
-    StreamOrderPrior <- as.numeric(kusk_edges$Strahler > 2)
+    l <- nrow(filtered_data)
     
-    #####. BAYES RULE ASSIGNMENT. ##################
+    if (l == 0) {
+      result_list[[q]] <- rep(NA, length(pid_iso))
+      next
+    }
     
-    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * StreamOrderPrior
+    assignment_matrix <- matrix(NA, nrow = length(pid_iso), ncol = l)
     
-    # normalize so all values sum to 1 (probability distribution)
-    assign_norm <- assign / sum(assign) 
+    for (i in 1:l) {
+      iso_o <- filtered_data[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
+      StreamOrderPrior <- as.numeric(kusk_edges$Strahler > 2)
+      
+      #####. BAYES RULE ASSIGNMENT. ##################
+      
+      assign <- (1 / sqrt((2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2))) * pid_prior * StreamOrderPrior
+      
+      # normalize so all values sum to 1 (probability distribution)
+      assign_norm <- assign / sum(assign) 
+      assign_norm <- assign_norm * CPUE[i] # multiply times the CPUE
+      
+      # rescale so that all values are between 0 and 1 
+      assign_rescaled <- assign_norm / max(assign_norm) 
+      assign_rescale_removed <- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+      assignment_matrix[, i] <- assign_rescale_removed
+      
+      # TEMPORARILY, Assign all NAs a 0 
+      assignment_matrix[is.na(assignment_matrix)] <- 0
+    }
     
-    assign_norm <- assign_norm #* CPUE[i] # multiply times the CPUE
+    ###------- BASIN SCALE VALUES ----------------------------------------
     
-    #rescale so that all values are between 0 and 1 
-    assign_rescaled <- assign_norm / max(assign_norm) 
+    basin_assign_sum <- apply(assignment_matrix, 1, sum) # total probability for each location
+    basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum) # SUMS to 1 
     
-    assign_rescale_removed<- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
-    assignment_matrix[,i] <- assign_rescale_removed
-    
-    #assignment_matrix[,i] <- assign_rescaled
-    
+    result_list[[q]] <- basin_assign_rescale
   }
   
-  ###------- BASIN SCALE VALUES ----------------------------------------
+  result_df <- data.frame(
+    Location = 1:length(pid_iso),
+    Q1 = result_list[["Q1"]],
+    Q2 = result_list[["Q2"]],
+    Q3 = result_list[["Q3"]],
+    Q4 = result_list[["Q4"]],
+    Total = result_list[["Total"]]
+  )
   
-  basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
-  basin_assign_rescale <- basin_assign_sum/sum(basin_assign_sum) #rescaled probability for each location
-  basin_assign_norm<- basin_assign_rescale/max(basin_assign_rescale) #normalized from 0 to 1 
-  
-  filename<- paste0(identifier, "_", sensitivity_threshold, ".csv")
-  write.csv(basin_assign_rescale, file = here("Outputs", "Assignment Matrix", filename), row.names = FALSE)
- 
+  return(result_df)
 }
 
+################################################################################
+################################################################################
+
+# Functions for mapping 
 
 
-
-
-
-
-
-
-
-
-##############################################
-########## Producing All Maps
-##############################################
-
-
-# List of years with data
-years <- c(2015, 2016, 2017)
-sensitivity_threshold<- .75
-
-
-# Yukon Mapping 
-for (i in 1:length(years)) {
-  year <- years[i]
-  identifier <- paste(year, "Kusko", sep = "_")
-  Yukon_map(year, sensitivity_threshold)
-}
-
-
-years <- c(2017, 2018)
-sensitivity_threshold<- .75
-
-#Kusko mapping
-for (i in 1:length(years)) {
-  year <- years[i]
-  identifier <- paste("full",year, "Kusko", sep = "_")
-  Kusko_map(year, sensitivity_threshold, identifier)
-}
 
 
 
