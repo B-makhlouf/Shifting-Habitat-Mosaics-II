@@ -136,18 +136,6 @@ Yukon_assign <- function(year, sensitivity_threshold) {
   return(result_df)
 }
 
-# Example usage
-Basin_full_year <- Yukon_map(2015, 0.7)
-Basin_full_year <- Yukon_map(2016, .7)
-Basin_full_year <- Yukon_map(2017, .7)
-Basin_full_year <- Yukon_map(2018, .7)
-
-# Write the output to a CSV file
-filename<- here(paste0("Outputs/Assignment Matrix/Yukon_", year,"_", sensitivity_threshold, "_basin_assignments.csv"))
-write.csv(Basin_full_year, filename, row.names = FALSE)
-
-year<-2016
-sensitivity_threshold<-0.7
 
 
 
@@ -168,8 +156,11 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Ku
 Kusko_assign <- function(year, sensitivity_threshold) {  
   
   # Read data based on the year
-  natal_origins <- read.csv(paste("Data/Natal_Sr/", year, "_Kusko_NatalOrigins.csv", sep = ""))
-  CPUE <- read.csv(here(paste("Data/CPUE_weights/", paste(year, "_Kusko_CPUE weights.csv", sep = ""))), sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
+  natal_origins_path <- paste("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/03_Extracted Data/Natal Origins/Cleaned/Kuskokwim_", year, "_Cleaned_Natal_Origins.csv", sep = "")
+  CPUE_path <- paste("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/04_CPUE Data/CPUE Weights/", year, "_Kusko_CPUE weights.csv", sep = "")
+  
+  natal_origins <- read.csv(natal_origins_path)
+  CPUE <- read.csv(CPUE_path, sep = ",", header = TRUE, stringsAsFactors = FALSE) %>% unlist() %>% as.numeric()
   
   ## ----- Extract isoscape prediction + error values -----------------------------
   pid_iso <- kusk_edges$iso_pred # Sr8786 value
@@ -187,6 +178,7 @@ Kusko_assign <- function(year, sensitivity_threshold) {
   
   # Find the 4 Quartiles of the natal origin data based on Days_into_run
   natal_origins$quartile <- cut(natal_origins$Days_into_run, breaks = quantile(natal_origins$Days_into_run, probs = c(0, 0.25, 0.5, 0.75, 1)), labels = c("Q1", "Q2", "Q3", "Q4"))
+  
   # give the first value Q1
   natal_origins$quartile[is.na(natal_origins$quartile)] <- "Q1"
   
@@ -250,10 +242,14 @@ Kusko_assign <- function(year, sensitivity_threshold) {
   return(result_df)
 }
 
+
+
+
 ################################################################################
 ################################################################################
 
 # Functions for mapping 
+
 
 
 
