@@ -17,7 +17,7 @@ library(sf)
 #Shapefiles
 #yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_bigtribs.shp")
 yuk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
-basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
+#basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 ########################################################
 #### Function to produce maps and production data 
@@ -147,7 +147,7 @@ Yukon_assign <- function(year, sensitivity_threshold) {
 
 #Isoscape and Basin Shapefile 
 kusk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
-basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
+#basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
 
 ########################################################
 #### Function to produce maps and production data 
@@ -250,7 +250,37 @@ Kusko_assign <- function(year, sensitivity_threshold) {
 
 # Functions for mapping 
 
+Map_Base<- function(River,plotvar) { 
+  if River == "Yukon" {
+   edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+   basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
+  } else {
+   edges<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp")
+   basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
+  }
+  # breaks <- seq(min(basin_assign_norm), max(basin_assign_norm), length= 9)
+  breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
+  #breaks <- c(0, .3, .7, 1)
+  nclr <- length(breaks)
+  filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
+  filepath <- file.path(here("Figures", "Maps", filename))
+  pdf(file = filepath, width = 9, height = 6)
+  plotvar <- plotvar
+  class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
+  plotclr <- brewer.pal(nclr, "YlOrRd")
+  colcode <- findColours(class, plotclr, digits = 2)
+  colcode[plotvar == 0] <- 'gray60'
+  colcode[plotvar < .2] <- 'gray80'
+  colcode[which(StreamOrderPrior == 0)] <- 'gray60'
+  colcode[which(pid_prior == 0)] <- 'gray60'
+  plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
+  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
+  dev.off()
+  
+}
+  }
 
+  
 
 
 
