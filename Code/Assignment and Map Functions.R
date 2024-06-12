@@ -60,7 +60,9 @@ Basin_prov_assign <- function(region, year, sensitivity_threshold) {
   if (region == "Yukon") {
     pid_isose <- ifelse(pid_isose < 0.0031, 0.003, pid_isose)
   } else if (region == "Kuskokwim") {
-    pid_isose[pid_isose < .0005] <- .0005
+    #Temporarily make all pid_isose values .0005 to avoid errors
+    pid_isose <- ifelse(pid_isose != .0005, .0005, pid_isose)
+    #pid_isose[pid_isose < .0005] <- .0005
   }
   pid_prior <- edges[[prior_col]]
   
@@ -115,7 +117,7 @@ Basin_prov_assign <- function(region, year, sensitivity_threshold) {
       
       
       assign_norm <- assign / sum(assign)
-      assign_norm <- assign_norm * CPUE[i]
+      #assign_norm <- assign_norm * CPUE[i]
       
       # Ensure non-empty assign_norm
       if (length(assign_norm) == 0 || all(is.na(assign_norm))) {
@@ -153,7 +155,12 @@ Basin_prov_assign <- function(region, year, sensitivity_threshold) {
     Total = result_list[["Total"]]
   )
   
+  #export as a csv 
+  write.csv(result_df, file = paste0("Outputs/Assignment Matrix/", year, "_", region, "_", sensitivity_threshold, ".csv"))
+  
   return(result_df)
+  
+
 }
 
 
@@ -167,7 +174,7 @@ library(sf)
 library(classInt)
 library(RColorBrewer)
 
-Map_Base <- function(River, plotvar, identifier) {
+Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   # Load the appropriate shapefiles based on the River parameter
   if (River == "Yukon") {
     edges_path <- "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp"

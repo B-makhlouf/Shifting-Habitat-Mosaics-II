@@ -1,3 +1,68 @@
+
+# Script for Analysis 
+
+# Load libraries
+library(tidyverse)
+library(here)
+
+#Source the helper functions
+source(here("Code/Assignment and Map Functions.R"))
+
+# Do all Kuskokwim Assignments
+Kusko_2017<- Basin_prov_assign("Kuskokwim", 2017, .7)
+Kusko_2018<- Basin_prov_assign("Kuskokwim", 2018, .7)
+Kusko_2019<- Basin_prov_assign("Kuskokwim", 2019, .7)
+Kusko_2020<- Basin_prov_assign("Kuskokwim", 2020, .7)
+Kusko_2021<- Basin_prov_assign("Kuskokwim", 2021, .7)
+
+# Make a map of all
+
+#2017
+plotvar<- Kusko_2017$Total
+plotvar<- (plotvar-min(plotvar))/(max(plotvar)-min(plotvar)) #Rescale to range from 0-1
+Map_Base("Kuskokwim", plotvar, "Kusko_2017", .7)#Plot
+
+#2018
+plotvar<- Kusko_2018$Total
+plotvar<- (plotvar-min(plotvar))/(max(plotvar)-min(plotvar))#Rescale to range from 0-1
+Map_Base("Kuskokwim", plotvar, "Kusko_2018", .7)#Plot
+
+#2019
+plotvar<- Kusko_2019$Total
+plotvar<- (plotvar-min(plotvar))/(max(plotvar)-min(plotvar))#Rescale to range from 0-1
+Map_Base("Kuskokwim", plotvar, "Kusko_2019", .7)#Plot
+
+#2020
+plotvar<- Kusko_2020$Total
+plotvar<- (plotvar-min(plotvar))/(max(plotvar)-min(plotvar))#Rescale to range from 0-1
+Map_Base("Kuskokwim", plotvar, "Kusko_2020", .7)#Plot
+
+#2021
+plotvar<- Kusko_2021$Total
+plotvar<- (plotvar-min(plotvar))/(max(plotvar)-min(plotvar))#Rescale to range from 0-1
+Map_Base("Kuskokwim", plotvar, "Kusko_2021", .7)#Plot
+
+
+################################ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 library(tidyverse)
 library(here)
 library(sf)
