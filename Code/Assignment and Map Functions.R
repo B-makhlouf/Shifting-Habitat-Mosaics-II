@@ -23,6 +23,9 @@ sensitivity_threshold<- 0.7
 year<- 2017 #works
 year<- 2018 #works
 year<- 2019
+year<- 2020
+year<- 2021
+
 output<-combined_assign(region, year, sensitivity_threshold)
 
 
