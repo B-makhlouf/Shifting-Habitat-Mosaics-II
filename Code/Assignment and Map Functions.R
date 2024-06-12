@@ -9,12 +9,33 @@ library(ggplot2)
 library(sf)
 
 
+region<- "Yukon" 
+sensitivity_threshold<- 0.7
+year<- 2015 #works
+year<- 2016 #works
+year<- 2017 #works
+year<- 2018 #works
+year<- 2019 # Needs natal data extracted 
+year<- 2021 # Needs natal data extracted
+
+region<- "Kuskokwim"
+sensitivity_threshold<- 0.7
+year<- 2017 #works
+year<- 2018 #works
+year<- 2019
+output<-combined_assign(region, year, sensitivity_threshold)
+
+
+
+
+
+
 combined_assign <- function(region, year, sensitivity_threshold) {  
   # Determine file paths and parameters based on the region
   if (region == "Yukon") {
     shapefile_path <- "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp"
     natal_origins_path <- paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/03_Extracted Data/Natal Origins/Cleaned/Yukon_", year, "_Cleaned_Natal_Origins.csv")
-    CPUE_path <- paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/04_CPUE Data/", year, "_Yukon_CPUE weights.csv")
+    CPUE_path <- paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/04_CPUE Data/CPUE Weights/", year, "_Yukon_CPUE weights.csv")
     genetics_path <- paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/02_Genetic Data/03_Genetic Prior/", year, " Yukon_genetic_prior_.csv")
     shapefile_paths <- list(
       ly = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
@@ -116,8 +137,22 @@ combined_assign <- function(region, year, sensitivity_threshold) {
       
       assign_norm <- assign / sum(assign)
       assign_norm <- assign_norm * CPUE[i]
-      assign_rescaled <- assign_norm / max(assign_norm)
+      
+      # Ensure non-empty assign_norm
+      if (length(assign_norm) == 0 || all(is.na(assign_norm))) {
+        assign_rescaled <- rep(0, length(pid_iso))
+      } else {
+        assign_rescaled <- assign_norm / max(assign_norm, na.rm = TRUE)
+        assign_rescaled <- ifelse(is.na(assign_rescaled), 0, assign_rescaled)
+      }
+      
       assign_rescale_removed <- ifelse(assign_rescaled >= sensitivity_threshold, assign_rescaled, 0)
+      
+      # Ensure non-empty assign_rescale_removed
+      if (length(assign_rescale_removed) == 0) {
+        assign_rescale_removed <- rep(0, length(pid_iso))
+      }
+      
       assignment_matrix[, i] <- assign_rescale_removed
       
       assignment_matrix[is.na(assignment_matrix)] <- 0
@@ -125,6 +160,13 @@ combined_assign <- function(region, year, sensitivity_threshold) {
     
     basin_assign_sum <- apply(assignment_matrix, 1, sum)
     basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum)
+    
+    # Add a check to make sure sum_basin_assign_rescale sums to 1, if not, print an error 
+    
+    # if (sum(basin_assign_rescale) != 1) {
+    #   print("Error: sum(basin_assign_rescale) != 1")
+    # }
+    # 
     
     result_list[[q]] <- basin_assign_rescale
   }
@@ -140,6 +182,7 @@ combined_assign <- function(region, year, sensitivity_threshold) {
   
   return(result_df)
 }
+
 
 
 ################################################################################
