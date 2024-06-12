@@ -8,32 +8,7 @@ library(fabricatr)
 library(ggplot2)
 library(sf)
 
-
-region<- "Yukon" 
-sensitivity_threshold<- 0.7
-year<- 2015 #works
-year<- 2016 #works
-year<- 2017 #works
-year<- 2018 #works
-year<- 2019 # Needs natal data extracted 
-year<- 2021 # Needs natal data extracted
-
-region<- "Kuskokwim"
-sensitivity_threshold<- 0.7
-year<- 2017 #works
-year<- 2018 #works
-year<- 2019
-year<- 2020
-year<- 2021
-
-output<-combined_assign(region, year, sensitivity_threshold)
-
-
-
-
-
-
-combined_assign <- function(region, year, sensitivity_threshold) {  
+Basin_prov_assign <- function(region, year, sensitivity_threshold) {  
   # Determine file paths and parameters based on the region
   if (region == "Yukon") {
     shapefile_path <- "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp"
@@ -138,6 +113,7 @@ combined_assign <- function(region, year, sensitivity_threshold) {
         assign <- (1 / sqrt((2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2))) * pid_prior * StreamOrderPrior
       }
       
+      
       assign_norm <- assign / sum(assign)
       assign_norm <- assign_norm * CPUE[i]
       
@@ -157,20 +133,14 @@ combined_assign <- function(region, year, sensitivity_threshold) {
       }
       
       assignment_matrix[, i] <- assign_rescale_removed
-      
       assignment_matrix[is.na(assignment_matrix)] <- 0
     }
     
     basin_assign_sum <- apply(assignment_matrix, 1, sum)
     basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum)
     
-    # Add a check to make sure sum_basin_assign_rescale sums to 1, if not, print an error 
-    
-    # if (sum(basin_assign_rescale) != 1) {
-    #   print("Error: sum(basin_assign_rescale) != 1")
-    # }
-    # 
-    
+    sum(basin_assign_rescale)
+
     result_list[[q]] <- basin_assign_rescale
   }
   
@@ -197,7 +167,7 @@ library(sf)
 library(classInt)
 library(RColorBrewer)
 
-Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
+Map_Base <- function(River, plotvar, identifier) {
   # Load the appropriate shapefiles based on the River parameter
   if (River == "Yukon") {
     edges_path <- "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/UpdatedSSN_20190410/Results/yukon_edges_20191011_2015earlyStrata_acc.shp"
@@ -224,8 +194,8 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   # Define breaks and color palette for the plot
   breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
   nclr <- length(breaks)
-  filename <- paste0(identifier, "_", sensitivity_threshold, "_.pdf")
-  filepath <- file.path(here("Figures", "Maps", filename))
+  filename <- paste0(identifier, "_", sensitivity_threshold, ".pdf")
+  filepath <- file.path(here("Figures","Maps", filename))
   
   pdf(file = filepath, width = 9, height = 6)
   class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
@@ -243,14 +213,6 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.05, .6 * (exp(plotvar) - 1)))
   dev.off()
 }
-
-
-  
-
-
-
-
-
 
 
 
