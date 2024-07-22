@@ -10,12 +10,17 @@ source(here('Code/Helper Functions/Assignment and Map Functions.R'))
 SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/SHM2.db")
 
 # Define the specific years and sensitivity thresholds
-yukon_years <- c(2015, 2016, 2017, 2018, 2019, 2021)
+years <- c(2015, 2016, 2017, 2018, 2019, 2021)
 sensitivity <- c(.7, .75, .8, .85, .9, .95)
 watershed <- "Yukon"
 
+### For Kuskokwim
+years <- c(2017, 2018, 2019, 2020, 2021)
+sensitivity <- c(.7, .75, .8, .85, .9, .95)
+watershed <- "Kuskokwim"
+
 # Loop through each year and each sensitivity threshold
-for (year in yukon_years) {
+for (year in years) {
   for (sens in sensitivity) {
     Prod <- Basin_prov_assign(watershed, year, sens)
     
