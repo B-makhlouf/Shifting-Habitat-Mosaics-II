@@ -1,19 +1,37 @@
-#### This script will be used to produce annual production maps for all years in the Yukon and Kuskokwim
-#### as well as by quartile within each year. This process will be repeated for a sensitivity threshold .7-.9
-
 library(here)
 library(tidyverse)
+library(dbplyr)
+library(RSQLite)
 
+# Load the helper functions
 source(here('Code/Helper Functions/Assignment and Map Functions.R'))
 
-Prod<- Basin_prov_assign("Yukon", 2015, .7)
+# Connect to SQL database 
+SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/SHM2.db")
 
-tidy_prod <- Prod %>%
-  gather(key = "Quartile", value = "Production", Q1:Q4) %>%
-  select(-Total)  # Remove the 'Total' column if not needed
+# Define the specific years and sensitivity thresholds
+yukon_years <- c(2015, 2016, 2017, 2018, 2019, 2021)
+sensitivity <- c(.7, .75, .8, .85, .9, .95)
+watershed <- "Yukon"
 
-# Add a year collumn associated with the year of the data
-tidy_prod$Year <- 2015
-tidy_prod$Watershed <- "Yukon"
+# Loop through each year and each sensitivity threshold
+for (year in yukon_years) {
+  for (sens in sensitivity) {
+    Prod <- Basin_prov_assign(watershed, year, sens)
+    
+    tidy_prod <- Prod %>%
+      gather(key = "Quartile", value = "Production", Q1:Q4) %>%
+      select(-Total)  # Remove the 'Total' column if not needed
+    
+    # Add columns for year, watershed, and sensitivity
+    tidy_prod$Year <- year
+    tidy_prod$Watershed <- watershed
+    tidy_prod$Sensitivity <- sens
+    
+    # Append the data to the SQL database
+    dbWriteTable(SMH2_db, "production_matrices", tidy_prod, append = TRUE, row.names = FALSE)
+  }
+}
 
-
+# Disconnect from the database
+DBI::dbDisconnect(SMH2_db)
