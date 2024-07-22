@@ -202,7 +202,7 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
   nclr <- length(breaks)
   filename <- paste0(identifier, "_", sensitivity_threshold, ".pdf")
-  filepath <- file.path(here("Figures","Maps", filename))
+  filepath <- file.path(here("Basin Maps", filename))
   
   pdf(file = filepath, width = 9, height = 6)
   class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)

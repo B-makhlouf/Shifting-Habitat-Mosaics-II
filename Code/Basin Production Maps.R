@@ -1,42 +1,39 @@
-library(here)
+
+# Load required libraries
 library(tidyverse)
-library(dbplyr)
+library(here)
 library(RSQLite)
+library(sf)
 
-# Load the helper functions
-source(here('Code/Helper Functions/Assignment and Map Functions.R'))
+#Source in functions 
+source(here("Code/Helper Functions/Assignment and Map Functions.R"))
 
-# Connect to SQL database 
-SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/SHM2.db")
+# Connect to SQL database
+SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/SHM2.db")
 
-# Define the specific years and sensitivity thresholds
 years <- c(2015, 2016, 2017, 2018, 2019, 2021)
 sensitivity <- c(.7, .75, .8, .85, .9, .95)
 watershed <- "Yukon"
 
-### For Kuskokwim
-years <- c(2017, 2018, 2019, 2020, 2021)
-sensitivity <- c(.7, .75, .8, .85, .9, .95)
-watershed <- "Kuskokwim"
 
-# Loop through each year and each sensitivity threshold
-for (year in years) {
-  for (sens in sensitivity) {
-    Prod <- Basin_prov_assign(watershed, year, sens)
-    
-    tidy_prod <- Prod %>%
-      gather(key = "Quartile", value = "Production", Q1:Q4) %>%
-      select(-Total)  # Remove the 'Total' column if not needed
-    
-    # Add columns for year, watershed, and sensitivity
-    tidy_prod$Year <- year
-    tidy_prod$Watershed <- watershed
-    tidy_prod$Sensitivity <- sens
-    
-    # Append the data to the SQL database
-    dbWriteTable(SMH2_db, "production_matrices", tidy_prod, append = TRUE, row.names = FALSE)
-  }
-}
 
-# Disconnect from the database
-DBI::dbDisconnect(SMH2_db)
+identifier<- paste(watershed, year, sensitivity, Quartile, sep = "_")
+
+query <- paste(
+  "SELECT * FROM production_matrices WHERE Year = ", year, 
+  " AND Sensitivity = ", sensitivity, 
+  " AND Watershed = '", watershed, 
+  "' AND Quartile = '", Quartile, "'", sep = ""
+)
+
+Prod <- dbGetQuery(SMH2_db, query)
+
+#Scale Prod Production values to range from 0 to 1 
+Plotvar<- Prod$Production
+Plotvar<- (Plotvar-min(Plotvar))/(max(Plotvar)-min(Plotvar))
+
+#Make the map
+Map_Base(watershed, Plotvar, identifier, sensitivity)
+
+
+

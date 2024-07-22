@@ -201,8 +201,8 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   # Define breaks and color palette for the plot
   breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
   nclr <- length(breaks)
-  filename <- paste0(identifier, "_", sensitivity_threshold, ".pdf")
-  filepath <- file.path(here("Figures","Maps", filename))
+  filename <- paste0(identifier,"_.pdf")
+  filepath <- file.path("/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Basin Maps",filename)
   
   pdf(file = filepath, width = 9, height = 6)
   class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
