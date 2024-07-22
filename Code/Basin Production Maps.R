@@ -16,6 +16,12 @@ sensitivities <- c(.7, .75, .8, .85, .9, .95)
 quartiles <- c("Q1", "Q2", "Q3", "Q4", "Total")
 watershed <- "Yukon"
 
+# Define the parameters (KUSKOKWIM)
+years <- c(2017, 2018, 2019, 2020, 2021)
+sensitivities <- c(.7, .75, .8, .85, .9, .95)
+quartiles <- c("Q1", "Q2", "Q3", "Q4", "Total")
+watershed <- "Kuskokwim"
+
 # Loop through years, sensitivities, and quartiles
 for (year in years) {
   for (sensitivity in sensitivities) {
