@@ -10,8 +10,8 @@ SMH2_db <- dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databas
 years <- c(2015, 2016, 2017, 2018)
 watershed <- "Yukon"
 
-years <- c(2017, 2018, 2019, 2020)
-watershed <- "Kuskokwim"
+#years <- c(2017, 2018, 2019, 2020)
+#watershed <- "Kuskokwim"
 
 # Create an empty list to store the results
 TotalProd <- list()
@@ -22,6 +22,7 @@ for (year in years) {
   query <- paste(
     "SELECT Production FROM production_matrices WHERE Watershed = '", watershed, 
     "' AND Year = ", year, 
+    " AND Sensitivity = 0.7",
     " AND Quartile = 'Total'", sep = ""
   )
   
@@ -51,6 +52,14 @@ write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
 #################################################################################
 #################################################################################
 # Read in the Yukon Shapefile 
+shp_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_cleaned.shp")
+
+## Add Mean production and CV as attributes to the shapefile 
+shp_Yukon$Mean_Production <- TotalProd_df$Mean
+
+
+
+
 
 # Create maps of distribution of mean production over the whole dataset 
 
