@@ -10,6 +10,9 @@ SMH2_db <- dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databas
 years <- c(2015, 2016, 2017, 2018)
 watershed <- "Yukon"
 
+years <- c(2017, 2018, 2019, 2020)
+watershed <- "Kuskokwim"
+
 # Create an empty list to store the results
 TotalProd <- list()
 
@@ -31,4 +34,33 @@ for (year in years) {
 
 # Convert the list into a data frame, filling shorter columns with NA
 TotalProd_df <- bind_cols(TotalProd)
+
+##### Now add a new collumn of a mean of the production values across the years 
+TotalProd_df$Mean <- rowMeans(TotalProd_df, na.rm = TRUE)
+
+### Add a new column of sd across the first 4 collumns 
+TotalProd_df$SD <- apply(TotalProd_df[,1:4], 1, sd, na.rm = TRUE)
+
+### Calculate the coefficient of variation
+TotalProd_df$CV <- TotalProd_df$SD / TotalProd_df$Mean
+
+#### Save as a .csv file for Yukon Prod_CV 
+write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
+
+
+#################################################################################
+#################################################################################
+# Read in the Yukon Shapefile 
+
+# Create maps of distribution of mean production over the whole dataset 
+
+
+
+# Create map of the distribution of variation over the dataset 
+
+
+
+# Create a bicolor chloropleth map of the coefficient of variation of production values
+
+  
 
