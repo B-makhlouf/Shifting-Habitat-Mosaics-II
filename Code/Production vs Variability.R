@@ -2,6 +2,9 @@
 library(DBI)
 library(RSQLite)
 library(dplyr)
+library(here)
+library(sf)
+library(ggplot2)
 
 # Connect to the database 
 SMH2_db <- dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/SHM2.db")
@@ -52,8 +55,9 @@ write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
 #################################################################################
 #################################################################################
 # Read in the Yukon Shapefile 
-shp_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_cleaned.shp")
+shp_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
 Yukon_basemap<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_alb.shp")
+trib_polygons<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/trib_polygons.shp")
 
 ## Add Mean production and CV as attributes to the shapefile 
 shp_Yukon$Mean_Production <- TotalProd_df$Mean
@@ -96,7 +100,112 @@ scatterplot <- ggplot(TotalProd_df, aes(x = Mean, y = CV)) +
   labs(title = "Mean Production vs Coefficient of Variation", x = "Mean Production", y = "Coefficient of Variation")
 
 
-# Create a bicolor chloropleth map of the coefficient of variation of production values
+
+#########
+
+TotalProd_df$Trib<- shp_Yukon$trbtry_
+
+yearly_prod_trib <- TotalProd_df %>%
+  select(-Mean, -SD, -CV) %>%
+  group_by(Trib) %>%
+  summarise(across(everything(), sum, na.rm = TRUE)) 
+
+# Add values to the sf shapefile trib polygons 
+trib_polygons <- left_join(trib_polygons, yearly_prod_trib, by = c("Trib" = "Trib"))
+
+
+# Map of 2015 production by tributary
+
+prod_2015 <- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
+  geom_sf(data = trib_polygons, aes(fill = `2015`), color = "white", size = .1) + 
+  scale_fill_gradient(low = "lightpink", high = "darkred") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(title = "2015 Production by Tributary", fill = "Production")
+
+prod_2015
+
+# Map of 2016 production by tributary
+
+prod_2016 <- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
+  geom_sf(data = trib_polygons, aes(fill = `2016`), color = "white", size = .1) + 
+  scale_fill_gradient(low = "lightpink", high = "darkred") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(title = "2016 Production by Tributary", fill = "Production")
+
+prod_2016
+
+# Map of 2017 production by tributary
+
+prod_2017 <- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
+  geom_sf(data = trib_polygons, aes(fill = `2017`), color = "white", size = .1) + 
+  scale_fill_gradient(low = "lightpink", high = "darkred") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(title = "2017 Production by Tributary", fill = "Production")
+
+# Map of 2018 production by tributary
+
+prod_2018 <- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
+  geom_sf(data = trib_polygons, aes(fill = `2018`), color = "white", size = .1) + 
+  scale_fill_gradient(low = "lightpink", high = "darkred") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(title = "2018 Production by Tributary", fill = "Production")
+
+### Display all the maps together
+library(gridExtra)
+combined<-grid.arrange(prod_2015, prod_2016, prod_2017, prod_2018, ncol = 2)
+
+# Save as a pdf 
+ggsave(here("Basin Maps/Production_by_tributary.pdf"), plot = combined, width = 10, height = 10, units = "in", dpi = 300)
+
+
+
+##############################################
+
+# Bivariate chloropleth map of production vs variability by tributary grouping
+
+
+
+
+
+
+bivariate_data<- bi_class(
+  trib_polygons, 
+  x = "prod_per_stream_length",
+  y = "cv", 
+  style = "quantile", 
+  dim = 3
+)
+
+bivariate_map<- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + # Add basemap layer 
+  geom_sf(
+    data = bivariate_data, 
+    mapping = aes(fill = bi_class), color = "white", 
+    size = .1, show.legend = FALSE
+  ) + 
+  bi_scale_fill(pal = "BlueOr", dim = 3) + 
+  bi_theme()+ 
+  ggtitle("Mean Production vs Variability by Tributary grouping") 
+
+bivch_legend <- bi_legend(
+  pal = "BlueOr", 
+  dim = 3, 
+  xlab = "Higher production per stream length", 
+  ylab = "Higher Variability", 
+  size = 8 
+) 
+
+ggdraw() + 
+  draw_plot(bivariate_map, 0,0,1,1) + 
+  draw_plot(bivch_legend, 0,0,.2,.2)
 
 
 
