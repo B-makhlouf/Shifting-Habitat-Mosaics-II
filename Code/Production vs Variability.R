@@ -5,6 +5,8 @@ library(dplyr)
 library(here)
 library(sf)
 library(ggplot2)
+library(matrixStats)
+library(gridExtra)
 
 # Connect to the database 
 SMH2_db <- dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/SHM2.db")
@@ -106,8 +108,6 @@ scatterplot <- ggplot(TotalProd_df, aes(x = Mean, y = CV)) +
 TotalProd_df$Trib <- shp_Yukon$trbtry_
 TotalProd_df$Str_Length <- shp_Yukon$Shp_Lng
 
-install.packages("matrixStats")
-library("matrixStats")
 
 yearly_prod_trib <- TotalProd_df %>%
   select(-Mean, -SD, -CV) %>%
@@ -171,7 +171,7 @@ prod_2018 <- ggplot() +
   labs(title = "2018 Production by Tributary", fill = "Production")
 
 ### Display all the maps together
-library(gridExtra)
+
 combined<-grid.arrange(prod_2015, prod_2016, prod_2017, prod_2018, ncol = 2)
 
 # Save as a pdf 
@@ -180,46 +180,52 @@ ggsave(here("Basin Maps/Production_by_tributary.pdf"), plot = combined, width = 
 
 ##############################################
 
+library(biscale) #bivariate choropleths
+library(cowplot) #combine map and legend bivariate choropleth
+library(scatterpie) #proportional symbols pie charts
+library(here) #setup
+library(sf) #vector data         
+library(tidyverse) #data manipulation
+library(spData) #datasets
 # Bivariate chloropleth map of production vs variability by tributary grouping
 
-# Ad a new collumn to trib_polygons called prod_per_stream_length which is the mean of the collumns 2015:2018
-
-
-
-
-
-
-
-bivariate_data<- bi_class(
+# Classify the data for bivariate mapping
+bivariate_data <- bi_class(
   trib_polygons, 
-  x = "prod_per_stream_length",
-  y = "cv", 
+  x = "mean_prod_StrLength",
+  y = "CV_prod_StrLength", 
   style = "quantile", 
   dim = 3
 )
 
-bivariate_map<- ggplot() + 
+# Create the bivariate map
+bivariate_map <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + # Add basemap layer 
   geom_sf(
     data = bivariate_data, 
     mapping = aes(fill = bi_class), color = "white", 
-    size = .1, show.legend = FALSE
+    size = 0.1, show.legend = FALSE
   ) + 
   bi_scale_fill(pal = "BlueOr", dim = 3) + 
-  bi_theme()+ 
-  ggtitle("Mean Production vs Variability by Tributary grouping") 
+  bi_theme() + 
+  ggtitle("Mean Production vs Variability by Tributary Grouping")
 
+# Create the legend for the bivariate map
 bivch_legend <- bi_legend(
   pal = "BlueOr", 
   dim = 3, 
   xlab = "Higher production per stream length", 
   ylab = "Higher Variability", 
   size = 8 
-) 
+)
 
-ggdraw() + 
-  draw_plot(bivariate_map, 0,0,1,1) + 
-  draw_plot(bivch_legend, 0,0,.2,.2)
+# Combine the map and the legend using cowplot
+final_plot <- ggdraw() + 
+  draw_plot(bivariate_map, 0, 0, 1, 1) + 
+  draw_plot(bivch_legend, 0.75, 0.1, 0.2, 0.2) # Adjust position and size as needed
+
+# Print the final plot
+print(final_plot)
 
 
 
