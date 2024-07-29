@@ -103,12 +103,24 @@ scatterplot <- ggplot(TotalProd_df, aes(x = Mean, y = CV)) +
 
 #########
 
-TotalProd_df$Trib<- shp_Yukon$trbtry_
+TotalProd_df$Trib <- shp_Yukon$trbtry_
+TotalProd_df$Str_Length <- shp_Yukon$Shp_Lng
+
+install.packages("matrixStats")
+library("matrixStats")
 
 yearly_prod_trib <- TotalProd_df %>%
   select(-Mean, -SD, -CV) %>%
   group_by(Trib) %>%
-  summarise(across(everything(), sum, na.rm = TRUE)) 
+  summarise(across(everything(), sum, na.rm = TRUE)) %>%
+  # Divide by stream length to get production per km, excluding Trib and Str_Length
+  mutate(across(-c(Trib, Str_Length), ~ . / Str_Length)) %>%
+  # Add mean_prod_StrLength column
+  mutate(mean_prod_StrLength = rowMeans(select(., `2015`, `2016`, `2017`, `2018`), na.rm = TRUE),
+         # Add SD_prod_StrLength column
+         SD_prod_StrLength = rowSds(as.matrix(select(., `2015`, `2016`, `2017`, `2018`)), na.rm = TRUE),
+         # Add CV_prod_StrLength column
+         CV_prod_StrLength = SD_prod_StrLength / mean_prod_StrLength)
 
 # Add values to the sf shapefile trib polygons 
 trib_polygons <- left_join(trib_polygons, yearly_prod_trib, by = c("Trib" = "Trib"))
@@ -166,10 +178,12 @@ combined<-grid.arrange(prod_2015, prod_2016, prod_2017, prod_2018, ncol = 2)
 ggsave(here("Basin Maps/Production_by_tributary.pdf"), plot = combined, width = 10, height = 10, units = "in", dpi = 300)
 
 
-
 ##############################################
 
 # Bivariate chloropleth map of production vs variability by tributary grouping
+
+# Ad a new collumn to trib_polygons called prod_per_stream_length which is the mean of the collumns 2015:2018
+
 
 
 
