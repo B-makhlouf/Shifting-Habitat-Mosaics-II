@@ -15,9 +15,6 @@ SMH2_db <- dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databas
 years <- c(2015, 2016, 2017, 2018)
 watershed <- "Yukon"
 
-#years <- c(2017, 2018, 2019, 2020)
-#watershed <- "Kuskokwim"
-
 # Create an empty list to store the results
 TotalProd <- list()
 
@@ -25,7 +22,7 @@ TotalProd <- list()
 for (year in years) {
   # Construct the query
   query <- paste(
-    "SELECT Production FROM production_matrices WHERE Watershed = '", watershed, 
+    "SELECT Production, Shp_Lng FROM production_matrices WHERE Watershed = '", watershed, 
     "' AND Year = ", year, 
     " AND Sensitivity = 0.7",
     " AND Quartile = 'Total'", sep = ""
@@ -36,25 +33,38 @@ for (year in years) {
   
   # Store the result in the list, naming the column by the year
   TotalProd[[as.character(year)]] <- data$Production
+  
+  # Extract Shp_Lng from any year (since it's the same across years)
+  if (!exists("Shp_Lng")) {
+    Shp_Lng <- data$Shp_Lng
+  }
 }
 
 # Convert the list into a data frame, filling shorter columns with NA
 TotalProd_df <- bind_cols(TotalProd)
 
-##### Now add a new collumn of a mean of the production values across the years 
+# Add the mean of the production values across the years
 TotalProd_df$Mean <- rowMeans(TotalProd_df, na.rm = TRUE)
 
-### Add a new column of sd across the first 4 collumns 
-TotalProd_df$SD <- apply(TotalProd_df[,1:4], 1, sd, na.rm = TRUE)
+# Add the standard deviation across the first 4 columns
+TotalProd_df$SD <- apply(TotalProd_df[, 1:4], 1, sd, na.rm = TRUE)
 
-### Calculate the coefficient of variation
+# Calculate the coefficient of variation
 TotalProd_df$CV <- TotalProd_df$SD / TotalProd_df$Mean
 
-#### Save as a .csv file for Yukon Prod_CV 
+# Add the Shp_Lng column to TotalProd_df
+TotalProd_df$Shp_Lng <- Shp_Lng
+
+ProdPerStrLngth<- TotalProd_df$Mean/TotalProd_df$Shp_Lng
+
+# Save as a .csv file for Yukon Prod_CV
 write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
 
 
+
 #################################################################################
+
+#### 
 #################################################################################
 # Read in the Yukon Shapefile 
 shp_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
