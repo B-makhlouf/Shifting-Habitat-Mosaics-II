@@ -62,6 +62,9 @@ write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
 
 
 
+
+
+
 #################################################################################
 
 #### Trib maps of production 
@@ -113,58 +116,57 @@ scatterplot <- ggplot(TotalProd_df, aes(x = Mean, y = CV)) +
 
 
 #########################################################################################################################
-################### 
+################### Production by tribuatary polygons ##################################################################
 
-TotalProd_df$Trib <- shp_Yukon$trbtry_
-TotalProd_df$Str_Length <- shp_Yukon$Shp_Lng
+TotalProd_df$Trib <- shp_Yukon$trbtry_# Add the Trib name for each trib
 
+rescale_01 <- function(x) {
+  (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))
+}
 
 yearly_prod_trib <- TotalProd_df %>%
-  select(-Mean, -SD, -CV) %>%
-  group_by(Trib) %>%
-  summarise(across(everything(), sum, na.rm = TRUE)) %>%
-  # Divide by stream length to get production per km, excluding Trib and Str_Length
-  mutate(across(-c(Trib, Str_Length), ~ . / Str_Length)) %>%
-  # Add mean_prod_StrLength column
-  mutate(mean_prod_StrLength = rowMeans(select(., `2015`, `2016`, `2017`, `2018`), na.rm = TRUE),
-         # Add SD_prod_StrLength column
-         SD_prod_StrLength = rowSds(as.matrix(select(., `2015`, `2016`, `2017`, `2018`)), na.rm = TRUE),
-         # Add CV_prod_StrLength column
-         CV_prod_StrLength = SD_prod_StrLength / mean_prod_StrLength)
+  select(-Mean, -SD, -CV, -ProdPerStrLngth) %>% # Remove the Mean, SD, and CV columns
+  group_by(Trib) %>% # Group by Trib group
+  summarise(across(everything(), sum, na.rm = TRUE)) %>% # Sum the production values for each trib grouping
+  mutate(across(-c(Trib, Shp_Lng), ~ . / Shp_Lng)) %>% # Divide the production values by the stream length
+  mutate(GROUP_mean_prod_StrLength = rowMeans(select(., `2015`, `2016`, `2017`, `2018`), na.rm = TRUE), # Add Mean_prod_StrLength column
+         GROUP_SD_prod_StrLength = rowSds(as.matrix(select(., `2015`, `2016`, `2017`, `2018`)), na.rm = TRUE), # Add SD_prod_StrLength column
+         GROUP_CV_prod_StrLength = GROUP_SD_prod_StrLength / GROUP_mean_prod_StrLength) %>% # Add CV_prod_StrLength column 
+  mutate(across(c(`2015`, `2016`, `2017`, `2018`), rescale_01, .names = "rescaled_{col}")) # Rescale production values
+
+# Rescale all production values to be between 0 and 1
+
+
 
 # Add values to the sf shapefile trib polygons 
 trib_polygons <- left_join(trib_polygons, yearly_prod_trib, by = c("Trib" = "Trib"))
 
 
 # Map of 2015 production by tributary
-
 prod_2015 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
-  geom_sf(data = trib_polygons, aes(fill = `2015`), color = "white", size = .1) + 
+  geom_sf(data = trib_polygons, aes(fill = rescaled_2015), color = "white", size = .1) + 
   scale_fill_gradient(low = "lightpink", high = "darkred") + 
   theme_void() + 
   theme(legend.position = "bottom") + 
   labs(title = "2015 Production by Tributary", fill = "Production")
 
-prod_2015
 
 # Map of 2016 production by tributary
 
 prod_2016 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
-  geom_sf(data = trib_polygons, aes(fill = `2016`), color = "white", size = .1) + 
+  geom_sf(data = trib_polygons, aes(fill = rescaled_2016), color = "white", size = .1) + 
   scale_fill_gradient(low = "lightpink", high = "darkred") + 
   theme_void() + 
   theme(legend.position = "bottom") + 
   labs(title = "2016 Production by Tributary", fill = "Production")
 
-prod_2016
-
 # Map of 2017 production by tributary
 
 prod_2017 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
-  geom_sf(data = trib_polygons, aes(fill = `2017`), color = "white", size = .1) + 
+  geom_sf(data = trib_polygons, aes(fill = rescaled_2017), color = "white", size = .1) + 
   scale_fill_gradient(low = "lightpink", high = "darkred") + 
   theme_void() + 
   theme(legend.position = "bottom") + 
@@ -174,14 +176,13 @@ prod_2017 <- ggplot() +
 
 prod_2018 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
-  geom_sf(data = trib_polygons, aes(fill = `2018`), color = "white", size = .1) + 
+  geom_sf(data = trib_polygons, aes(fill = rescaled_2018), color = "white", size = .1) + 
   scale_fill_gradient(low = "lightpink", high = "darkred") + 
   theme_void() + 
   theme(legend.position = "bottom") + 
   labs(title = "2018 Production by Tributary", fill = "Production")
 
 ### Display all the maps together
-
 combined<-grid.arrange(prod_2015, prod_2016, prod_2017, prod_2018, ncol = 2)
 
 # Save as a pdf 
