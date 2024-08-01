@@ -55,7 +55,7 @@ TotalProd_df$CV <- TotalProd_df$SD / TotalProd_df$Mean
 # Add the Shp_Lng column to TotalProd_df
 TotalProd_df$Shp_Lng <- Shp_Lng
 
-ProdPerStrLngth<- TotalProd_df$Mean/TotalProd_df$Shp_Lng
+TotalProd_df$ProdPerStrLngth<- TotalProd_df$Mean/TotalProd_df$Shp_Lng
 
 # Save as a .csv file for Yukon Prod_CV
 write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
@@ -64,7 +64,8 @@ write.csv(TotalProd_df, here("Outputs", "Yukon_Prod_CV.csv"), row.names = FALSE)
 
 #################################################################################
 
-#### 
+#### Trib maps of production 
+
 #################################################################################
 # Read in the Yukon Shapefile 
 shp_Yukon<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
@@ -72,10 +73,10 @@ Yukon_basemap<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/
 trib_polygons<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/trib_polygons.shp")
 
 ## Add Mean production and CV as attributes to the shapefile 
-shp_Yukon$Mean_Production <- TotalProd_df$Mean
+shp_Yukon$Mean_Production <- TotalProd_df$ProdPerStrLngth
 shp_Yukon$CV <- TotalProd_df$CV
 
-# Create maps of distribution of mean production over the whole dataset 
+############ Mean Production per Km stream length
 
 meanProdMap <- ggplot(shp_Yukon) +
   geom_sf(aes(color = Mean_Production)) +
@@ -83,12 +84,10 @@ meanProdMap <- ggplot(shp_Yukon) +
   theme_void() +
   theme(legend.position = "bottom") +
   labs(title = "Mean Production Across the Yukon Basin", color = "Mean Production")
-
-# Export as a pdf
-ggsave(here("Basin Maps/meanProdMap.pdf"), plot = meanProdMap, width = 10, height = 10, units = "in", dpi = 300)
+ggsave(here("Basin Maps/meanProdMap.pdf"), plot = meanProdMap, width = 10, height = 10, units = "in", dpi = 300) # Export
 
 
-# Create map of the distribution of variation over the dataset 
+############ Total CV 
 
 # Make any NA's in the CV column white
 shp_Yukon$CV[is.na(shp_Yukon$CV)] <- 0
@@ -113,7 +112,8 @@ scatterplot <- ggplot(TotalProd_df, aes(x = Mean, y = CV)) +
 
 
 
-#########
+#########################################################################################################################
+################### 
 
 TotalProd_df$Trib <- shp_Yukon$trbtry_
 TotalProd_df$Str_Length <- shp_Yukon$Shp_Lng
