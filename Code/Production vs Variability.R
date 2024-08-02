@@ -47,7 +47,7 @@ TotalProd_df <- bind_cols(TotalProd)
 TotalProd_df$Mean <- rowMeans(TotalProd_df, na.rm = TRUE)
 
 # Add the standard deviation across the first 4 columns
-TotalProd_df$SD <- apply(TotalProd_df[, 1:4], 1, sd, na.rm = TRUE)
+TotalProd_df$SD <- apply(TotalProd_df[, 1:6], 1, sd, na.rm = TRUE)
 
 # Calculate the coefficient of variation
 TotalProd_df$CV <- TotalProd_df$SD / TotalProd_df$Mean
@@ -129,10 +129,10 @@ yearly_prod_trib <- TotalProd_df %>%
   group_by(Trib) %>% # Group by Trib group
   summarise(across(everything(), sum, na.rm = TRUE)) %>% # Sum the production values for each trib grouping
   mutate(across(-c(Trib, Shp_Lng), ~ . / Shp_Lng)) %>% # Divide the production values by the stream length
-  mutate(GROUP_mean_prod_StrLength = rowMeans(select(., `2015`, `2016`, `2017`, `2018`), na.rm = TRUE), # Add Mean_prod_StrLength column
-         GROUP_SD_prod_StrLength = rowSds(as.matrix(select(., `2015`, `2016`, `2017`, `2018`)), na.rm = TRUE), # Add SD_prod_StrLength column
+  mutate(GROUP_mean_prod_StrLength = rowMeans(select(., `2015`, `2016`, `2017`, `2018`,`2019`,`2021`), na.rm = TRUE), # Add Mean_prod_StrLength column
+         GROUP_SD_prod_StrLength = rowSds(as.matrix(select(., `2015`, `2016`, `2017`, `2018`, `2019`, `2021`)), na.rm = TRUE), # Add SD_prod_StrLength column
          GROUP_CV_prod_StrLength = GROUP_SD_prod_StrLength / GROUP_mean_prod_StrLength) %>% # Add CV_prod_StrLength column 
-  mutate(across(c(`2015`, `2016`, `2017`, `2018`), rescale_01, .names = "rescaled_{col}")) # Rescale production values
+  mutate(across(c(`2015`, `2016`, `2017`, `2018`, `2019`, `2021`), rescale_01, .names = "rescaled_{col}")) # Rescale production values
 
 # Rescale all production values to be between 0 and 1
 
@@ -151,9 +151,6 @@ prod_2015 <- ggplot() +
   theme(legend.position = "bottom") + 
   labs(title = "2015 Production by Tributary", fill = "Production")
 
-
-# Map of 2016 production by tributary
-
 prod_2016 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
   geom_sf(data = trib_polygons, aes(fill = rescaled_2016), color = "white", size = .1) + 
@@ -161,8 +158,6 @@ prod_2016 <- ggplot() +
   theme_void() + 
   theme(legend.position = "bottom") + 
   labs(title = "2016 Production by Tributary", fill = "Production")
-
-# Map of 2017 production by tributary
 
 prod_2017 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
@@ -172,8 +167,6 @@ prod_2017 <- ggplot() +
   theme(legend.position = "bottom") + 
   labs(title = "2017 Production by Tributary", fill = "Production")
 
-# Map of 2018 production by tributary
-
 prod_2018 <- ggplot() + 
   geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
   geom_sf(data = trib_polygons, aes(fill = rescaled_2018), color = "white", size = .1) + 
@@ -182,8 +175,25 @@ prod_2018 <- ggplot() +
   theme(legend.position = "bottom") + 
   labs(title = "2018 Production by Tributary", fill = "Production")
 
+prod_2019 <- ggplot() + 
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) + 
+  geom_sf(data = trib_polygons, aes(fill = rescaled_2019), color = "white", size = .1) + 
+  scale_fill_gradient(low = "lightpink", high = "darkred") + 
+  theme_void() + 
+  theme(legend.position = "bottom") + 
+  labs(title = "2019 Production by Tributary", fill = "Production")
+
+prod_2021 <- ggplot() +
+  geom_sf(data = Yukon_basemap, fill = "lightgrey", color = NA) +
+  geom_sf(data = trib_polygons, aes(fill = rescaled_2021), color = "white", size = .1) +
+  scale_fill_gradient(low = "lightpink", high = "darkred") +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(title = "2021 Production by Tributary", fill = "Production")
+
+
 ### Display all the maps together
-combined<-grid.arrange(prod_2015, prod_2016, prod_2017, prod_2018, ncol = 2)
+combined<-grid.arrange(prod_2015, prod_2016, prod_2017, prod_2018, prod_2019, prod_2021, ncol = 3)
 
 # Save as a pdf 
 ggsave(here("Basin Maps/Production_by_tributary.pdf"), plot = combined, width = 10, height = 10, units = "in", dpi = 300)
@@ -203,8 +213,8 @@ library(spData) #datasets
 # Classify the data for bivariate mapping
 bivariate_data <- bi_class(
   trib_polygons, 
-  x = "mean_prod_StrLength",
-  y = "CV_prod_StrLength", 
+  x = "GROUP_mean_prod_StrLength",
+  y = "GROUP_CV_prod_StrLength", 
   style = "quantile", 
   dim = 3
 )
