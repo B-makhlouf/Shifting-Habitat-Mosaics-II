@@ -156,7 +156,7 @@ Basin_prov_assign <- function(region, year, sensitivity_threshold) {
   )
   
   #export as a csv 
-  write.csv(result_df, file = paste0("Outputs/Assignment Matrix/", year, "_", region, "_", sensitivity_threshold, ".csv"))
+  #write.csv(result_df, file = paste0("Outputs/Assignment Matrix/", year, "_", region, "_", sensitivity_threshold, ".csv"))
   
   return(result_df)
   

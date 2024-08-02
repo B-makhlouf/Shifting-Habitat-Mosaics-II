@@ -12,7 +12,7 @@ library(gridExtra)
 SMH2_db <- dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/SHM2.db")
 
 # Define the parameters
-years <- c(2015, 2016, 2017, 2018)
+years <- c(2015, 2016, 2017, 2018, 2019, 2021)
 watershed <- "Yukon"
 
 # Create an empty list to store the results

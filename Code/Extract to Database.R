@@ -7,10 +7,10 @@ library(RSQLite)
 source(here('Code/Helper Functions/Assignment and Map Functions.R'))
 
 # Connect to SQL database 
-SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/SHM2.db")
+SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/SHM2.db")
 
-
-
+## Clear the table 
+dbExecute(SMH2_db, "DELETE FROM production_matrices")
 
 # Define the specific years and sensitivity thresholds
 years <- c(2015, 2016, 2017, 2018, 2019, 2021)
@@ -19,9 +19,9 @@ watershed <- "Yukon"
 shapefile <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/Yukon_w.tribnames.shp")
 
 ### For Kuskokwim
-years <- c(2017, 2018, 2019, 2020, 2021)
-sensitivity <- c(.7, .75, .8, .85, .9, .95)
-watershed <- "Kuskokwim"
+#years <- c(2017, 2018, 2019, 2020, 2021)
+#sensitivity <- c(.7, .75, .8, .85, .9, .95)
+#watershed <- "Kuskokwim"
 
 # Loop through each year and each sensitivity threshold
 for (year in years) {
