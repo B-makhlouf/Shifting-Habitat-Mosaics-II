@@ -19,13 +19,6 @@ library(sf)
 yuk_edges<- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
 basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
-
-# For testing 
-if (T){
-  year<- 2015
-  sensitivity_threshold <- 0.7
-}
-
 ########################################################
 #### Function to produce maps and production data 
 ########################################################
@@ -101,7 +94,7 @@ Yukon_map <- function(year, sensitivity_threshold) {
   
     # If the rescaled value is less than the threshold, then set the same index in assign_norm to 0, otherwise 1 
     assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
-    #assign_rescaled[assign_rescaled >= sensitivity_threshold] <- 1
+    assign_rescaled[assign_rescaled >= sensitivity_threshold] <- 1
     
     # Multiply by the CPUE weight 
     assign_rescaled_wt <- assign_rescaled * as.numeric(Natal_Origins[i, "Strat"])
@@ -121,7 +114,7 @@ Yukon_map <- function(year, sensitivity_threshold) {
 }
 
 
-plotvar<-Yukon_map(2021,.7)
+plotvar<-Yukon_map(2015,.6)
 
 
 
@@ -135,9 +128,14 @@ library(classInt)
 library(RColorBrewer)
 
 Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
+  library(sf)
+  library(classInt)
+  library(RColorBrewer)
+  library(here)
+  
   # Load the appropriate shapefiles based on the River parameter
   if (River == "Yukon") {
-    edges_path <- "/Users/benjaminmakhlouf/Spatial Data/Shapefiles/AYK Shapefiles/yukon_edges_20191011_2015earlyStrata_acc.shp"
+    edges_path <- "/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp"
     basin_path <- "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp"
   } else if (River == "Kuskokwim") {
     edges_path <- "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/kusko_edges_20190805_Prod17_UPriSlp2_accProd17.shp"
@@ -151,40 +149,40 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   
   # Calculate StreamOrderPrior and pid_prior based on the River parameter
   if (River == "Yukon") {
-    StreamOrderPrior <- as.numeric(edges$Str_Ord > 2)
+    StreamOrderPrior <- as.numeric(edges$Str_Order > 2)
     pid_prior <- edges$PriorSl2
   } else if (River == "Kuskokwim") {
     StreamOrderPrior <- as.numeric(edges$Strahler > 2)
     pid_prior <- edges$UniPh2oNoE
   }
   
-  # Define breaks and color palette for the plot
-  breaks <- c(0, .1, .2, .4, .6, .8, .9, 1)
+  # Define breaks and custom color palette for the plot
+  breaks <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
   nclr <- length(breaks)
   filename <- paste0(identifier, "_", sensitivity_threshold, ".pdf")
   filepath <- file.path(here("Basin Maps", filename))
   
   pdf(file = filepath, width = 9, height = 6)
   class <- classIntervals(plotvar, nclr, style = "fixed", fixedBreaks = breaks, dataPrecision = 2)
-  plotclr <- brewer.pal(nclr, "YlOrRd")
-  colcode <- findColours(class, plotclr, digits = 2)
+  
+  # Custom palette from light orange to dark red
+  custom_palette <- colorRampPalette(c("lightgoldenrod1", "orangered3", "#8B0000"))(nclr)
+  colcode <- findColours(class, custom_palette, digits = 2)
   
   # Adjust colors based on conditions
   colcode[plotvar == 0] <- 'gray80'
-  #colcode[plotvar < .2] <- 'gray80'
   colcode[which(StreamOrderPrior == 0)] <- 'gray60'
   colcode[which(pid_prior == 0)] <- 'gray60'
   
   # Plot the basin and edges with the appropriate colors and line widths
   plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
-  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = ifelse(plotvar == 0, 0.02, .8 * (exp(plotvar) - 1)))
+  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = 0.4*(exp(plotvar)-1))
   dev.off()
 }
 
-
-
-identifier <- "Yukon 2021 LOW ERROR"
+identifier <- "Yukon 2015 .6"
 River<- "Yukon"
-sensitivity_threshold <- .7
+sensitivity_threshold <- .6
 
 Map_Base(River, plotvar, identifier, sensitivity_threshold)
+
