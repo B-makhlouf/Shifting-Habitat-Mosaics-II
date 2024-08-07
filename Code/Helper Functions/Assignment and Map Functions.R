@@ -114,7 +114,7 @@ Yukon_map <- function(year, sensitivity_threshold) {
 }
 
 
-plotvar<-Yukon_map(2015,.6)
+
 
 
 
@@ -157,7 +157,7 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   }
   
   # Define breaks and custom color palette for the plot
-  breaks <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+  breaks <- c(0, 0.05, 0.1, .15, 0.2, .25, 0.3, .35, 0.4, .45, 0.5, .55, 0.6, .65, 0.7, .75, 0.8, .85, 0.9, .95, 1)
   nclr <- length(breaks)
   filename <- paste0(identifier, "_", sensitivity_threshold, ".pdf")
   filepath <- file.path(here("Basin Maps", filename))
@@ -180,9 +180,17 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
   dev.off()
 }
 
-identifier <- "Yukon 2015 .6"
+
+plotvar<-Yukon_map(2015,.9)
+identifier <- "Yukon 2015 .9"
 River<- "Yukon"
-sensitivity_threshold <- .6
+sensitivity_threshold <- .9
+
+
+plotvar<-Yukon_map(2021,.9)
+identifier <- "Yukon 2021 .9"
+River<- "Yukon"
+sensitivity_threshold <- .9
 
 Map_Base(River, plotvar, identifier, sensitivity_threshold)
 
