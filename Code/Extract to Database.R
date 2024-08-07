@@ -47,4 +47,54 @@ for (year in years) {
 # Disconnect from the database
 DBI::dbDisconnect(SMH2_db)
 
+#################### ADD CPUE
 
+library(DBI)
+library(RSQLite)
+
+# Connect to SQL database
+SMH2_db <- dbConnect(SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/AYK_data.db")
+
+# Create a table for CPUE data (if it doesn't exist)
+dbExecute(SMH2_db, "CREATE TABLE IF NOT EXISTS CPUE (
+          Date TEXT,
+          dailyCatch INTEGER,
+          dailyCPUE REAL,
+          cumCPUE REAL,
+          year INTEGER)")
+
+# Empty the CPUE table before inserting new data
+dbExecute(SMH2_db, "DELETE FROM CPUE")
+
+# Define the directory containing the CPUE data files
+cpue_dir <- "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/CPUE Data/Cleaned"
+
+# Define the list of years you want to process
+years <- c(2015, 2016, 2017, 2018, 2019, 2021) # Add all the years you need
+
+# Loop through each year and insert data into the CPUE table
+for (year in years) {
+  # Construct the file path for the current year
+  file <- file.path(cpue_dir, paste0("Yukon_CPUE_", year, ".csv"))
+  
+  # Check if the file exists
+  if (file.exists(file)) {
+    # Read the CSV file
+    CPUE <- read.csv(file)
+    
+    # Check that the column names are correct
+    if (all(c("Date", "dailyCatch", "dailyCPUE", "cumCPUE") %in% colnames(CPUE))) {
+      # Add the year to the data
+      CPUE$year <- year
+      
+      # Insert the data into the CPUE table
+      dbWriteTable(SMH2_db, "CPUE", CPUE, append = TRUE, row.names = FALSE)
+    } else {
+      stop(paste("Column names do not match in file:", file))
+    }
+  } else {
+    warning(paste("File does not exist:", file))
+  }
+}
+
+# Disconnect from the dat

@@ -7,11 +7,35 @@ library(sf)
 # Source in functions 
 source(here("Code/Helper Functions/Assignment and Map Functions.R"))
 
+
+prod<-Basin_prov_assign("Yukon", 2021, .7)
+# Rescale prod to range from 0-1
+prod<- (prod-min(prod))/(max(prod)-min(prod))
+
+Map_Base("Yukon", prod, "Yukon_2021", .7)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Connect to SQL database
 SMH2_db <- DBI::dbConnect(RSQLite::SQLite(), "/Users/benjaminmakhlouf/Desktop/Databases/SHM2.db")
 
 # Define the parameters
-years <- c(2015, 2016, 2017, 2018, 2019, 2021)
+years <- c( 2021)
 sensitivities <- c(.7, .75, .8, .85, .9, .95)
 quartiles <- c("Q1", "Q2", "Q3", "Q4", "Total")
 watershed <- "Yukon"
