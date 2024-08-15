@@ -7,6 +7,7 @@ library(RColorBrewer)
 library(fabricatr)
 library(ggplot2)
 library(sf)
+library(readr)
 ################################################################################
 ###########################. YUKON ASSIGNMENT CODE #############################
 ################################################################################
@@ -23,11 +24,20 @@ basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Fo
 #### Function to produce maps and production data 
 ########################################################
 
-Yukon_map <- function(year, sensitivity_threshold) {  
+Yukon_map <- function(year, sensitivity_threshold, quartile = "ALL") {   
   
   identifier <- paste(year, "Yukon", sep = "_")
   yuk_edges<- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp") #Shapefiles 
-  Natal_Origins<- read_csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal_Gen_CPUE_Combined/",year," Yukon ALL_combined.csv")) #Natal Origins
+  Natal_Origins<- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origins/Extracted/ALL_DATA_",year,"_Yukon_Natal_Origins.csv")) #Natal Origins
+  
+  # Filter based on quartile if specified
+  if (quartile != "ALL") {
+    if (quartile %in% c("Q1", "Q2", "Q3", "Q4")) {
+      Natal_Origins <- Natal_Origins[Natal_Origins$Quartile == quartile, ]
+    } else {
+      stop("Invalid quartile value. Please use 'Q1', 'Q2', 'Q3', 'Q4', or 'ALL'.")
+    }
+  }
   
   #Shapefile with the tributaries from the each genetic grouping
   ly.gen <- st_read(here("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp"), quiet = TRUE)
@@ -53,9 +63,9 @@ Yukon_map <- function(year, sensitivity_threshold) {
   
   # ***make all pid_isose values .003
   
-  pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, .003) 
+  #pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, .003) 
   
- # pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, pid_isose) #bumps super low error areas up, to avoid excessive bias towards them 
+  pid_isose_mod <- ifelse(pid_isose < 0.0031, 0.003, pid_isose) #bumps super low error areas up, to avoid excessive bias towards them 
   
   ###----- Variance Generating Processes ------------------------------------------
   within_site <- 0.0003133684 / 1.96  # Prediction interval from oto vs. water regression. Pred intervals should be 2SD, analogous to CI which are 2SE
@@ -86,6 +96,7 @@ Yukon_map <- function(year, sensitivity_threshold) {
     
     assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior
     
+    
     # normalize so all values sum to 1 (probability distribution)
     assign_norm <- assign / sum(assign) 
     
@@ -104,6 +115,10 @@ Yukon_map <- function(year, sensitivity_threshold) {
   }
   
   
+  
+  #Locate the column with NA 
+  na_col <- which(colSums(is.na(assignment_matrix)) > 0)
+
   ###------- BASIN SCALE VALUES ----------------------------------------
   
   basin_assign_sum <- apply(assignment_matrix, 1, sum) #total probability for each location
