@@ -206,7 +206,10 @@ Map_Base <- function(River, plotvar, identifier, sensitivity_threshold) {
 ########################### Kuskokwim ASSIGNMENT CODE #############################
 ################################################################################
 ################################################################################
-
+#2020 kusko example 
+year <- 2020
+sensitivity_threshold <- 0.7
+quartile <- "ALL"
 
 ###----- Shapefiles ------------------------------------------------------------
 
@@ -219,7 +222,7 @@ Kusko_map <- function(year, sensitivity_threshold, quartile = "ALL") {
   identifier <- paste(year, "Kusko", sep = "_")
   kusk_edges<- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp")
   basin<- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
-  Natal_Origins<- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origins/Extracted/ALL_DATA_",year,"_Kusko_Natal_Origins.csv")) #Natal Origins
+  Natal_Origins <- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Data/Natal_Sr/QCd/ALL_DATA_", year, "_Kusko_Natal_Origins.csv"))
   
   #Remove any with NA in natal_iso
   Natal_Origins <- Natal_Origins[!is.na(Natal_Origins$natal_iso),]
