@@ -357,12 +357,17 @@ Map_Base_Kusko <- function(River, plotvar, identifier, sensitivity_threshold) {
   colcode <- findColours(class, custom_palette, digits = 2)
   
   # Adjust colors based on conditions
-  colcode[plotvar == 0] <- 'gray80'
-  colcode[which(StreamOrderPrior == 0)] <- 'gray60'
-  colcode[which(pid_prior == 0)] <- 'gray60'
+  colcode[plotvar == 0] <- 'gray69'
+  colcode[which(StreamOrderPrior == 0)] <- 'gray69'
+  colcode[which(pid_prior == 0)] <- 'gray69'
+  colcode[plotvar >= 0.9] <- 'firebrick4'
+  colcode[plotvar >=.7 & plotvar < 0.9] <- 'firebrick2'
+  colcode[plotvar > 0 & plotvar <.7] <- 'lightgoldenrod'
+  
+  line_widths <- ifelse(plotvar >= 0.7, .9, 0.3)
   
   # Plot the basin and edges with the appropriate colors and line widths
-  plot(st_geometry(basin), col = 'gray60', border = 'gray48', main = identifier)
-  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = 1 *(exp(plotvar)-1))
+  plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = identifier)
+  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = line_widths)
   dev.off()
 }
