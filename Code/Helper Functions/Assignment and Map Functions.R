@@ -231,8 +231,12 @@ Kusko_map <- function(year, sensitivity_threshold, quartile = "ALL") {
   if (quartile != "ALL") {
     if (quartile %in% c("Q1", "Q2", "Q3", "Q4")) {
       Natal_Origins <- Natal_Origins[Natal_Origins$Quartile == quartile, ]
+    } else if (quartile == "H1") {
+      Natal_Origins <- Natal_Origins[Natal_Origins$Quartile %in% c("Q1", "Q2"), ]
+    } else if (quartile == "H2") {
+      Natal_Origins <- Natal_Origins[Natal_Origins$Quartile %in% c("Q3", "Q4"), ]
     } else {
-      stop("Invalid quartile value. Please use 'Q1', 'Q2', 'Q3', 'Q4', or 'ALL'.")
+      stop("Invalid quartile value. Please use 'Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2', or 'ALL'.")
     }
   }
   
