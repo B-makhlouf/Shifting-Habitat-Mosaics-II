@@ -3,8 +3,53 @@ library(tidyverse)
 library(here)
 library(sf)
 
-# Source in functions 
+
+# Preprocess data 
+source("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Code/Add Genetic Prior.R")
+source("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Code/CPUE weights.R")
 source(here("Code/Helper Functions/Assignment and Map Functions.R"))
+
+
+# function to preprocess data 
+
+preprocess_data <- function(year, river) {
+  
+  # Check the river input and call the appropriate functions
+  if (river == "Yukon") {
+    add_genetic_prior(year)
+    Add_CPUE_weights_Yukon(year)
+  } else if (river == "Kusko") {
+    Add_CPUE_weights_Kusko(year)
+  } else {
+    print("Invalid river name. Please specify 'Yukon' or 'Kuskokwim'.")
+  }
+}
+
+preprocess_data(2015, "Yukon")
+preprocess_data(2016, "Yukon")
+preprocess_data(2021, "Yukon")
+
+
+
+
+
+
+
+#Yukon
+
+#2015
+plotvar<- Yukon_map(2021,.001)
+Map_Base("Yukon", plotvar, "Yukon 2015 Full run", .001)
+
+
+
+
+
+
+
+
+
+
 
 ################### Kuskokwim 
 
@@ -182,6 +227,9 @@ plotvar<- Kusko_map(2021,.001,"Q4")
 Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 Q4", .001)
 
 
+# Yukon 
 
+#2015
+plotvar<- Yukon_map(2017,.001)
 
 

@@ -32,7 +32,11 @@ Yukon_map <- function(year, sensitivity_threshold, quartile = "ALL") {
   
   identifier <- paste(year, "Yukon", sep = "_")
   yuk_edges<- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp") #Shapefiles 
-  Natal_Origins<- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origins/Extracted/ALL_DATA_",year,"_Yukon_Natal_Origins.csv")) #Natal Origins
+  Natal_Origins<- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Final_QC_NatalOriginCPUE/ALL_DATA_",year,"_Yukon_Natal_Origins.csv")) #Natal Origins
+  
+  #be sure to remove rows with NA in "Lower"
+  Natal_Origins <- Natal_Origins[!is.na(Natal_Origins$Lower), ]
+  
   
   # Filter based on quartile if specified
   if (quartile != "ALL") {
@@ -92,9 +96,9 @@ Yukon_map <- function(year, sensitivity_threshold, quartile = "ALL") {
     
     iso_o <- Natal_Origins[i, "natal_iso"] %>% as.numeric()  # Otolith ratio
     gen.prior <- rep(0, length = length(pid_iso))
-    gen.prior[LYsites] <- Natal_Origins$Gen_L[i]%>% as.numeric()
-    gen.prior[MYsites] <- Natal_Origins$Gen_M[i] %>% as.numeric()
-    gen.prior[UYsites] <- Natal_Origins$Gen_U[i] %>% as.numeric()
+    gen.prior[LYsites] <- Natal_Origins$Lower[i]%>% as.numeric()
+    gen.prior[MYsites] <- Natal_Origins$Middle[i] %>% as.numeric()
+    gen.prior[UYsites] <- Natal_Origins$Upper[i] %>% as.numeric()
     
     StreamOrderPrior <- as.numeric(yuk_edges$Str_Ord > 2)
     
