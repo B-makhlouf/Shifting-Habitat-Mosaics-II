@@ -365,12 +365,15 @@ Map_Base_Kusko <- function(River, plotvar, identifier, sensitivity_threshold) {
   colcode <- findColours(class, custom_palette, digits = 2)
   
   # Adjust colors based on conditions
-  colcode[plotvar == 0] <- 'gray69'
+  colcode[plotvar == 0] <- 'white'
   colcode[which(StreamOrderPrior == 0)] <- 'gray69'
   colcode[which(pid_prior == 0)] <- 'gray69'
   colcode[plotvar >= 0.9] <- 'firebrick4'
-  colcode[plotvar >=.7 & plotvar < 0.9] <- 'firebrick2'
-  colcode[plotvar > 0 & plotvar <.7] <- 'lightgoldenrod'
+  colcode[plotvar >=.7 & plotvar < 0.8] <- 'red3'
+  colcode[plotvar >=.8 & plotvar < 0.9] <- 'firebrick1'
+  colcode[plotvar > .5 & plotvar <.7] <- 'darkorange'
+  colcode[plotvar <= .5 & plotvar > 0 ] <- 'lightgoldenrod1'
+
   
   line_widths <- ifelse(plotvar >= 0.7, .9, 0.3)
   

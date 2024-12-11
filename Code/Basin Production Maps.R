@@ -31,205 +31,53 @@ preprocess_data(2021, "Yukon")
 
 
 
-
-
-
-
-#Yukon
-
-#2015
-plotvar<- Yukon_map(2021,.001)
-Map_Base("Yukon", plotvar, "Yukon 2015 Full run", .001)
-
-
-
-
-
-
-
-
-
-
-
-################### Kuskokwim 
+# Kusko 
 
 #2017
-plotvar<- Kusko_map(2017,.001)
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 Full run", .001)
-
-#2017 H1 .001
-
-plotvar<- Kusko_map(2017,.001,"H1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 H1", .001)
-
-#2017 H2 .001
-
-plotvar<- Kusko_map(2017,.001,"H2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 H2", .001)
+plotvar<- Kusko_map(2017, .7)
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2017", .7)
 
 
-#2017 Q1 .001
+#2018
+plotvar<- Kusko_map(2018, .7)
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2018", .7)
 
-plotvar<- Kusko_map(2017,.001,"Q1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 Q1", .001)
-
-#2017 Q2 .001
-
-plotvar<- Kusko_map(2017,.001,"Q2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 Q2", .001)
-
-#2017 Q3 .001
-
-plotvar<- Kusko_map(2017,.001,"Q3")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 Q3", .001)
-
-#2017 Q4 .001
-
-plotvar<- Kusko_map(2017,.001,"Q4")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2017 Q4", .001)
-
-
-# 2018
-plotvar<- Kusko_map(2018,.001)
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 Full run", .001)
-
-#2018 H1 .001
-
-plotvar<- Kusko_map(2018,.001,"H1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 H1", .001)
-
-#2018 H2 .001
-
-plotvar<- Kusko_map(2018,.001,"H2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 H2", .001)
-
-# 2018 Q1 .001
-
-plotvar<- Kusko_map(2018,.001,"Q1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 Q1", .001)
-
-# 2018 Q2 .001
-
-plotvar<- Kusko_map(2018,.001,"Q2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 Q2", .001)
-
-# 2018 Q3 .001
-
-plotvar<- Kusko_map(2018,.001,"Q3")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 Q3", .001)
-
-# 2018 Q4 .001
-
-plotvar<- Kusko_map(2018,.001,"Q4")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2018 Q4", .001)
 
 #2019
-plotvar<- Kusko_map(2019,.001)
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 Full run", .001)
-
-#2019 H1 .001
-
-plotvar<- Kusko_map(2019,.001,"H1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 H1", .001)
-
-#2019 H2 .001
-
-plotvar<- Kusko_map(2019,.001,"H2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 H2", .001)
-
-
-# 2019 Q1 .001
-
-plotvar<- Kusko_map(2019,.001,"Q1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 Q1", .001)
-
-# 2019 Q2 .001
-
-plotvar<- Kusko_map(2019,.001,"Q2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 Q2", .001)
-
-# 2019 Q3 .001
-
-plotvar<- Kusko_map(2019,.001,"Q3")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 Q3", .001)
-
-# 2019 Q4 .001
-
-plotvar<- Kusko_map(2019,.001,"Q4")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2019 Q4", .001)
+plotvar<- Kusko_map(2019, .7)
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2019", .7)
 
 #2020
-plotvar<- Kusko_map(2020,.001)
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 Full run", .001)
-
-#2020 H1 .001
-
-plotvar<- Kusko_map(2020,.001,"H1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 H1", .001)
-
-#2020 H2 .001
-
-plotvar<- Kusko_map(2020,.001,"H2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 H2", .001)
-
-# 2020 Q1 .001
-
-plotvar<- Kusko_map(2020,.001,"Q1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 Q1", .001)
-
-# 2020 Q2 .001
-
-plotvar<- Kusko_map(2020,.001,"Q2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 Q2", .001)
-
-# 2020 Q3 .001
-
-plotvar<- Kusko_map(2020,.001,"Q3")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 Q3", .001)
-
-# 2020 Q4 .001
-
-plotvar<- Kusko_map(2020,.001,"Q4")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2020 Q4", .001)
+plotvar<- Kusko_map(2020, .7)
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2020", .7)
 
 #2021
-plotvar<- Kusko_map(2021,.001)
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 Full run", .001)
-
-#2021 H1 .001
-
-plotvar<- Kusko_map(2021,.001,"H1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 H1", .001)
-
-#2021 H2 .001
-
-plotvar<- Kusko_map(2021,.001,"H2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 H2", .001)
-
-# 2021 Q1 .001
-
-plotvar<- Kusko_map(2021,.001,"Q1")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 Q1", .001)
-
-# 2021 Q2 .001
-
-plotvar<- Kusko_map(2021,.001,"Q2")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 Q2", .001)
-
-# 2021 Q3 .001
-
-plotvar<- Kusko_map(2021,.001,"Q3")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 Q3", .001)
-
-# 2021 Q4 .001
-
-plotvar<- Kusko_map(2021,.001,"Q4")
-Map_Base_Kusko("Kuskokwim", plotvar, "Kusko 2021 Q4", .001)
+plotvar<- Kusko_map(2021, .7)
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2021", .7)
 
 
-# Yukon 
+# Kuskokwim 2017 Q1-Q4 
+plotvar<- Kusko_map(2017, .7, "Q1")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2017_Q1", .7)
 
-#2015
-plotvar<- Yukon_map(2017,.001)
+plotvar<- Kusko_map(2017, .7, "Q2")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2017_Q2", .7)
 
+plotvar<- Kusko_map(2017, .7, "Q3")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2017_Q3", .7)
 
+plotvar<- Kusko_map(2017, .7, "Q4")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2017_Q4", .7)
+
+# Kuskokwim 2018 Q1-Q4
+plotvar<- Kusko_map(2018, .7, "Q1")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2018_Q1", .7)
+
+plotvar<- Kusko_map(2018, .7, "Q2")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2018_Q2", .7)
+
+plotvar<- Kusko_map(2018, .7, "Q3")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2018_Q3", .7)
+
+plotvar<- Kusko_map(2018, .7, "Q4")
+Map_Base_Kusko("Kuskokwim", plotvar, "Kusko_2018_Q4", .7)
