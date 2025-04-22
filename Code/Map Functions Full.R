@@ -251,7 +251,7 @@ KK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
   identifier <- paste(year, "Kusko", sep = "_")
   
   # Load spatial data
-  edges <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp")
+  edges <- st_read("/Users/benjaminmakhlouf/Spatial Data/USGS Added/KuskoUSGS.shp")
   basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
   Huc <- st_read(paste0("/Users/benjaminmakhlouf/Spatial Data/HUC",HUC,"_Trimmed.shp"))
   edges <- st_transform(edges, st_crs(basin)) # Make sure all shapefiles are projected to the same CRS
@@ -299,8 +299,20 @@ KK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     iso_o <- as.numeric(Natal_Origins_clean[i, "natal_iso"])
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     
+    
+    PresencePrior <- ifelse(
+      (edges$Str_Order == max(edges$Str_Order) | edges$Str_Order == max(edges$Str_Order) - 1) & 
+        edges$SPAWNING_C == 0,
+      0,  # If condition is TRUE, set to 0
+      1  # Otherwise, keep the original SPAWNING_C value
+    )
+    
+    NewHabitatPrior<- ifelse(edges$Spawner_IP < .2, 1,0)
+    
+
     # Bayesian assignment
-    assign <- (1 / sqrt(2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2)) * pid_prior * StreamOrderPrior
+    assign <- (1 / sqrt(2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2)) * pid_prior * StreamOrderPrior *
+      PresencePrior * NewHabitatPrior
     assign_norm <- assign / sum(assign)
     assign_rescaled <- assign_norm / max(assign_norm)
     assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
@@ -332,7 +344,7 @@ KK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
 YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, HUC = 8) {
   
   
-  edges<- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp") 
+  edges<- st_read("/Users/benjaminmakhlouf/Spatial Data/USGS Added/YukonUSGS.shp") 
   basin<<- st_read("/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp")
   identifier <<- paste(year, "Yukon", sep = "_")
   Natal_Origins_ALL <- read.csv(paste0("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE/",year,"_Yukon_Natal_Origins_Genetics_CPUE.csv"))
@@ -397,9 +409,18 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     
     StreamOrderPrior <<- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     
+    PresencePrior <- ifelse(
+      (edges$Str_Order == max(edges$Str_Order) | edges$Str_Order == max(edges$Str_Order) - 1) & 
+        edges$SPAWNING_C == 0,
+      0,  # If condition is TRUE, set to 0
+      1  # Otherwise, keep the original SPAWNING_C value
+    )
+    
+    NewHabitatPrior<- ifelse(edges$Spawner_IP < .2, 1,0)
+    
     #####. BAYES RULE ASSIGNMENT. ##################
     
-    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior
+    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior * NewHabitatPrior * PresencePrior
     
     # normalize so all values sum to 1 (probability distribution)
     assign_norm <- assign / sum(assign) 
@@ -423,6 +444,9 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
   edges<<- edges
   identifier<<- identifier
 }
+
+
+
 
 
 

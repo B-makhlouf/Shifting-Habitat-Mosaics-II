@@ -5,7 +5,7 @@
 ### 
 #### HUC MAP FUNCTION 
 
-HUC_MAP<- function(rescaled_values, identifier, edges, basin, HUC = 8){
+HUC_MAP<- function(rescaled_values, identifier2, edges, basin, HUC = 8){
   
   huc_col <- paste0("HUC", HUC)  # Example: "HUC8" or "HUC10"
   name_col <- "Name"  # Assuming the HUC polygons contain a NAME column
@@ -115,7 +115,7 @@ HUC_MAP<- function(rescaled_values, identifier, edges, basin, HUC = 8){
     )
   
   ######### Define filename and save 
-  filename <- paste0(identifier, "_HUC", HUC, "_", sensitivity_threshold, 
+  filename <- paste0(identifier2, "_HUC", HUC, "_", sensitivity_threshold, 
                      "_StrOrd", min_stream_order, "_.pdf")
   filepath <- file.path(here("Basin Maps/Quartile/HUC"), filename)
   
@@ -139,11 +139,11 @@ HUC_MAP<- function(rescaled_values, identifier, edges, basin, HUC = 8){
 
 TRIB_MAP<- function(basin_assign_norm, identifier, edges, basin){
   
-  if (watershed == "Kusko"){
-    edges <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp")
-  } else if (watershed == "Yukon"){
-    edges <- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
-  }
+  # if (watershed == "Kusko"){
+  #   edges <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp")
+  # } else if (watershed == "Yukon"){
+  #   edges <- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+  # }
 
   
   basin_assign_norm<- basin_assign_norm

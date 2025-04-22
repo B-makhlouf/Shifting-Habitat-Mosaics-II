@@ -11,23 +11,12 @@ library(tidyverse)
 library(tidyr)
 
 
-# # Test parameters
-# year <- 2021
-# sensitivity_threshold <- 0.001
-# min_error <- 0.0003
-# min_stream_order <- 3
-# filter_by <- "DOY_Q"
-# HUC <- 8
-# watershed<- "Kusko"
-# 
-
-
 
 ALL_Map_func_Quartile <- function(year, sensitivity_threshold, min_error, min_stream_order = 3, filter_by = c("DOY_Q", "CPUE_Q"),HUC = 8) {
   
   # Generate identifier for output files
   identifier <- paste(year, watershed , sep = "_")
-  
+
   ############# 
   ###### Load Shapefiles 
   #############
@@ -197,15 +186,13 @@ ALL_Map_func_Quartile <- function(year, sensitivity_threshold, min_error, min_st
     ######### MAP FUNCTIONS
     
     # Tribs 
-    TRIB_MAP(basin_assign_norm, identifier2, edges, basin)
-    
+    #TRIB_MAP(basin_assign_norm, identifier2, edges, basin)
     
     # # HUC
-    HUC_MAP(basin_assign_rescale, identifier2, edges, basin, Huc)
+    HUC_MAP(basin_assign_rescale, identifier2, edges, basin)
     
     
   }
 }
-
 
 

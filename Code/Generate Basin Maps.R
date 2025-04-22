@@ -1,140 +1,317 @@
-# first, source in the code with the mapping functions 
+# Integrated Watershed Mapping Script
+# This script integrates multiple functions for natal origin analysis across watersheds
 
+#===============================================================================
+# HOW TO USE THIS SCRIPT
+#===============================================================================
+# To run all available datasets automatically (like your original script):
+# 1. Save this file to your project root directory
+# 2. Make sure all required function scripts are in the proper locations
+# 3. Uncomment the line that says: main()
+# 4. Run the script
+#
+# The script will automatically:
+# - Load all necessary functions
+# - Clean up previous outputs
+# - Update data from the repository
+# - Process all available datasets
+# - Generate a summary report
 
-if (T){
-
+# Load necessary libraries
+library(sf)
 library(here)
-source(here("Code/Map Functions Full.R"))
-source(here("Code/Style_Map_Function.R"))
-#source(here("Code/Check Dataset Completedness.R"))
-source(here("Code/Map Functions QUARTILE.R"))
+library(RColorBrewer)
+library(ggplot2)
+library(grid)
+library(classInt)
+library(tidyr)
+library(viridis)
+library(tidyverse)
 
+#===============================================================================
+# 1. CONFIGURATION
+#===============================================================================
+
+# Set working directory using here package
+# Make sure this script is run from the project root directory
+
+# Source all required function scripts
+source_function_scripts <- function() {
+  message("Loading mapping functions...")
+  source(here("Code/Map Functions Full.R"))
+  source(here("Code/Style_Map_Function.R"))
+  source(here("Code/Map Functions QUARTILE.R"))
+  message("Mapping functions loaded successfully.")
+}
+
+# Clean previous output files
+clean_previous_outputs <- function() {
+  message("Cleaning previous PDF outputs...")
+  pdf_files <- list.files(here("Basin Maps"), 
+                          pattern = "\\.pdf$", 
+                          recursive = TRUE,
+                          full.names = TRUE)
+  if(length(pdf_files) > 0) {
+    file.remove(pdf_files)
+    message(paste(length(pdf_files), "PDF files removed."))
+  } else {
+    message("No PDF files found to remove.")
+  }
+}
+
+# Update data from source repository
+update_data <- function() {
+  message("Updating datasets from repository...")
+  source_dir <- "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE"
+  dest_dir <- here("Data/Natal Origin Data for analysis")
   
-################################################################################
-#Clear any pdfs from anywhere within Basin Maps
-
-pdf_files <- list.files("/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps",
-                        pattern = "\\.pdf$", 
-                        recursive = TRUE,  # This looks in subfolders too
-                        full.names = TRUE)
-
-file.remove(pdf_files)
-
-#### Then, make sure that the database is up to date. That is, the files in the repository for this manuscript 
-# match the most recent version of these files in the database repository 
-
-##############################################################################################################
-source_dir <- ("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE")  # AYK database directory 
-dest_dir <- here("Data/Natal Origin Data for analysis")   # This repo, location for the data for analysis 
-
-csv_files <- list.files(source_dir, pattern = "\\.csv$", full.names = TRUE) # Get a list of all CSV files in the source directory
-file.copy(from = csv_files, to = dest_dir, overwrite = TRUE) #copy over 
-
-############################### 
-## From that, list out all the datasets we have available for analysis. 
-file_names <- list.files(dest_dir, pattern = "\\.csv$", full.names = FALSE)  # Get only file names
-dataset_names <- unique(sub("^([a-zA-Z0-9]+_[a-zA-Z0-9]+)_.*\\.csv$", "\\1", file_names))  # Capture year and watershed before the second underscore
-
-## remove 2017_Yukon, 2018_Yukon, and 2019_Yukon from the list of datasets. No complete coverage here... 
-dataset_names <- dataset_names[!dataset_names %in% c("2017_Yukon", "2018_Yukon", "2019_Yukon")]
-
-
-################################################################################################################
-############ Here, we have a list of all the datasets available that we want to use 
-
-### Go through each of them and map the full year! 
-
-for (dataset in dataset_names) {
+  # Make sure destination directory exists
+  if(!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+    message("Created destination directory.")
+  }
   
+  # Get list of CSV files and copy them
+  csv_files <- list.files(source_dir, pattern = "\\.csv$", full.names = TRUE)
+  copy_result <- file.copy(from = csv_files, to = dest_dir, overwrite = TRUE)
+  
+  message(paste("Copied", sum(copy_result), "of", length(csv_files), "files."))
+  
+  # Return the destination directory for use in next steps
+  return(dest_dir)
+}
+
+#===============================================================================
+# 2. DATA PREPARATION
+#===============================================================================
+
+# Get available datasets
+get_available_datasets <- function(data_dir) {
+  message("Identifying available datasets...")
+  
+  # List all CSV files
+  file_names <- list.files(data_dir, pattern = "\\.csv$", full.names = FALSE)
+  
+  # Extract unique year_watershed combinations
+  dataset_names <- unique(sub("^([a-zA-Z0-9]+_[a-zA-Z0-9]+)_.*\\.csv$", "\\1", file_names))
+  
+  # Remove incomplete datasets
+  dataset_names <- dataset_names[!dataset_names %in% c("2017_Yukon", "2018_Yukon", "2019_Yukon")]
+  
+  message(paste("Found", length(dataset_names), "valid datasets for analysis."))
+  return(dataset_names)
+}
+
+#===============================================================================
+# 3. MAPPING FUNCTIONS
+#===============================================================================
+
+# Process a single dataset
+process_dataset <- function(dataset) {
+  # Extract year and watershed
   parts <- strsplit(dataset, "_")[[1]]
   year <- parts[1]
   watershed <- parts[2]
   
-  # plot_dataset_qc(year,watershed)
+  message(paste("Processing dataset:", year, watershed))
   
+  # Define global watershed variable needed by All_Map
+  assign("watershed", watershed, envir = .GlobalEnv)
+  
+  # Set parameters based on watershed
   if (watershed == "Yukon") {
-    
     sensitivity_threshold <- 0.0001
     min_error <- 0.003
-    min_stream_order <- 4
+    min_stream_order <- 3
     filter_conditions <- NULL
-    map_result <- All_Map(year, sensitivity_threshold, min_error, min_stream_order)
-    map_result <- ALL_Map_func_Quartile(year, sensitivity_threshold, min_error, min_stream_order, filter_by = "DOY_Q", HUC = 8)
     
-
+    # Run the mapping function for Yukon
+    message(paste("Mapping", year, watershed, "with specific parameters"))
+    map_result <- All_Map(year, sensitivity_threshold, min_error, min_stream_order)
+    message(paste("Completed mapping for", year, watershed))
+    
   } else if (watershed == "Kusko") {
-
     sensitivity_threshold <- 0.7
     min_error <- 0.0006
-    min_stream_order <- 4
+    min_stream_order <- 3
     filter_conditions <- NULL
-    return_values<- FALSE
+    
+    # Run the mapping function for Kuskokwim
+    message(paste("Mapping", year, watershed, "with specific parameters"))
     map_result <- All_Map(year, sensitivity_threshold, min_error, min_stream_order)
-    map_result <- ALL_Map_func_Quartile(year, sensitivity_threshold, min_error, min_stream_order, filter_by, HUC = 8)
-
-  } 
+    message(paste("Completed mapping for", year, watershed))
+  } else {
+    stop(paste("Unknown watershed:", watershed))
+  }
   
-  # remove sensitivity_threshold, min_error, min_stream_order, filter_conditions, return_values, map_result
-  rm(sensitivity_threshold, min_error, min_stream_order, filter_conditions, return_values, map_result)
+  # Clean up global variables to avoid conflicts in subsequent runs
+  if(exists("assignment_matrix", envir = .GlobalEnv)) {
+    rm("assignment_matrix", envir = .GlobalEnv)
+  }
+  if(exists("edges", envir = .GlobalEnv)) {
+    rm("edges", envir = .GlobalEnv)
+  }
+  if(exists("basin", envir = .GlobalEnv)) {
+    rm("basin", envir = .GlobalEnv)
+  }
+  if(exists("Huc", envir = .GlobalEnv)) {
+    rm("Huc", envir = .GlobalEnv)
+  }
+  if(exists("identifier", envir = .GlobalEnv)) {
+    rm("identifier", envir = .GlobalEnv)
+  }
+  if(exists("StreamOrderPrior", envir = .GlobalEnv)) {
+    rm("StreamOrderPrior", envir = .GlobalEnv)
+  }
+  if(exists("pid_prior", envir = .GlobalEnv)) {
+    rm("pid_prior", envir = .GlobalEnv)
+  }
   
+  # Return basic info about the processed dataset
+  return(list(
+    year = year,
+    watershed = watershed,
+    sensitivity_threshold = sensitivity_threshold,
+    min_error = min_error,
+    min_stream_order = min_stream_order
+  ))
 }
 
+#===============================================================================
+# 4. MAIN EXECUTION
+#===============================================================================
 
-#################################################################################################################################################################
+run_analysis <- function(datasets = NULL) {
+  # Step 1: Load required functions
+  source_function_scripts()
+  
+  # Step 2: Clean previous outputs
+  clean_previous_outputs()
+  
+  # Step 3: Update datasets
+  data_dir <- update_data()
+  
+  # Step 4: Get available datasets
+  if(is.null(datasets)) {
+    datasets <- get_available_datasets(data_dir)
+  }
+  
+  # Step 5: Process each dataset
+  results <- list()
+  for(dataset in datasets) {
+    tryCatch({
+      results[[dataset]] <- process_dataset(dataset)
+    }, error = function(e) {
+      message(paste("Error processing dataset", dataset, ":", e$message))
+    })
+  }
+  
+  # Step 6: Return summary of processing
+  message("Analysis complete.")
+  return(results)
+}
 
+#===============================================================================
+# 5. ADDITIONAL UTILITY FUNCTIONS
+#===============================================================================
 
+# Function to generate a summary report of all processed data
+generate_summary_report <- function(results) {
+  if(length(results) == 0) {
+    message("No results to summarize.")
+    return(NULL)
+  }
+  
+  # Convert results to a data frame
+  summary_df <- do.call(rbind, lapply(results, function(x) {
+    data.frame(
+      year = x$year,
+      watershed = x$watershed,
+      sensitivity_threshold = x$sensitivity_threshold,
+      min_error = x$min_error,
+      min_stream_order = x$min_stream_order
+    )
+  }))
+  
+  # Add row names
+  rownames(summary_df) <- names(results)
+  
+  # Display summary
+  message("Summary of processed datasets:")
+  print(summary_df)
+  
+  # Return the summary data frame
+  return(summary_df)
+}
 
+# Function to process specific datasets
+process_specific_datasets <- function(years, watersheds) {
+  # Create all combinations of years and watersheds
+  datasets <- c()
+  for (year in years) {
+    for (watershed in watersheds) {
+      datasets <- c(datasets, paste(year, watershed, sep = "_"))
+    }
+  }
+  
+  message(paste("Processing specific datasets:", paste(datasets, collapse=", ")))
+  return(run_analysis(datasets))
+}
 
+#===============================================================================
+# 6. EXECUTION
+#===============================================================================
 
+# Main execution - immediately run all available datasets
+main <- function() {
+  # Step 1: Load required functions
+  source_function_scripts()
+  
+  # Step 2: Clean previous outputs
+  clean_previous_outputs()
+  
+  # Step 3: Update datasets
+  data_dir <- update_data()
+  
+  # Step 4: Get available datasets
+  datasets <- get_available_datasets(data_dir)
+  message(paste("Found", length(datasets), "datasets to process:", paste(datasets, collapse=", ")))
+  
+  # Step 5: Process each dataset
+  results <- list()
+  for(dataset in datasets) {
+    message(paste("Starting processing of dataset:", dataset))
+    tryCatch({
+      results[[dataset]] <- process_dataset(dataset)
+      message(paste("Successfully processed dataset:", dataset))
+    }, error = function(e) {
+      message(paste("ERROR processing dataset", dataset, ":", e$message))
+    })
+  }
+  
+  # Step 6: Generate and print a summary
+  summary <- generate_summary_report(results)
+  
+  # Step 7: Return results
+  message("All processing complete!")
+  return(results)
+}
 
+# Uncomment this line to process ALL available datasets automatically
+main()
 
-
-
-
-
-
-
-
-
-
-
-# ################# 
-# ## Now, do the same but make maps of the quartiles by CPUE and by DOY 
-# 
-# for (dataset in dataset_names) {
-#   parts <- strsplit(dataset, "_")[[1]]
-#   year <- parts[1]
-#   watershed <- parts[2]
-#   
-#     if (watershed == "Yukon") {
-#     # sensitivity_threshold <- 0.5
-#     # min_error <- 0.003
-#     # min_stream_order <- 4
-#     # filter_conditions <- NULL
-#     # map_result <- YK_Map_func_Quartile(year, sensitivity_threshold, min_error, min_stream_order)
-# 
-#   } else if (watershed == "Kusko") {
-# 
-#     sensitivity_threshold <- 0.7
-#     min_error <- 0.0006
-#     min_stream_order <- 4
-#     filter_conditions <- NULL
-#     map_result <- KK_Map_func_Quartile(year, sensitivity_threshold, min_error, min_stream_order, "DOY_Q") 
-#   } 
+# Alternate options (comment out main() above if using these):
+#
+# Option 1: Process only specific datasets
+# results <- process_specific_datasets(years = c("2015", "2016"), watersheds = c("Yukon", "Kusko"))
+#
+# Option 2: Run a test with a single dataset
+# test_run <- function() {
+#   message("Running test with a single dataset...")
+#   test_year <- "2015"
+#   test_watershed <- "Kusko"  # Change to "Yukon" to test Yukon watershed
+#   message(paste("Testing with dataset:", test_year, test_watershed))
+#   results <- process_specific_datasets(years = c(test_year), watersheds = c(test_watershed))
+#   return(results)
 # }
-# 
-# 
-# ################################################################################# 
-# # Generate a giant panel figure with all the Kusko years 
-# 
-# source(here("Code/4PanelConstruction.R"))
-
-}
-
-
-
-
-
-
-
-
+# test_results <- test_run()
