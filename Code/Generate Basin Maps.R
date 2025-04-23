@@ -122,7 +122,7 @@ process_dataset <- function(dataset) {
   if (watershed == "Yukon") {
     sensitivity_threshold <- 0.0001
     min_error <- 0.003
-    min_stream_order <- 3
+    min_stream_order <- 4
     filter_conditions <- NULL
     
     # Run the mapping function for Yukon
@@ -131,9 +131,9 @@ process_dataset <- function(dataset) {
     message(paste("Completed mapping for", year, watershed))
     
   } else if (watershed == "Kusko") {
-    sensitivity_threshold <- 0.7
+    sensitivity_threshold <- 0.001
     min_error <- 0.0006
-    min_stream_order <- 3
+    min_stream_order <- 2
     filter_conditions <- NULL
     
     # Run the mapping function for Kuskokwim

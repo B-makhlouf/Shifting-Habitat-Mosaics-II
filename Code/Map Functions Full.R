@@ -170,12 +170,14 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
 
   edges <- edges[edges$Str_Order >= min_stream_order,]
   
+  # Modify the PDF creation part of your All_Map function in Map Functions Full.R
+  
   # Define the filename and path for the PDF output
   filename <- paste0(identifier, "_", sensitivity_threshold,"_StrOrd",min_stream_order,"_.pdf")
   filepath <- file.path(here("Basin Maps/Full_year_all_individuals/Tribs", filename))
   
-  # Open PDF with original dimensions
-  pdf(file = filepath, width = 9, height = 6)
+  # Increase the height of the PDF to make more room
+  pdf(file = filepath, width = 9, height = 8)  # Increased from height = 6 to height = 8
   pallete <- brewer.pal(n = 9, name = "YlOrRd")
   
   # Color coding
@@ -189,11 +191,10 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   colcode[which(StreamOrderPrior == 0)] <- 'gray60'
   colcode[which(pid_prior == 0)] <- 'gray60'
   
-  
   # Line widths
   stream_order_lwd <- edges$Str_Order
   
-  #set all linewidths to 1 initially 
+  # Set all linewidths to 1 initially 
   linewidths <- rep(1, length(stream_order_lwd))
   linewidths <- ifelse(stream_order_lwd == 9, 3.6, linewidths)
   linewidths <- ifelse(stream_order_lwd == 8, 3.2, linewidths)
@@ -203,7 +204,6 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   linewidths <- ifelse(stream_order_lwd == 4, 2.2, linewidths)
   linewidths <- ifelse(stream_order_lwd == 3, 2.0, linewidths)
   
-  
   # Generate title
   plot_title <- paste("Year:", year, 
                       "River:", watershed,
@@ -211,23 +211,30 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
                       "Min Stream Order:", min_stream_order, 
                       "Min Error:", min_error)
   
+  # Use par to adjust plot margins - create more room at the bottom
+  # Arguments to par(mar = c(bottom, left, top, right))
+  par(mar = c(8, 4, 4, 2))  # Increase bottom margin from default 4 to 8
+  
   # Plotting
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title)
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
-  # Add histogram
-  vp_hist <- viewport(x = 0.1, y = 0.89, width = 0.43, height = 0.3, just = c("left", "top"))
-  print(gg_hist, vp = vp_hist)
-  
-  # Legend
-  legend("bottomright", 
+  # Move legend to upper left
+  legend("topleft", 
          legend = c(">= 0.9", "0.8 - 0.9", "0.7 - 0.8", "0.6 - 0.7", "Low (< 0.7)"), 
          col = c(pallete[9], pallete[7], pallete[5], pallete[3], "cornsilk2"), 
          lwd = 5, 
          title = "Relative posterior density", 
          bty = "n")
   
+  # Place histogram further down
+  vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
+  print(gg_hist, vp = vp_hist)
+  
   dev.off()
+  
+  # Reset par to default if needed for subsequent plots
+  par(mar = c(5, 4, 4, 2) + 0.1)  # Reset to default
   
   
   if (!return_values) {
@@ -244,6 +251,16 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
 ####################################### 
 ############# Kusko 
 #######################################
+
+
+#Test params 
+year <- 2017
+sensitivity_threshold <- 0.7
+min_error <- 0.5
+min_stream_order <- 3
+
+
+
 
 KK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, HUC = 8) {
   
@@ -298,21 +315,11 @@ KK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
   for (i in 1:nrow(Natal_Origins_clean)) {
     iso_o <- as.numeric(Natal_Origins_clean[i, "natal_iso"])
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(6, 7, 8)) & edges$SPAWNING_C == 0, 0, 1)
+    NewHabitatPrior<- ifelse(edges$Spawner_IP == 0, 0, 1)
     
-    
-    PresencePrior <- ifelse(
-      (edges$Str_Order == max(edges$Str_Order) | edges$Str_Order == max(edges$Str_Order) - 1) & 
-        edges$SPAWNING_C == 0,
-      0,  # If condition is TRUE, set to 0
-      1  # Otherwise, keep the original SPAWNING_C value
-    )
-    
-    NewHabitatPrior<- ifelse(edges$Spawner_IP < .2, 1,0)
-    
-
     # Bayesian assignment
-    assign <- (1 / sqrt(2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2)) * pid_prior * StreamOrderPrior *
-      PresencePrior * NewHabitatPrior
+    assign <- (1 / sqrt(2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2)) * pid_prior   * NewHabitatPrior *PresencePrior #* StreamOrderPrior
     assign_norm <- assign / sum(assign)
     assign_rescaled <- assign_norm / max(assign_norm)
     assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
@@ -409,18 +416,13 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     
     StreamOrderPrior <<- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     
-    PresencePrior <- ifelse(
-      (edges$Str_Order == max(edges$Str_Order) | edges$Str_Order == max(edges$Str_Order) - 1) & 
-        edges$SPAWNING_C == 0,
-      0,  # If condition is TRUE, set to 0
-      1  # Otherwise, keep the original SPAWNING_C value
-    )
+    PresencePrior <- ifelse(edges$Str_Order == max(edges$Str_Order) & edges$SPAWNING_C == 0, 0, 1)
+    NewHabitatPrior<- ifelse(edges$Spawner_IP == 0, 1,0)
     
-    NewHabitatPrior<- ifelse(edges$Spawner_IP < .2, 1,0)
     
     #####. BAYES RULE ASSIGNMENT. ##################
     
-    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior * NewHabitatPrior * PresencePrior
+    assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior * PresencePrior #* NewHabitatPrior 
     
     # normalize so all values sum to 1 (probability distribution)
     assign_norm <- assign / sum(assign) 
@@ -444,19 +446,3 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
   edges<<- edges
   identifier<<- identifier
 }
-
-
-
-
-
-
-
-# Test parameters
-# year <- 2015
-# sensitivity_threshold <- 0.5
-# min_error <- 0.0006
-# min_stream_order <- 3
-# filter_conditions<- NULL
-# HUC<- 8
-# watershed<- "Yukon"
-
