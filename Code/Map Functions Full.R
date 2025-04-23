@@ -31,17 +31,41 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   name_col <- "Name"  # Assuming the HUC polygons contain a NAME column
   
   edges <- st_transform(edges, st_crs(Huc)) # Set projection to be the same 
-
+  
   edges$basin_assign_rescale <- basin_assign_rescale  # Add rescaled values to the shapefile 
   
   basin <- st_transform(basin, st_crs(Huc))
   
-  # First identify which HUCs are within the Basin
-  hucs_in_basin <- Huc %>%
-    st_filter(basin, .predicate = st_intersects) %>%
+  # Improved HUC filtering - use a more strict intersection criteria
+  # First identify which HUCs are within the Basin with a minimum overlap threshold
+  basin_buffer <- st_buffer(basin, dist = 0)  # Create a clean boundary without buffer
+  hucs_in_basin <- Huc[st_intersects(Huc, basin_buffer, sparse = FALSE)[,1], ]
+  
+  # Calculate the area of intersection for each HUC with the basin
+  intersection_areas <- st_intersection(hucs_in_basin, basin_buffer) %>%
+    mutate(area = st_area(.)) %>%
+    st_drop_geometry() %>%
+    group_by(!!sym(huc_col)) %>%
+    summarize(int_area = sum(area))
+  
+  # Get the original areas of the HUCs
+  hucs_areas <- hucs_in_basin %>%
+    mutate(total_area = st_area(.)) %>%
+    st_drop_geometry() %>%
+    select(!!sym(huc_col), total_area)
+  
+  # Calculate percentage of each HUC that intersects with the basin
+  overlap_percentage <- intersection_areas %>%
+    left_join(hucs_areas, by = huc_col) %>%
+    mutate(pct_overlap = as.numeric(int_area / total_area))
+  
+  # Filter to only include HUCs with significant overlap (e.g., >10%)
+  significant_hucs <- overlap_percentage %>%
+    filter(pct_overlap > 0.1) %>%
     pull(!!sym(huc_col))
   
-  Combined_edges_HUC <- st_join(edges, Huc, join = st_intersects) # Perform a spatial join
+  # Perform spatial join between edges and HUCs
+  Combined_edges_HUC <- st_join(edges, Huc, join = st_intersects) 
   edges$stream_length_m <- as.numeric(st_length(edges)) #Calculate stream length 
   
   # Summarize production by HUC polygon
@@ -62,8 +86,8 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   
   # Merge production and stream length summaries with HUC polygons
   final_result <- Huc %>%
-    # Filter to only include HUCs that are within the Basin
-    filter(!!sym(huc_col) %in% hucs_in_basin) %>%
+    # Filter to only include HUCs with significant overlap with the basin
+    filter(!!sym(huc_col) %in% significant_hucs) %>%
     left_join(st_drop_geometry(summary_huc), by = huc_col) %>%
     left_join(stream_length_by_huc, by = huc_col) %>%
     replace_na(list(
@@ -86,32 +110,73 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
     ))
   }
   
+  # Create bar plot of production proportion by HUC - REINSTATED
+  # Filter to only include HUCs with non-zero production
+  non_zero_hucs <- final_result %>%
+    filter(production_per_meter_norm > 0) %>%
+    arrange(desc(production_per_meter_norm))
   
-  # Create bar plot of production proportion by HUC
-  bargraph <- ggplot(final_result, 
-                     aes(x = !!sym(name_col),  # Use NAME directly (no reordering)
-                         y = production_per_meter_norm)) +
-    geom_col(fill = "grey60", alpha = 0.8) +
-    coord_flip() +
-    scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
-    labs(title = paste("Relative Production per km of river", HUC),
-         x = "",
-         y = "") +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(hjust = 0.3),
-      axis.text.y = element_text(size = 8),
-      panel.grid.major.y = element_blank()
-    )
-  
-  # Modify for HUC10 plots, too many!
-  if (HUC == 10) {
-    bargraph <- bargraph + 
-      theme(axis.text.y = element_blank(),
-            axis.ticks.y = element_blank())
+  # Get HUC names (or IDs if names aren't available)
+  huc_names <- if(name_col %in% names(non_zero_hucs)) {
+    non_zero_hucs[[name_col]]
+  } else {
+    non_zero_hucs[[huc_col]]
   }
   
-  # Create main map plot with scaled values
+  # Create more informative bar graph with ordered HUCs by production value
+  bargraph <- ggplot(final_result, 
+                     aes(x = !!sym(name_col),  # Use NAME directly (alphabetical order)
+                         y = production_per_meter_norm)) +
+    geom_col(aes(fill = production_per_meter_norm), alpha = 0.9) +
+    # Use same color scale as the map for consistency
+    scale_fill_viridis(
+      option = "plasma",
+      name = "Production per km",
+      limits = c(0, 1)
+    ) +
+    coord_flip() +
+    scale_y_continuous(limits = c(0, 1), expand = c(0, 0),
+                       labels = scales::percent_format(accuracy = 1)) +
+    labs(title = paste("Production per km by", "HUC", HUC, "(Alphabetical)"),
+         x = "",
+         y = "Production per km (normalized)") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 12),
+      axis.text.y = element_text(size = 8),
+      panel.grid.major.y = element_blank(),
+      legend.position = "none"
+    )
+  
+  # Modify for HUC10 plots if there are too many
+  if (HUC == 10 && nrow(non_zero_hucs) > 15) {
+    # For HUC10, only show top 15 by production
+    top_hucs <- non_zero_hucs %>%
+      top_n(15, production_per_meter_norm)
+    
+    bargraph <- ggplot(top_hucs, 
+                       aes(x = reorder(!!sym(ifelse(name_col %in% names(top_hucs), name_col, huc_col)), 
+                                       production_per_meter_norm),
+                           y = production_per_meter_norm)) +
+      geom_col(aes(fill = production_per_meter_norm), alpha = 0.9) +
+      scale_fill_gradientn(colors = rev(brewer.pal(9, "YlOrRd")),
+                           name = "Production per km") +
+      coord_flip() +
+      scale_y_continuous(limits = c(0, 1), expand = c(0, 0),
+                         labels = scales::percent_format(accuracy = 1)) +
+      labs(title = paste("Top 15 HUC10 by Production per km"),
+           x = "",
+           y = "Production per km (normalized)") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 12),
+        axis.text.y = element_text(size = 8),
+        panel.grid.major.y = element_blank(),
+        legend.position = "none"
+      )
+  }
+  
+  # Create improved main map plot with enhanced color scale
   main_plot <- ggplot() +
     geom_sf(
       data = final_result,
@@ -119,11 +184,12 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
       color = "white",
       size = 0.1
     ) +
-    scale_fill_gradientn(
-      colors = (brewer.pal(9, "Reds")),
-      name = "Relative production per river KM",
+    # Using viridis color palette for better distinction of subtle changes
+    scale_fill_viridis(
+      option = "plasma",  # or try "magma", "inferno", "cividis" for different looks
+      name = "Relative production\nper river km",
       na.value = "grey95",
-      limits = c(0, 1),  # Explicitly set limits to [0, 1]
+      limits = c(0, 1),
       labels = scales::percent_format(accuracy = 1),
       guide = guide_colorbar(
         barwidth = 1,
@@ -135,7 +201,9 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
     ) +
     coord_sf(datum = NA) +
     labs(
-      title = paste("Year", year, "natal origin dist."),
+      title = paste("Year", year, "natal origin distribution"),
+      subtitle = paste("Watershed:", watershed, "- Sensitivity:", sensitivity_threshold, 
+                       "- Min Stream Order:", min_stream_order)
     ) +
     theme(
       plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "grey30"),
@@ -151,11 +219,32 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
                      "_StrOrd", min_stream_order, "_.pdf")
   filepath <- file.path(here("Basin Maps/Full_year_all_individuals/HUC"), filename)
   
-  # Save plots to a multi-page PDF
+  # Save plots to a PDF with the bar chart included and proper margins
   pdf(file = filepath, width = 12, height = 8)
-  print(main_plot)
   
-  #print(bargraph, vp = viewport(x = 0.25, y = 0.85, width = 0.4, height = 0.3, just = c("center", "top")))
+  # Create plots with appropriate themes that include margins
+  # Add more right margin to the bar graph
+  bargraph <- bargraph + 
+    theme(
+      plot.margin = margin(5, 25, 5, 5, "mm"),  # top, right, bottom, left margins
+      axis.text.y = element_text(size = 8, margin = margin(r = 5)),
+      plot.title = element_text(hjust = 0.5, size = 12)
+    )
+  
+  # Add margins to the main plot
+  main_plot <- main_plot +
+    theme(plot.margin = margin(5, 5, 5, 5, "mm"))
+  
+  # Set up the plotting layout with proper spacing
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(1, 2, widths = unit(c(0.6, 0.4), "npc"))))
+  
+  # Plot main map in left panel
+  print(main_plot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+  
+  # Plot bar chart in right panel 
+  print(bargraph, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
+  
   dev.off()
   
   ################ 
