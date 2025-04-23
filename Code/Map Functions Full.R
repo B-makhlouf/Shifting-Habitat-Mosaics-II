@@ -201,18 +201,27 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   colcode[which(StreamOrderPrior == 0)] <- 'gray60'
   colcode[which(pid_prior == 0)] <- 'gray60'
   
-  # Line widths
+  # First, scale linewidths by stream order as before
   stream_order_lwd <- edges$Str_Order
   
-  # Set all linewidths to 1 initially 
+  # Set base linewidths according to stream order
   linewidths <- rep(1, length(stream_order_lwd))
-  linewidths <- ifelse(stream_order_lwd == 9, 3.6, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 8, 3.2, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 7, 2.8, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 6, 2.6, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 5, 2.4, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 4, 2.2, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 3, 2.0, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 9, 5, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 8, 4, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 7, 3, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 6, 2, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 5, 1.8, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 4, 1.5, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
+  
+  # Now enhance linewidths for high probability regions
+  # Add a multiplier for segments with high probability
+  high_prob_multiplier <- rep(1, length(basin_assign_norm))
+  high_prob_multiplier[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- 1.5  # 30% wider
+  high_prob_multiplier[basin_assign_norm > 0.9] <- 1.9  # 50% wider
+  
+  # Apply the multiplier to the linewidths
+  linewidths <- linewidths * high_prob_multiplier
   
   # Generate title
   plot_title <- paste("Year:", year, 
@@ -427,8 +436,8 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     
     StreamOrderPrior <<- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     
-    PresencePrior <- ifelse(edges$Str_Order == max(edges$Str_Order) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior<- ifelse(edges$Spawner_IP == 0, 1,0)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(7, 8, 9)) & edges$SPAWNING_C == 0, 0, 1)
+    NewHabitatPrior<- ifelse(edges$Spawner_IP == 0, 0, 1)
     
     
     #####. BAYES RULE ASSIGNMENT. ##################
