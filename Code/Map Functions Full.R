@@ -178,16 +178,26 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   
   # Increase the height of the PDF to make more room
   pdf(file = filepath, width = 9, height = 8)  # Increased from height = 6 to height = 8
-  pallete <- brewer.pal(n = 9, name = "YlOrRd")
+  # Use the YlOrRd palette from RColorBrewer with 9 colors
+  pallete <- brewer.pal(9, "YlOrRd")
   
-  # Color coding
+  # For 10 bins (0.0-0.1, 0.1-0.2, etc.), we need to interpolate to get 10 colors
+  # Interpolate the 9-color palette to create 10 colors
+  pallete_expanded <- colorRampPalette(pallete)(10)
+  
+  # Color coding with bins at every 0.1
   colcode <- rep("gray60", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'white'
-  colcode[basin_assign_norm >= 0.9] <- pallete[9]
-  colcode[basin_assign_norm >= 0.8 & basin_assign_norm < 0.9] <- pallete[7]
-  colcode[basin_assign_norm >= 0.7 & basin_assign_norm < 0.8] <- pallete[5]
-  colcode[basin_assign_norm >= 0.6 & basin_assign_norm < 0.7] <- pallete[3]
-  colcode[basin_assign_norm <= 0.6 & basin_assign_norm > 0] <- 'cornsilk2'
+  colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.1] <- pallete_expanded[1]
+  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- pallete_expanded[2]
+  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- pallete_expanded[3]
+  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
+  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
+  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
+  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
+  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
+  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
+  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- pallete_expanded[10]
   colcode[which(StreamOrderPrior == 0)] <- 'gray60'
   colcode[which(pid_prior == 0)] <- 'gray60'
   
@@ -221,8 +231,9 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   
   # Move legend to upper left
   legend("topleft", 
-         legend = c(">= 0.9", "0.8 - 0.9", "0.7 - 0.8", "0.6 - 0.7", "Low (< 0.7)"), 
-         col = c(pallete[9], pallete[7], pallete[5], pallete[3], "cornsilk2"), 
+         legend = c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
+                    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"), 
+         col = pallete_expanded, 
          lwd = 5, 
          title = "Relative posterior density", 
          bty = "n")
