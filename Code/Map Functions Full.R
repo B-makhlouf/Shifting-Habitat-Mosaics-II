@@ -9,11 +9,106 @@ library(tidyr)
 library(viridis)
 library(tidyverse)
 
+
+Trib_map <- function(watershed, identifier, sensitivity_threshold, min_stream_order, 
+                     min_error, year, basin_assign_norm, StreamOrderPrior, 
+                     pid_prior, basin, gg_hist) {
+  
+  # Load watershed edges based on input parameter
+  if (watershed == "Kusko"){
+    edges <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp")
+  } else if (watershed == "Yukon"){
+    edges <- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
+  }
+  
+  # Filter edges by minimum stream order
+  edges <- edges[edges$Str_Order >= min_stream_order,]
+  
+  # Define the filename and path for the PDF output
+  filename <- paste0(identifier, "_", sensitivity_threshold,"_StrOrd",min_stream_order,"_.pdf")
+  filepath <- file.path(here("Basin Maps/Annual_Maps/Tribs", filename))
+  
+  # Create PDF with increased height
+  pdf(file = filepath, width = 9, height = 8)
+  
+  # Use the YlOrRd palette from RColorBrewer with 9 colors
+  pallete <- brewer.pal(9, "YlOrRd")
+  
+  # Interpolate the 9-color palette to create 10 colors for better gradation
+  pallete_expanded <- colorRampPalette(pallete)(10)
+  
+  # Color coding with bins at every 0.1 for more granular visualization
+  colcode <- rep("gray60", length(basin_assign_norm))
+  colcode[basin_assign_norm == 0] <- 'white'
+  colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.2] <- pallete_expanded[1]
+  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- pallete_expanded[3]
+  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- pallete_expanded[5]
+  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.8] <- pallete_expanded[7]
+  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
+  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1] <- pallete_expanded[10]
+  
+  colcode[which(StreamOrderPrior == 0)] <- 'gray60'
+  colcode[which(pid_prior == 0)] <- 'gray60'
+  
+  # Enhanced line widths for better visualization
+  stream_order_lwd <- edges$Str_Order
+  
+  # Set base linewidths according to stream order
+  linewidths <- rep(1, length(stream_order_lwd))
+  linewidths <- ifelse(stream_order_lwd == 9, 5, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 8, 2, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 7, 1.3, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 6, 1.1, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 5, 1, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 4, 1, linewidths)
+  linewidths <- ifelse(stream_order_lwd == 3, .6, linewidths)
+  
+  # Add a multiplier for segments with high probability
+  high_prob_multiplier <- rep(1, length(basin_assign_norm))
+  high_prob_multiplier[basin_assign_norm > 0.8 ] <- 1.9 # 50% wider
+  
+  
+  # Apply the multiplier to the linewidths
+  linewidths <- linewidths * high_prob_multiplier
+  
+  # Generate title
+  plot_title <- paste("Year:", year, 
+                      "River:", watershed,
+                      "Threshold:", sensitivity_threshold, 
+                      "Min Stream Order:", min_stream_order, 
+                      "Min Error:", min_error)
+  
+  # Adjust plot margins to create more room at the bottom
+  par(mar = c(8, 4, 4, 2))
+  
+  # Plotting
+  plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title)
+  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
+  
+  # Add legend in upper left
+  legend("topleft", 
+         legend = c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
+                    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"), 
+         col = pallete_expanded, 
+         lwd = 5, 
+         title = "Relative posterior density", 
+         bty = "n")
+  
+  # Place histogram at the bottom
+  vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
+  print(gg_hist, vp = vp_hist)
+  
+  dev.off()
+  
+  # Return the filepath of the created PDF
+  return(filepath)
+}
 ############## Function to create maps, includes a watershed specific function to 
 #################### assign probability values to each watershed. 
 
+
 All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HUC = 8, return_values = FALSE) {
- 
+  
   if(watershed == "Kusko") {
     KK_assign(year, sensitivity_threshold, min_error, min_stream_order, HUC)
   } else if (watershed == "Yukon") {
@@ -148,34 +243,6 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
       legend.position = "none"
     )
   
-  # Modify for HUC10 plots if there are too many
-  if (HUC == 10 && nrow(non_zero_hucs) > 15) {
-    # For HUC10, only show top 15 by production
-    top_hucs <- non_zero_hucs %>%
-      top_n(15, production_per_meter_norm)
-    
-    bargraph <- ggplot(top_hucs, 
-                       aes(x = reorder(!!sym(ifelse(name_col %in% names(top_hucs), name_col, huc_col)), 
-                                       production_per_meter_norm),
-                           y = production_per_meter_norm)) +
-      geom_col(aes(fill = production_per_meter_norm), alpha = 0.9) +
-      scale_fill_gradientn(colors = rev(brewer.pal(9, "YlOrRd")),
-                           name = "Production per km") +
-      coord_flip() +
-      scale_y_continuous(limits = c(0, 1), expand = c(0, 0),
-                         labels = scales::percent_format(accuracy = 1)) +
-      labs(title = paste("Top 15 HUC10 by Production per km"),
-           x = "",
-           y = "Production per km (normalized)") +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(hjust = 0.5, size = 12),
-        axis.text.y = element_text(size = 8),
-        panel.grid.major.y = element_blank(),
-        legend.position = "none"
-      )
-  }
-  
   # Create improved main map plot with enhanced color scale
   main_plot <- ggplot() +
     geom_sf(
@@ -217,7 +284,7 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   ######### Define filename and save 
   filename <- paste0(identifier, "_HUC", HUC, "_", sensitivity_threshold, 
                      "_StrOrd", min_stream_order, "_.pdf")
-  filepath <- file.path(here("Basin Maps/Full_year_all_individuals/HUC"), filename)
+  filepath <- file.path(here("Basin Maps/Annual_Maps/HUC"), filename)
   
   # Save plots to a PDF with the bar chart included and proper margins
   pdf(file = filepath, width = 12, height = 8)
@@ -247,111 +314,32 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
   
   dev.off()
   
-  ################ 
-  ################# MAP 
-  #################
+  ################ CALL TO TRIB_MAP FUNCTION INSTEAD OF PREVIOUS MAPPING CODE
   
-  if (watershed == "Kusko"){
-  edges <- st_read("/Users/benjaminmakhlouf/Desktop/Clean_shapefiles/kusko_cleaned_wgroups.shp")
-  } else if (watershed == "Yukon"){
-  edges <- st_read("/Users/benjaminmakhlouf/Downloads/Results/yukon_edges_20191011_2015earlyStrata_acc.shp")
-  }
-
-  edges <- edges[edges$Str_Order >= min_stream_order,]
-  
-  # Modify the PDF creation part of your All_Map function in Map Functions Full.R
-  
-  # Define the filename and path for the PDF output
-  filename <- paste0(identifier, "_", sensitivity_threshold,"_StrOrd",min_stream_order,"_.pdf")
-  filepath <- file.path(here("Basin Maps/Full_year_all_individuals/Tribs", filename))
-  
-  # Increase the height of the PDF to make more room
-  pdf(file = filepath, width = 9, height = 8)  # Increased from height = 6 to height = 8
-  # Use the YlOrRd palette from RColorBrewer with 9 colors
-  pallete <- brewer.pal(9, "YlOrRd")
-  
-  # For 10 bins (0.0-0.1, 0.1-0.2, etc.), we need to interpolate to get 10 colors
-  # Interpolate the 9-color palette to create 10 colors
-  pallete_expanded <- colorRampPalette(pallete)(10)
-  
-  # Color coding with bins at every 0.1
-  colcode <- rep("gray60", length(basin_assign_norm))
-  colcode[basin_assign_norm == 0] <- 'white'
-  colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.1] <- pallete_expanded[1]
-  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- pallete_expanded[2]
-  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- pallete_expanded[3]
-  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
-  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
-  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
-  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
-  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- pallete_expanded[10]
-  colcode[which(StreamOrderPrior == 0)] <- 'gray60'
-  colcode[which(pid_prior == 0)] <- 'gray60'
-  
-  # First, scale linewidths by stream order as before
-  stream_order_lwd <- edges$Str_Order
-  
-  # Set base linewidths according to stream order
-  linewidths <- rep(1, length(stream_order_lwd))
-  linewidths <- ifelse(stream_order_lwd == 9, 5, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 8, 4, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 7, 3, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 6, 2, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 5, 1.8, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 4, 1.5, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
-  
-  # Now enhance linewidths for high probability regions
-  # Add a multiplier for segments with high probability
-  high_prob_multiplier <- rep(1, length(basin_assign_norm))
-  high_prob_multiplier[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- 1.5  # 30% wider
-  high_prob_multiplier[basin_assign_norm > 0.9] <- 1.9  # 50% wider
-  
-  # Apply the multiplier to the linewidths
-  linewidths <- linewidths * high_prob_multiplier
-  
-  # Generate title
-  plot_title <- paste("Year:", year, 
-                      "River:", watershed,
-                      "Threshold:", sensitivity_threshold, 
-                      "Min Stream Order:", min_stream_order, 
-                      "Min Error:", min_error)
-  
-  # Use par to adjust plot margins - create more room at the bottom
-  # Arguments to par(mar = c(bottom, left, top, right))
-  par(mar = c(8, 4, 4, 2))  # Increase bottom margin from default 4 to 8
-  
-  # Plotting
-  plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title)
-  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
-  
-  # Move legend to upper left
-  legend("topleft", 
-         legend = c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
-                    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"), 
-         col = pallete_expanded, 
-         lwd = 5, 
-         title = "Relative posterior density", 
-         bty = "n")
-  
-  # Place histogram further down
-  vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
-  print(gg_hist, vp = vp_hist)
-  
-  dev.off()
+  # Call the Trib_map function with the existing gg_hist
+  Trib_map(
+    watershed = watershed,
+    identifier = identifier,
+    sensitivity_threshold = sensitivity_threshold,
+    min_stream_order = min_stream_order,
+    min_error = min_error,
+    year = year,
+    basin_assign_norm = basin_assign_norm,
+    StreamOrderPrior = StreamOrderPrior,
+    pid_prior = pid_prior,
+    basin = basin,
+    gg_hist = gg_hist  # Using the existing gg_hist
+  )
   
   # Reset par to default if needed for subsequent plots
   par(mar = c(5, 4, 4, 2) + 0.1)  # Reset to default
   
-  
   if (!return_values) {
     return(invisible(NULL))
   }
-  
-  
 }
+
+########################################################
 
 
 #################################################################################
@@ -362,11 +350,11 @@ All_Map <- function(year, sensitivity_threshold, min_error, min_stream_order, HU
 #######################################
 
 
-#Test params 
-year <- 2017
-sensitivity_threshold <- 0.7
-min_error <- 0.5
-min_stream_order <- 3
+# #Test params 
+# year <- 2017
+# sensitivity_threshold <- 0.7
+# min_error <- 0.5
+# min_stream_order <- 3
 
 
 
@@ -428,7 +416,7 @@ KK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     NewHabitatPrior<- ifelse(edges$Spawner_IP == 0, 0, 1)
     
     # Bayesian assignment
-    assign <- (1 / sqrt(2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2)) * pid_prior   * NewHabitatPrior *PresencePrior #* StreamOrderPrior
+    assign <- (1 / sqrt(2 * pi * error^2)) * exp(-1 * (iso_o - pid_iso)^2 / (2 * error^2)) * pid_prior *PresencePrior * StreamOrderPrior
     assign_norm <- assign / sum(assign)
     assign_rescaled <- assign_norm / max(assign_norm)
     assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
@@ -528,7 +516,6 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     PresencePrior <- ifelse((edges$Str_Order %in% c(7, 8, 9)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior<- ifelse(edges$Spawner_IP == 0, 0, 1)
     
-    
     #####. BAYES RULE ASSIGNMENT. ##################
     
     assign <- (1/sqrt((2*pi*error^2))*exp(-1*(iso_o-pid_iso)^2/(2*error^2))) * pid_prior * gen.prior * StreamOrderPrior * PresencePrior #* NewHabitatPrior 
@@ -539,8 +526,55 @@ YK_assign <- function(year, sensitivity_threshold, min_error, min_stream_order, 
     #rescale so that all values are between 0 and 1 
     assign_rescaled <- assign_norm / max(assign_norm) 
     
-    # If the rescaled value is less than the threshold, then set the same index in assign_norm to 0, otherwise 1 
+    # If the rescaled value is less than the threshold, then set to 0
     assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
+    
+    # Load the HUC polygon 
+    HUC <- st_read(paste0("/Users/benjaminmakhlouf/Spatial Data/HUC",HUC,"_Trimmed.shp"))
+    
+    # Get the top 5% of assignments that are greater than 0
+    top_5_percent_threshold <- quantile(assign_rescaled[assign_rescaled > 0], 0.95)
+    top_assignments_indices <- which(assign_rescaled >= top_5_percent_threshold)
+    
+    # We need the spatial points for these top assignments
+    # First make sure edges has geometry
+    if(!inherits(edges, "sf")) {
+      edges_sf <- st_as_sf(edges)
+    } else {
+      edges_sf <- edges
+    }
+    
+    # Extract just the top assignment edges
+    top_edges_sf <- edges_sf[top_assignments_indices,]
+    
+    # Find which HUC contains the most top assignments
+    # Use st_intersects since river segments might cross HUC boundaries
+    intersections <- st_intersects(top_edges_sf, HUC)
+    
+    # Count which HUC has the most intersections with top assignments
+    huc_counts <- table(unlist(intersections))
+    if(length(huc_counts) > 0) {
+      top_huc_index <- as.integer(names(huc_counts)[which.max(huc_counts)])
+      top_huc <- HUC[top_huc_index,]
+      
+      # Now find all edges that intersect with this top HUC
+      edges_in_top_huc <- st_intersects(edges_sf, top_huc)
+      
+      # Create a logical vector of which edges are in the top HUC
+      in_top_huc <- lengths(edges_in_top_huc) > 0
+      
+      # Set assignments to 0 for all edges NOT in the top HUC
+      assign_rescaled[!in_top_huc] <- 0
+      
+      # Set basin_assign_norm for later use in the plot
+      basin_assign_norm <- assign_rescaled
+      
+      # Also update assign_norm to be consistent
+      assign_norm[!in_top_huc] <- 0
+    } else {
+      # If no intersections found, keep the original assignments
+      basin_assign_norm <- assign_rescaled
+    }
     
     # Multiply by the CPUE weight 
     assign_rescaled_wt <- assign_rescaled * as.numeric(Natal_Origins[i, "COratio"])

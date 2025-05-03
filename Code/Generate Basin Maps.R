@@ -1,24 +1,5 @@
 # Integrated Watershed Mapping Script
-# This script integrates standard basin mapping with optional quartile analysis
-
-#===============================================================================
-# HOW TO USE THIS SCRIPT
-#===============================================================================
-# To run all available datasets automatically:
-# 1. Save this file to your project root directory
-# 2. Make sure all required function scripts are in the proper locations
-# 3. Uncomment the line that says: main()
-# 4. Run the script
-#
-# The script will automatically:
-# - Load all necessary functions
-# - Clean up previous outputs
-# - Update data from the repository
-# - Process all available datasets
-# - Generate a summary report
-#
-# To run with quartile analysis:
-# - Set run_quartiles = TRUE in the main() function or process_specific_datasets()
+# This script focuses on generating basin maps with DOY and CPUE quartile analysis
 
 # Load necessary libraries
 library(sf)
@@ -39,8 +20,9 @@ library(tidyverse)
 source_function_scripts <- function() {
   message("Loading mapping functions...")
   source(here("Code/Map Functions Full.R"))
-  source(here("Code/Style_Map_Function.R"))
-  source(here("Code/Map Functions QUARTILE.R"))
+  source(here("Code/Map_Utils.R"))
+  source(here("Code/DOY_Quartile_Analysis.R"))
+  source(here("Code/CPUE_Quartile_Analysis.R")) 
   message("Mapping functions loaded successfully.")
 }
 
@@ -107,7 +89,7 @@ get_available_datasets <- function(data_dir) {
 #===============================================================================
 
 # Process a single dataset
-process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("DOY_Q", "CPUE_Q")) {
+process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("DOY", "CPUE")) {
   # Extract year and watershed
   parts <- strsplit(dataset, "_")[[1]]
   year <- parts[1]
@@ -115,36 +97,43 @@ process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("
   
   message(paste("Processing dataset:", year, watershed))
   
-  # Define global watershed variable needed by All_Map
+  # Define global watershed variable needed by All_Map and quartile functions
   assign("watershed", watershed, envir = .GlobalEnv)
   
   # Set parameters based on watershed
   if (watershed == "Yukon") {
-    sensitivity_threshold <- 0.0001
+    sensitivity_threshold <- 0.7
     min_error <- 0.003
-    min_stream_order <- 3
-    filter_conditions <- NULL
+    min_stream_order <- 5
     
     # Run the mapping function for Yukon
-    message(paste("Mapping", year, watershed, "with specific parameters"))
-    map_result <- All_Map(year, sensitivity_threshold, min_error, min_stream_order)
-    message(paste("Completed standard mapping for", year, watershed))
+    message(paste("Mapping", year, watershed, "with standard parameters"))
+    All_Map(year, sensitivity_threshold, min_error, min_stream_order)
     
     # Run quartile mapping if requested
     if (run_quartiles) {
-      message(paste("Running quartile analysis for", year, watershed))
-      for (quartile_type in quartile_types) {
-        message(paste("  Processing", quartile_type, "quartiles"))
-        # Use the ALL_Map_func_Quartile from Map Functions QUARTILE.R instead
-        quartile_result <- ALL_Map_func_Quartile(
+      # Run DOY quartile analysis if requested
+      if ("DOY" %in% quartile_types) {
+        message("  Processing DOY quartiles")
+        DOY_Quartile_Analysis(
           year = year,
           sensitivity_threshold = sensitivity_threshold,
           min_error = min_error,
           min_stream_order = min_stream_order,
-          filter_by = quartile_type,
           HUC = 8
         )
-        message(paste("  Completed", quartile_type, "quartile mapping"))
+      }
+      
+      # Run CPUE quartile analysis if requested
+      if ("CPUE" %in% quartile_types) {
+        message("  Processing CPUE quartiles")
+        CPUE_Quartile_Analysis(
+          year = year,
+          sensitivity_threshold = sensitivity_threshold,
+          min_error = min_error,
+          min_stream_order = min_stream_order,
+          HUC = 8
+        )
       }
     }
     
@@ -152,28 +141,35 @@ process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("
     sensitivity_threshold <- 0.7
     min_error <- 0.0006
     min_stream_order <- 3
-    filter_conditions <- NULL
     
     # Run the mapping function for Kuskokwim
-    message(paste("Mapping", year, watershed, "with specific parameters"))
-    map_result <- All_Map(year, sensitivity_threshold, min_error, min_stream_order)
-    message(paste("Completed standard mapping for", year, watershed))
+    message(paste("Mapping", year, watershed, "with standard parameters"))
+    All_Map(year, sensitivity_threshold, min_error, min_stream_order)
     
     # Run quartile mapping if requested
     if (run_quartiles) {
-      message(paste("Running quartile analysis for", year, watershed))
-      for (quartile_type in quartile_types) {
-        message(paste("  Processing", quartile_type, "quartiles"))
-        # Use the ALL_Map_func_Quartile from Map Functions QUARTILE.R instead
-        quartile_result <- ALL_Map_func_Quartile(
+      # Run DOY quartile analysis if requested
+      if ("DOY" %in% quartile_types) {
+        message("  Processing DOY quartiles")
+        DOY_Quartile_Analysis(
           year = year,
           sensitivity_threshold = sensitivity_threshold,
           min_error = min_error,
           min_stream_order = min_stream_order,
-          filter_by = quartile_type,
           HUC = 8
         )
-        message(paste("  Completed", quartile_type, "quartile mapping"))
+      }
+      
+      # Run CPUE quartile analysis if requested
+      if ("CPUE" %in% quartile_types) {
+        message("  Processing CPUE quartiles")
+        CPUE_Quartile_Analysis(
+          year = year,
+          sensitivity_threshold = sensitivity_threshold,
+          min_error = min_error,
+          min_stream_order = min_stream_order,
+          HUC = 8
+        )
       }
     }
   } else {
@@ -202,23 +198,13 @@ process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("
   if(exists("pid_prior", envir = .GlobalEnv)) {
     rm("pid_prior", envir = .GlobalEnv)
   }
-  
-  # Return basic info about the processed dataset
-  return(list(
-    year = year,
-    watershed = watershed,
-    sensitivity_threshold = sensitivity_threshold,
-    min_error = min_error,
-    min_stream_order = min_stream_order,
-    quartile_analysis = run_quartiles
-  ))
 }
 
 #===============================================================================
 # 4. MAIN EXECUTION
 #===============================================================================
 
-run_analysis <- function(datasets = NULL, run_quartiles = FALSE, quartile_types = c("DOY_Q", "CPUE_Q")) {
+run_analysis <- function(datasets = NULL, run_quartiles = FALSE, quartile_types = c("DOY", "CPUE")) {
   # Step 1: Load required functions
   source_function_scripts()
   
@@ -232,67 +218,27 @@ run_analysis <- function(datasets = NULL, run_quartiles = FALSE, quartile_types 
   if(is.null(datasets)) {
     datasets <- get_available_datasets(data_dir)
   }
-  
-  # Create output directories for quartile analysis if needed
-  if (run_quartiles) {
-    dir.create(here("Basin Maps/Quartile_Maps"), showWarnings = FALSE, recursive = TRUE)
-    dir.create(here("Basin Maps/Quartile_Maps/HUC"), showWarnings = FALSE, recursive = TRUE)
-    dir.create(here("Basin Maps/Quartile_Maps/Tribs"), showWarnings = FALSE, recursive = TRUE)
-    dir.create(here("Basin Maps/Quartile_Splits"), showWarnings = FALSE, recursive = TRUE)
-  }
-  
+
   # Step 5: Process each dataset
-  results <- list()
   for(dataset in datasets) {
     tryCatch({
-      results[[dataset]] <- process_dataset(dataset, run_quartiles, quartile_types)
+      process_dataset(dataset, run_quartiles, quartile_types)
+      message(paste("Successfully processed dataset:", dataset))
     }, error = function(e) {
       message(paste("Error processing dataset", dataset, ":", e$message))
     })
   }
   
-  # Step 6: Return summary of processing
-  message("Analysis complete.")
-  return(results)
+  message("Map generation complete.")
 }
 
 #===============================================================================
-# 5. ADDITIONAL UTILITY FUNCTIONS
+# 5. UTILITY FUNCTIONS
 #===============================================================================
-
-# Function to generate a summary report of all processed data
-generate_summary_report <- function(results) {
-  if(length(results) == 0) {
-    message("No results to summarize.")
-    return(NULL)
-  }
-  
-  # Convert results to a data frame
-  summary_df <- do.call(rbind, lapply(results, function(x) {
-    data.frame(
-      year = x$year,
-      watershed = x$watershed,
-      sensitivity_threshold = x$sensitivity_threshold,
-      min_error = x$min_error,
-      min_stream_order = x$min_stream_order,
-      quartile_analysis = ifelse(is.null(x$quartile_analysis), FALSE, x$quartile_analysis)
-    )
-  }))
-  
-  # Add row names
-  rownames(summary_df) <- names(results)
-  
-  # Display summary
-  message("Summary of processed datasets:")
-  print(summary_df)
-  
-  # Return the summary data frame
-  return(summary_df)
-}
 
 # Function to process specific datasets
 process_specific_datasets <- function(years, watersheds, run_quartiles = FALSE, 
-                                      quartile_types = c("DOY_Q", "CPUE_Q")) {
+                                      quartile_types = c("DOY", "CPUE")) {
   # Create all combinations of years and watersheds
   datasets <- c()
   for (year in years) {
@@ -302,7 +248,7 @@ process_specific_datasets <- function(years, watersheds, run_quartiles = FALSE,
   }
   
   message(paste("Processing specific datasets:", paste(datasets, collapse=", ")))
-  return(run_analysis(datasets, run_quartiles, quartile_types))
+  run_analysis(datasets, run_quartiles, quartile_types)
 }
 
 #===============================================================================
@@ -310,7 +256,7 @@ process_specific_datasets <- function(years, watersheds, run_quartiles = FALSE,
 #===============================================================================
 
 # Main execution - process all available datasets
-main <- function(run_quartiles = FALSE, quartile_types = c("DOY_Q", "CPUE_Q")) {
+main <- function(run_quartiles = FALSE, quartile_types = c("DOY", "CPUE")) {
   # Step 1: Load required functions
   source_function_scripts()
   
@@ -324,49 +270,21 @@ main <- function(run_quartiles = FALSE, quartile_types = c("DOY_Q", "CPUE_Q")) {
   datasets <- get_available_datasets(data_dir)
   message(paste("Found", length(datasets), "datasets to process:", paste(datasets, collapse=", ")))
   
-  # Create quartile directories if needed
-  if (run_quartiles) {
-    dir.create(here("Basin Maps/Quartile_Maps"), showWarnings = FALSE, recursive = TRUE)
-    dir.create(here("Basin Maps/Quartile_Maps/HUC"), showWarnings = FALSE, recursive = TRUE)
-    dir.create(here("Basin Maps/Quartile_Maps/Tribs"), showWarnings = FALSE, recursive = TRUE)
-    dir.create(here("Basin Maps/Quartile_Splits"), showWarnings = FALSE, recursive = TRUE)
-  }
-  
   # Step 5: Process each dataset
-  results <- list()
   for(dataset in datasets) {
     message(paste("Starting processing of dataset:", dataset))
     tryCatch({
-      results[[dataset]] <- process_dataset(dataset, run_quartiles, quartile_types)
+      process_dataset(dataset, run_quartiles, quartile_types)
       message(paste("Successfully processed dataset:", dataset))
     }, error = function(e) {
       message(paste("ERROR processing dataset", dataset, ":", e$message))
     })
   }
   
-  # Step 6: Generate and print a summary
-  summary <- generate_summary_report(results)
-  
-  # Step 7: Return results
-  message("All processing complete!")
-  return(results)
+  message("All map generation complete!")
 }
 
 # Uncomment this line to process ALL available datasets automatically
-main(run_quartiles = TRUE, quartile_types = c("DOY_Q", "CPUE_Q"))
+main(run_quartiles = TRUE, quartile_types = c("DOY"))
 
-# For testing with quartile analysis:
-# test_quartiles <- function() {
-#   message("Testing quartile analysis with a single dataset...")
-#   test_year <- "2015"
-#   test_watershed <- "Kusko"  # Change to "Yukon" to test Yukon watershed
-#   message(paste("Testing with dataset:", test_year, test_watershed))
-#   results <- process_specific_datasets(
-#     years = c(test_year), 
-#     watersheds = c(test_watershed),
-#     run_quartiles = TRUE,
-#     quartile_types = c("DOY_Q")  # Just use DOY quartiles for testing
-#   )
-#   return(results)
-# }
-# test_quartiles()
+
