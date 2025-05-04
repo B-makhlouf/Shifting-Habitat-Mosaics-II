@@ -268,3 +268,28 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   invisible(output_filepath)
 }
 
+#' Create visualization of data splits (DOY or CPUE quartiles)
+#'
+#' @param data Data frame containing the data
+#' @param breaks Vector of break points
+#' @param type Type of split ("DOY" or "CPUE")
+#' @param identifier Identifier for the output file
+#' @return Path to saved plot
+create_split_visualization <- function(data, breaks, type, identifier) {
+  # Create visualization of the splits
+  split_plot <- ggplot(data, aes(x = DOY, y = dailyCPUEprop)) +
+    geom_line(color = "black", linewidth = 1) +
+    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "grey70", alpha = 0.5) +
+    geom_vline(xintercept = breaks, linetype = "dashed", color = "red") +
+    labs(title = paste("Run Timing Split by", type, "Quartiles"),
+         x = "Day of Year",
+         y = "Daily CPUE Proportion") +
+    theme_minimal()
+  
+  # Create directory and save
+  dir.create(here::here("Basin Maps/Quartile_Splits"), showWarnings = FALSE, recursive = TRUE)
+  output_path <- paste0(here::here("Basin Maps/Quartile_Splits/"), identifier, "_", type, "_quartiles.pdf")
+  ggsave(output_path, split_plot, width = 8, height = 5)
+  
+  return(output_path)
+}

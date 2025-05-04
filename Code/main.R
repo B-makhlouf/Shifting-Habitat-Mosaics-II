@@ -223,7 +223,7 @@ run_all_analysis <- function(run_quartiles = FALSE, quartile_types = c("DOY", "C
 
 # Example usage:
 # Process all datasets with DOY quartile analysis
-# run_all_analysis(run_quartiles = TRUE, quartile_types = c("DOY"))
+run_all_analysis(run_quartiles = TRUE, quartile_types = c("DOY"))
 
 # Process specific datasets with both quartile analyses
 # process_specific_datasets(
@@ -232,3 +232,4 @@ run_all_analysis <- function(run_quartiles = FALSE, quartile_types = c("DOY", "C
 #   run_quartiles = TRUE,
 #   quartile_types = c("DOY", "CPUE")
 # )
+
