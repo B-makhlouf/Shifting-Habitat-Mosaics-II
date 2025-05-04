@@ -326,11 +326,11 @@ run_only_cumulative_analysis <- function(years, watersheds,
     
     # Set parameters based on watershed
     if (watershed == "Yukon") {
-      sensitivity_threshold <- 0.7
+      sensitivity_threshold <- 0.00001
       min_error <- 0.003
-      min_stream_order <- 5
+      min_stream_order <- 4
     } else if (watershed == "Kusko") {
-      sensitivity_threshold <- 0.7
+      sensitivity_threshold <- 0.00001
       min_error <- 0.0006
       min_stream_order <- 3
     } else {
@@ -388,7 +388,7 @@ run_only_cumulative_analysis <- function(years, watersheds,
 # run_all_analysis()
 
 # 2. Run all analyses with DOY quartiles, including cumulative
-run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
+run_all_analysis(run_quartiles = TRUE, run_cumulative = FALSE, quartile_types = c("DOY"))
 
 # 3. Process specific datasets with both quartile analyses and cumulative
 # process_specific_datasets(
@@ -405,3 +405,4 @@ run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c
 #   watersheds = c("Yukon", "Kusko"),
 #   quartile_types = c("DOY", "CPUE")
 # )
+

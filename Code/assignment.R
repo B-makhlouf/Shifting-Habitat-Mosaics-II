@@ -28,7 +28,7 @@ perform_assignment <- function(natal_data, edges, watershed, priors,
     if (watershed == "Kusko") {
       # Kusko assignment
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(iso_o - pid_iso)^2/(2*error^2)) * 
-        priors$pid_prior * priors$StreamOrderPrior * priors$PresencePrior * priors$NewHabitatPrior
+        priors$pid_prior * priors$StreamOrderPrior * priors$PresencePrior 
       
     } else if (watershed == "Yukon") {
       # Yukon assignment with genetic priors
@@ -38,7 +38,7 @@ perform_assignment <- function(natal_data, edges, watershed, priors,
       gen.prior[priors$UYsites] <- as.numeric(natal_data$Upper[i])
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(iso_o - pid_iso)^2/(2*error^2)) * 
-        priors$pid_prior * priors$StreamOrderPrior * priors$PresencePrior * priors$NewHabitatPrior * gen.prior
+        priors$pid_prior * priors$StreamOrderPrior * gen.prior
     }
     
     # Normalize and threshold
