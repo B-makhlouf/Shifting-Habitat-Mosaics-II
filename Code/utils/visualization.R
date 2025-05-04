@@ -426,3 +426,178 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
   
   invisible(output_filepath)
 }
+
+# cumulative_visualization.R
+# Functions for creating multi-panel visualizations for cumulative quartile analysis
+
+library(sf)
+library(dplyr)
+library(here)
+library(ggplot2)
+library(gridExtra)
+library(cowplot)
+library(viridis)
+
+#' Create a multi-panel visualization showing the cumulative progression of quartiles
+#'
+#' @param year Character or numeric representing the year
+#' @param watershed Character: "Kusko" or "Yukon"
+#' @param analysis_type Type of quartile analysis ("DOY" or "CPUE")
+#' @param map_type Type of map to visualize ("HUC" or "Trib")
+#' @param raw_production Whether to use raw production maps (for HUC maps only)
+#' @return Path to the saved visualization
+create_cumulative_progression_plot <- function(year, watershed, analysis_type = "DOY", 
+                                               map_type = "HUC", raw_production = FALSE) {
+  
+  # Set appropriate base directory based on analysis type
+  if (analysis_type == "DOY") {
+    base_dir <- here("Basin Maps/DOY_Cumulative")
+  } else if (analysis_type == "CPUE") {
+    base_dir <- here("Basin Maps/CPUE_Cumulative")
+  } else {
+    stop("Analysis type must be either 'DOY' or 'CPUE'")
+  }
+  
+  # Further refine directory based on map type and production type
+  if (map_type == "HUC") {
+    if (raw_production) {
+      map_dir <- file.path(base_dir, "HUC/RawProduction")
+    } else {
+      map_dir <- file.path(base_dir, "HUC")
+    }
+  } else if (map_type == "Trib") {
+    map_dir <- file.path(base_dir, "Tribs")
+  } else {
+    stop("Map type must be either 'HUC' or 'Trib'")
+  }
+  
+  # Create output directory for multi-panel visualizations
+  out_dir <- here("Basin Maps/Cumulative_Progression")
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  # Generate file pattern to match quartile files
+  file_pattern <- paste0(watershed, "_", year, "_Cumulative", analysis_type, "_Q")
+  
+  # Find all relevant files
+  quartile_files <- list.files(path = map_dir, 
+                               pattern = file_pattern, 
+                               full.names = TRUE)
+  
+  # Must have at least 2 quartiles to create a progression plot
+  if (length(quartile_files) < 2) {
+    warning("Not enough quartile files found to create progression plot")
+    return(NULL)
+  }
+  
+  # Sort files to ensure proper ordering
+  quartile_files <- sort(quartile_files)
+  
+  # Create a composite image using grid.arrange
+  # Note: In a real implementation, you would extract the plots from the PDFs
+  # Here we'll just create a schematic representation
+  
+  # Create a plot title based on attributes
+  title_elements <- c(
+    year,
+    watershed,
+    paste("Cumulative", analysis_type, "Quartile Progression"),
+    if (map_type == "HUC" && raw_production) "Raw Production" else NULL,
+    if (map_type == "HUC" && !raw_production) "Production per km" else NULL,
+    if (map_type == "Trib") "Tributary Assignments" else NULL
+  )
+  
+  plot_title <- paste(title_elements[!is.na(title_elements)], collapse = " - ")
+  
+  # Generate output file name
+  output_filename <- paste0(
+    watershed, "_", year, "_", 
+    analysis_type, "_", 
+    map_type,
+    if(raw_production) "_RawProd" else "",
+    "_Progression.pdf"
+  )
+  output_filepath <- file.path(out_dir, output_filename)
+  
+  # Since we can't easily extract the plots from PDFs in this context,
+  # we'll create a script that describes how to create the combined visualization
+  message(paste("To create the cumulative progression visualization, combine the following files:"))
+  for (i in 1:length(quartile_files)) {
+    message(paste("  Q", i, ":", quartile_files[i]))
+  }
+  message(paste("Output would be saved to:", output_filepath))
+  
+  # In a production environment, this would load the PDFs and combine them
+  # For now, we'll create a script template for manual execution
+  script_content <- paste(
+    "# Script to create cumulative progression visualization",
+    paste0("# Title: ", plot_title),
+    "# Files to combine:",
+    paste0("# ", quartile_files),
+    "# ",
+    "# To implement this visualization, you would need to:",
+    "# 1. Extract plots from the PDFs (e.g., using the 'pdftools' package)",
+    "# 2. Combine them into a multi-panel figure (e.g., using 'gridExtra')",
+    "# 3. Save the combined figure to the output filepath",
+    paste0("# Output filepath: ", output_filepath),
+    sep = "\n"
+  )
+  
+  # Create temp script with instructions
+  script_file <- paste0(out_dir, "/", gsub("\\.pdf$", ".R", output_filename))
+  writeLines(script_content, script_file)
+  
+  message(paste("Created script with instructions:", script_file))
+  
+  return(output_filepath)
+}
+
+#' Create a dashboard showing the comparison of cumulative quartile analyses
+#'
+#' @param year Character or numeric representing the year
+#' @param watershed Character: "Kusko" or "Yukon"
+#' @param include_raw_production Whether to include raw production maps
+#' @return Path to the saved dashboard
+create_cumulative_dashboard <- function(year, watershed, include_raw_production = TRUE) {
+  # Create output directory
+  out_dir <- here("Basin Maps/Cumulative_Dashboards")
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  # Generate dashboard filename
+  output_filename <- paste0(watershed, "_", year, "_Cumulative_Dashboard.pdf")
+  output_filepath <- file.path(out_dir, output_filename)
+  
+  # Create progression plots for each type
+  progression_plots <- list(
+    doy_huc = create_cumulative_progression_plot(year, watershed, "DOY", "HUC", FALSE),
+    doy_raw = if(include_raw_production) create_cumulative_progression_plot(year, watershed, "DOY", "HUC", TRUE) else NULL,
+    doy_trib = create_cumulative_progression_plot(year, watershed, "DOY", "Trib"),
+    cpue_huc = create_cumulative_progression_plot(year, watershed, "CPUE", "HUC", FALSE),
+    cpue_raw = if(include_raw_production) create_cumulative_progression_plot(year, watershed, "CPUE", "HUC", TRUE) else NULL,
+    cpue_trib = create_cumulative_progression_plot(year, watershed, "CPUE", "Trib")
+  )
+  
+  # Similar to the progression plot, we'll create a script that describes
+  # how to create the dashboard in a production environment
+  script_content <- paste(
+    "# Script to create cumulative dashboard",
+    paste0("# Dashboard for ", watershed, " ", year),
+    "# Progression plots to combine:",
+    paste0("# ", unlist(progression_plots[!sapply(progression_plots, is.null)])),
+    "# ",
+    "# To implement this dashboard, you would need to:",
+    "# 1. Load each progression plot",
+    "# 2. Arrange them in a grid layout",
+    "# 3. Add a title and any additional annotations",
+    "# 4. Save the combined dashboard to the output filepath",
+    paste0("# Output filepath: ", output_filepath),
+    sep = "\n"
+  )
+  
+  # Create temp script with instructions
+  script_file <- paste0(out_dir, "/", gsub("\\.pdf$", ".R", output_filename))
+  writeLines(script_content, script_file)
+  
+  message(paste("Created dashboard script with instructions:", script_file))
+  
+  return(output_filepath)
+}

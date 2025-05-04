@@ -13,6 +13,8 @@ source(here("code/assignment.R"))
 source(here("code/mapping.R"))
 source(here("code/doy_analysis.R"))
 source(here("code/cpue_analysis.R"))
+source(here("code/cumulative_quartile_analysis.R"))  # New file
+#source(here("code/cumulative_visualization.R"))      # New file
 
 #' Clean previous output files
 #'
@@ -81,10 +83,13 @@ get_available_datasets <- function(data_dir) {
 #' Process a single dataset
 #'
 #' @param dataset Dataset name in the format "year_watershed"
-#' @param run_quartiles Whether to run quartile analyses
+#' @param run_quartiles Whether to run regular quartile analyses 
+#' @param run_cumulative Whether to run cumulative quartile analyses
 #' @param quartile_types Types of quartile analyses to run
 #' @return Invisibly returns NULL
-process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("DOY", "CPUE")) {
+process_dataset <- function(dataset, run_quartiles = FALSE, 
+                            run_cumulative = FALSE,
+                            quartile_types = c("DOY", "CPUE")) {
   # Extract year and watershed
   parts <- strsplit(dataset, "_")[[1]]
   year <- parts[1]
@@ -145,6 +150,50 @@ process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("
     }
   }
   
+  # Run cumulative quartile analysis if requested
+  if (run_cumulative) {
+    message("  Processing cumulative quartile analysis")
+    
+    # Run analysis for each requested type
+    cumulative_types <- c()
+    
+    if ("DOY" %in% quartile_types) {
+      message("    Processing cumulative DOY quartiles")
+      Cumulative_DOY_Analysis(
+        year = year,
+        watershed = watershed,
+        sensitivity_threshold = sensitivity_threshold,
+        min_error = min_error,
+        min_stream_order = min_stream_order,
+        HUC = 8
+      )
+      cumulative_types <- c(cumulative_types, "DOY")
+    }
+    
+    if ("CPUE" %in% quartile_types) {
+      message("    Processing cumulative CPUE quartiles")
+      Cumulative_CPUE_Analysis(
+        year = year,
+        watershed = watershed, 
+        sensitivity_threshold = sensitivity_threshold,
+        min_error = min_error,
+        min_stream_order = min_stream_order,
+        HUC = 8
+      )
+      cumulative_types <- c(cumulative_types, "CPUE")
+    }
+    
+    # Create progression plots and dashboard if we have at least one type
+    if (length(cumulative_types) > 0) {
+      message("    Creating cumulative visualization dashboard")
+      create_cumulative_dashboard(
+        year = year,
+        watershed = watershed,
+        include_raw_production = TRUE
+      )
+    }
+  }
+  
   # Clean up any variables that might cause conflicts in subsequent runs
   gc() # Force garbage collection
   
@@ -155,10 +204,13 @@ process_dataset <- function(dataset, run_quartiles = FALSE, quartile_types = c("
 #'
 #' @param years Vector of years to process
 #' @param watersheds Vector of watersheds to process
-#' @param run_quartiles Whether to run quartile analyses
+#' @param run_quartiles Whether to run regular quartile analyses
+#' @param run_cumulative Whether to run cumulative quartile analyses
 #' @param quartile_types Types of quartile analyses to run
 #' @return Invisibly returns NULL
-process_specific_datasets <- function(years, watersheds, run_quartiles = FALSE, 
+process_specific_datasets <- function(years, watersheds, 
+                                      run_quartiles = FALSE, 
+                                      run_cumulative = FALSE,
                                       quartile_types = c("DOY", "CPUE")) {
   # Create all combinations of years and watersheds
   datasets <- c()
@@ -179,7 +231,7 @@ process_specific_datasets <- function(years, watersheds, run_quartiles = FALSE,
   # Process each dataset
   for (dataset in datasets) {
     tryCatch({
-      process_dataset(dataset, run_quartiles, quartile_types)
+      process_dataset(dataset, run_quartiles, run_cumulative, quartile_types)
       message(paste("Successfully processed dataset:", dataset))
     }, error = function(e) {
       message(paste("Error processing dataset", dataset, ":", e$message))
@@ -192,10 +244,13 @@ process_specific_datasets <- function(years, watersheds, run_quartiles = FALSE,
 
 #' Run full analysis on all available datasets
 #'
-#' @param run_quartiles Whether to run quartile analyses
+#' @param run_quartiles Whether to run regular quartile analyses
+#' @param run_cumulative Whether to run cumulative quartile analyses
 #' @param quartile_types Types of quartile analyses to run
 #' @return Invisibly returns NULL
-run_all_analysis <- function(run_quartiles = FALSE, quartile_types = c("DOY", "CPUE")) {
+run_all_analysis <- function(run_quartiles = FALSE, 
+                             run_cumulative = FALSE,
+                             quartile_types = c("DOY", "CPUE")) {
   # Clean previous outputs
   clean_previous_outputs()
   
@@ -210,7 +265,7 @@ run_all_analysis <- function(run_quartiles = FALSE, quartile_types = c("DOY", "C
   for(dataset in datasets) {
     message(paste("Starting processing of dataset:", dataset))
     tryCatch({
-      process_dataset(dataset, run_quartiles, quartile_types)
+      process_dataset(dataset, run_quartiles, run_cumulative, quartile_types)
       message(paste("Successfully processed dataset:", dataset))
     }, error = function(e) {
       message(paste("ERROR processing dataset", dataset, ":", e$message))
@@ -221,15 +276,132 @@ run_all_analysis <- function(run_quartiles = FALSE, quartile_types = c("DOY", "C
   return(invisible(NULL))
 }
 
-# Example usage:
-# Process all datasets with DOY quartile analysis
-run_all_analysis(run_quartiles = TRUE, quartile_types = c("DOY"))
+#' Run only cumulative quartile analysis on specific datasets
+#'
+#' @param years Vector of years to process
+#' @param watersheds Vector of watersheds to process
+#' @param quartile_types Types of quartile analyses to run
+#' @return Invisibly returns NULL
+run_only_cumulative_analysis <- function(years, watersheds, 
+                                         quartile_types = c("DOY", "CPUE")) {
+  message("Running ONLY cumulative quartile analysis")
+  
+  # Create all combinations of years and watersheds
+  datasets <- c()
+  for (year in years) {
+    for (watershed in watersheds) {
+      datasets <- c(datasets, paste(year, watershed, sep = "_"))
+    }
+  }
+  
+  # Clean directories related to cumulative analysis to avoid confusion
+  clean_dirs <- c(
+    "Basin Maps/DOY_Cumulative",
+    "Basin Maps/CPUE_Cumulative",
+    "Basin Maps/Cumulative_Progression",
+    "Basin Maps/Cumulative_Dashboards"
+  )
+  
+  for(dir in clean_dirs) {
+    dir_path <- here(dir)
+    if(dir.exists(dir_path)) {
+      pdf_files <- list.files(dir_path, pattern = "\\.pdf$", recursive = TRUE, full.names = TRUE)
+      if(length(pdf_files) > 0) {
+        file.remove(pdf_files)
+        message(paste("Cleaned", length(pdf_files), "PDFs from", dir))
+      }
+    } else {
+      dir.create(dir_path, recursive = TRUE, showWarnings = FALSE)
+      message(paste("Created directory:", dir))
+    }
+  }
+  
+  # Process each dataset for cumulative analysis only
+  for (dataset in datasets) {
+    parts <- strsplit(dataset, "_")[[1]]
+    year <- parts[1]
+    watershed <- parts[2]
+    
+    message(paste("Processing cumulative analysis for", year, watershed))
+    
+    # Set parameters based on watershed
+    if (watershed == "Yukon") {
+      sensitivity_threshold <- 0.7
+      min_error <- 0.003
+      min_stream_order <- 5
+    } else if (watershed == "Kusko") {
+      sensitivity_threshold <- 0.7
+      min_error <- 0.0006
+      min_stream_order <- 3
+    } else {
+      stop(paste("Unknown watershed:", watershed))
+    }
+    
+    # Run cumulative analysis for each requested type
+    for (type in quartile_types) {
+      tryCatch({
+        if (type == "DOY") {
+          message(paste("  Running cumulative DOY analysis for", dataset))
+          Cumulative_DOY_Analysis(
+            year = year,
+            watershed = watershed,
+            sensitivity_threshold = sensitivity_threshold,
+            min_error = min_error,
+            min_stream_order = min_stream_order,
+            HUC = 8
+          )
+        } else if (type == "CPUE") {
+          message(paste("  Running cumulative CPUE analysis for", dataset))
+          Cumulative_CPUE_Analysis(
+            year = year,
+            watershed = watershed,
+            sensitivity_threshold = sensitivity_threshold,
+            min_error = min_error,
+            min_stream_order = min_stream_order,
+            HUC = 8
+          )
+        }
+      }, error = function(e) {
+        message(paste("Error in cumulative", type, "analysis for", dataset, ":", e$message))
+      })
+    }
+    
+    # Create visualization dashboard
+    message(paste("  Creating cumulative dashboard for", dataset))
+    tryCatch({
+      create_cumulative_dashboard(
+        year = year,
+        watershed = watershed,
+        include_raw_production = TRUE
+      )
+    }, error = function(e) {
+      message(paste("Error creating dashboard for", dataset, ":", e$message))
+    })
+  }
+  
+  message("All cumulative analysis complete!")
+  return(invisible(NULL))
+}
 
-# Process specific datasets with both quartile analyses
+# Example usage:
+# 1. Run all analyses with no quartiles
+# run_all_analysis()
+
+# 2. Run all analyses with DOY quartiles, including cumulative
+run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
+
+# 3. Process specific datasets with both quartile analyses and cumulative
 # process_specific_datasets(
 #   years = c("2015", "2016"), 
 #   watersheds = c("Yukon", "Kusko"),
 #   run_quartiles = TRUE,
+#   run_cumulative = TRUE,
 #   quartile_types = c("DOY", "CPUE")
 # )
 
+# 4. Run only the cumulative analysis for specific datasets
+# run_only_cumulative_analysis(
+#   years = c("2015", "2016"), 
+#   watersheds = c("Yukon", "Kusko"),
+#   quartile_types = c("DOY", "CPUE")
+# )
