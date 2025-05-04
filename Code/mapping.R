@@ -21,6 +21,8 @@ source(here("code/assignment.R"))
 #' @param HUC HUC level (e.g., 8, 10)
 #' @param return_values Whether to return the calculated values
 #' @return If return_values is TRUE, a list with results; otherwise NULL
+# Modified create_basin_maps function to include raw production proportion mapping
+
 create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error, 
                               min_stream_order = 3, HUC = 8, 
                               return_values = FALSE) {
@@ -74,9 +76,10 @@ create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error,
   
   # Create output directories
   dir.create(here("Basin Maps/Annual_Maps/HUC"), showWarnings = FALSE, recursive = TRUE)
+  dir.create(here("Basin Maps/Annual_Maps/HUC/RawProduction"), showWarnings = FALSE, recursive = TRUE)
   dir.create(here("Basin Maps/Annual_Maps/Tribs"), showWarnings = FALSE, recursive = TRUE)
   
-  # Create HUC map
+  # Create production per km HUC map (original)
   huc_filepath <- file.path(here("Basin Maps/Annual_Maps/HUC"), 
                             paste0(identifier, "_HUC", HUC, "_", sensitivity_threshold, 
                                    "_StrOrd", min_stream_order, "_.pdf"))
@@ -92,6 +95,24 @@ create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error,
     HUC = HUC,
     subset_label = NULL,
     output_filepath = huc_filepath
+  )
+  
+  # Create raw production proportion HUC map (new)
+  raw_huc_filepath <- file.path(here("Basin Maps/Annual_Maps/HUC/RawProduction"), 
+                                paste0(identifier, "_RawProd_HUC", HUC, "_", sensitivity_threshold, 
+                                       "_StrOrd", min_stream_order, "_.pdf"))
+  
+  create_raw_production_map(
+    final_result = final_result,
+    basin_assign_norm = basin_assign_norm,
+    gg_hist = gg_hist,
+    year = year,
+    watershed = watershed,
+    sensitivity_threshold = sensitivity_threshold,
+    min_stream_order = min_stream_order,
+    HUC = HUC,
+    subset_label = NULL,
+    output_filepath = raw_huc_filepath
   )
   
   # Create tributary map

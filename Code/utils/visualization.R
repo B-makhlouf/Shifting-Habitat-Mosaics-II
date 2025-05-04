@@ -73,6 +73,8 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
 #' @param subset_label Optional label for the subset
 #' @param output_filepath Path to save the PDF
 #' @return Invisibly returns the output filepath
+# Modified version of the create_huc_map function to include raw production proportion
+
 create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
                            sensitivity_threshold, min_stream_order, HUC, 
                            subset_label = NULL, output_filepath) {
@@ -80,9 +82,9 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
   huc_col <- paste0("HUC", HUC)
   name_col <- "Name"
   
-  # Create bar plot of production proportion by HUC
-  bargraph <- ggplot(final_result, 
-                     aes(x = !!sym(name_col), y = production_per_meter_norm)) +
+  # Create bar plot of production proportion per meter by HUC
+  bargraph_per_meter <- ggplot(final_result, 
+                               aes(x = !!sym(name_col), y = production_per_meter_norm)) +
     geom_col(aes(fill = production_per_meter_norm), alpha = 0.9) +
     # Use YlOrRd color scale
     scale_fill_gradientn(
@@ -98,11 +100,37 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
          y = "Production per km (normalized)") +
     theme_minimal() +
     theme(
-      plot.title = element_text(hjust = 0.5, size = 12),
-      axis.text.y = element_text(size = 8),
+      plot.title = element_text(hjust = 0.5, size = 10),
+      axis.text.y = element_text(size = 7),
       panel.grid.major.y = element_blank(),
       legend.position = "none",
-      plot.margin = margin(5, 25, 5, 5, "mm")  # Add right margin
+      plot.margin = margin(5, 10, 5, 5, "mm")  # Add right margin
+    )
+  
+  # Create new bar plot of raw production proportion by HUC
+  bargraph_raw <- ggplot(final_result, 
+                         aes(x = !!sym(name_col), y = production_proportion)) +
+    geom_col(aes(fill = production_proportion), alpha = 0.9) +
+    # Use YlOrRd color scale
+    scale_fill_gradientn(
+      colors = (brewer.pal(9, "YlOrRd")),
+      name = "Raw proportion",
+      limits = c(0, max(final_result$production_proportion))
+    ) +
+    coord_flip() +
+    scale_y_continuous(limits = c(0, max(final_result$production_proportion) * 1.05), 
+                       expand = c(0, 0),
+                       labels = scales::percent_format(accuracy = 1)) +
+    labs(title = paste("Raw Production Proportion by", "HUC", HUC, "(Alphabetical)"),
+         x = "",
+         y = "Raw proportion of total production") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 10),
+      axis.text.y = element_text(size = 7),
+      panel.grid.major.y = element_blank(),
+      legend.position = "none",
+      plot.margin = margin(5, 10, 5, 5, "mm")  # Add right margin
     )
   
   # Create main map plot
@@ -135,31 +163,36 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
                        "- Min Stream Order:", min_stream_order)
     ) +
     theme(
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "grey30"),
-      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey50"),
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5, color = "grey30"),
+      plot.subtitle = element_text(size = 10, hjust = 0.5, color = "grey50"),
       legend.position = "right",
-      legend.title = element_text(size = 10, face = "bold", color = "grey30"),
+      legend.title = element_text(size = 9, face = "bold", color = "grey30"),
       legend.text = element_text(color = "grey30"),
       panel.background = element_rect(fill = "grey98", color = NA),
       plot.margin = margin(5, 5, 5, 5, "mm")
     )
   
   # Save plots to a PDF
-  pdf(file = output_filepath, width = 12, height = 8)
+  pdf(file = output_filepath, width = 12, height = 10)
   
-  # Set up the plotting layout with proper spacing
+  # Set up the plotting layout with proper spacing for three plots
   grid.newpage()
-  pushViewport(viewport(layout = grid.layout(1, 2, widths = unit(c(0.6, 0.4), "npc"))))
+  pushViewport(viewport(layout = grid.layout(2, 2, 
+                                             heights = unit(c(0.65, 0.35), "npc"), 
+                                             widths = unit(c(0.6, 0.4), "npc"))))
   
-  # Plot main map in left panel
+  # Plot main map in left panel (spanning both rows)
   print(main_plot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
   
-  # Plot bar chart in right panel 
-  print(bargraph, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
+  # Plot production per meter bar chart in upper right
+  print(bargraph_per_meter, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
+  
+  # Plot raw production proportion bar chart in lower right
+  print(bargraph_raw, vp = viewport(layout.pos.row = 2, layout.pos.col = 2))
   
   # If we have a histogram to include, add it
   if (!is.null(gg_hist)) {
-    print(gg_hist, vp = viewport(x = 0.3, y = 0.85, width = 0.5, height = 0.25))
+    print(gg_hist, vp = viewport(x = 0.3, y = 0.85, width = 0.4, height = 0.2))
   }
   
   dev.off()
@@ -292,4 +325,104 @@ create_split_visualization <- function(data, breaks, type, identifier) {
   ggsave(output_path, split_plot, width = 8, height = 5)
   
   return(output_path)
+}
+
+# Function to create a map focusing on raw production proportion
+
+create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
+                                      sensitivity_threshold, min_stream_order, HUC, 
+                                      subset_label = NULL, output_filepath) {
+  
+  huc_col <- paste0("HUC", HUC)
+  name_col <- "Name"
+  
+  # Find the maximum production proportion for scaling
+  max_prod <- max(final_result$production_proportion, na.rm = TRUE)
+  
+  # Create bar plot of raw production proportion by HUC
+  bargraph <- ggplot(final_result, 
+                     aes(x = reorder(!!sym(name_col), production_proportion), 
+                         y = production_proportion)) +
+    geom_col(aes(fill = production_proportion), alpha = 0.9) +
+    # Use YlOrRd color scale
+    scale_fill_gradientn(
+      colors = (brewer.pal(9, "YlOrRd")),
+      name = "Raw proportion",
+      limits = c(0, max_prod)
+    ) +
+    coord_flip() +
+    scale_y_continuous(limits = c(0, max_prod * 1.05), expand = c(0, 0),
+                       labels = scales::percent_format(accuracy = 1)) +
+    labs(title = paste("Raw Production Proportion by", "HUC", HUC, "(Ordered)"),
+         x = "",
+         y = "Proportion of total production") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 12),
+      axis.text.y = element_text(size = 8),
+      panel.grid.major.y = element_blank(),
+      legend.position = "none",
+      plot.margin = margin(5, 25, 5, 5, "mm")  # Add right margin
+    )
+  
+  # Create main map plot
+  main_plot <- ggplot() +
+    geom_sf(
+      data = final_result,
+      aes(fill = production_proportion),
+      color = "white",
+      size = 0.1
+    ) +
+    scale_fill_gradientn(
+      colors = (brewer.pal(9, "YlOrRd")),
+      name = "Raw proportion of\ntotal production",
+      na.value = "grey95",
+      limits = c(0, max_prod),
+      labels = scales::percent_format(accuracy = 1),
+      guide = guide_colorbar(
+        barwidth = 1,
+        barheight = 15,
+        frame.colour = "grey40",
+        ticks.colour = "grey40",
+        show.limits = TRUE
+      )
+    ) +
+    coord_sf(datum = NA) +
+    labs(
+      title = paste0(ifelse(is.null(subset_label), "", paste(subset_label, ": ")), 
+                     "Raw Production Proportion - Watershed:", watershed),
+      subtitle = paste("Year", year, "- Sensitivity:", sensitivity_threshold, 
+                       "- Min Stream Order:", min_stream_order)
+    ) +
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "grey30"),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey50"),
+      legend.position = "right",
+      legend.title = element_text(size = 10, face = "bold", color = "grey30"),
+      legend.text = element_text(color = "grey30"),
+      panel.background = element_rect(fill = "grey98", color = NA),
+      plot.margin = margin(5, 5, 5, 5, "mm")
+    )
+  
+  # Save plots to a PDF
+  pdf(file = output_filepath, width = 12, height = 8)
+  
+  # Set up the plotting layout with proper spacing
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(1, 2, widths = unit(c(0.6, 0.4), "npc"))))
+  
+  # Plot main map in left panel
+  print(main_plot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+  
+  # Plot bar chart in right panel 
+  print(bargraph, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
+  
+  # If we have a histogram to include, add it
+  if (!is.null(gg_hist)) {
+    print(gg_hist, vp = viewport(x = 0.3, y = 0.85, width = 0.5, height = 0.25))
+  }
+  
+  dev.off()
+  
+  invisible(output_filepath)
 }

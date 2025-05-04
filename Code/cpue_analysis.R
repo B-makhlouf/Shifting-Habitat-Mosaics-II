@@ -21,6 +21,8 @@ source(here("code/assignment.R"))
 #' @param HUC HUC level (e.g., 8, 10)
 #' @param return_values Whether to return the calculated values
 #' @return If return_values is TRUE, a list with results; otherwise NULL
+# Modified CPUE_Quartile_Analysis function to include raw production proportion mapping
+
 CPUE_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_error, 
                                    min_stream_order = 3, HUC = 8, 
                                    return_values = FALSE) {
@@ -57,6 +59,7 @@ CPUE_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_e
   
   # Create output directories
   dir.create(here("Basin Maps/Quartile_Maps/HUC"), showWarnings = FALSE, recursive = TRUE)
+  dir.create(here("Basin Maps/Quartile_Maps/HUC/RawProduction"), showWarnings = FALSE, recursive = TRUE)
   dir.create(here("Basin Maps/Quartile_Maps/Tribs"), showWarnings = FALSE, recursive = TRUE)
   
   # Return values storage
@@ -94,7 +97,7 @@ CPUE_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_e
     # Process HUC data
     final_result <- process_huc_data(edges, basin, Huc, basin_assign_rescale, HUC)
     
-    # Create HUC map
+    # Create HUC map with production per km
     huc_filepath <- file.path(here("Basin Maps/Quartile_Maps/HUC"), 
                               paste0(subset_id, "_HUC", HUC, "_.pdf"))
     
@@ -109,6 +112,23 @@ CPUE_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_e
       HUC = HUC,
       subset_label = subset_labels[q],
       output_filepath = huc_filepath
+    )
+    
+    # Create HUC map with raw production proportion
+    raw_huc_filepath <- file.path(here("Basin Maps/Quartile_Maps/HUC/RawProduction"), 
+                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.pdf"))
+    
+    create_raw_production_map(
+      final_result = final_result,
+      basin_assign_norm = basin_assign_norm,
+      gg_hist = gg_hist,
+      year = year,
+      watershed = watershed,
+      sensitivity_threshold = sensitivity_threshold,
+      min_stream_order = min_stream_order,
+      HUC = HUC,
+      subset_label = subset_labels[q],
+      output_filepath = raw_huc_filepath
     )
     
     # Create tributary map
