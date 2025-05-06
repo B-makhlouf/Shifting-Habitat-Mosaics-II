@@ -23,6 +23,8 @@ source(here("code/assignment.R"))
 #' @return If return_values is TRUE, a list with results; otherwise NULL
 # Modified DOY_Quartile_Analysis function to include raw production proportion mapping
 
+# Modified DOY_Quartile_Analysis function to use PNG output
+
 DOY_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_error, 
                                   min_stream_order = 3, HUC = 8, 
                                   return_values = FALSE) {
@@ -97,9 +99,9 @@ DOY_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_er
     # Process HUC data
     final_result <- process_huc_data(edges, basin, Huc, basin_assign_rescale, HUC)
     
-    # Create HUC map with production per km
+    # Create HUC map with production per km (Using PNG instead of PDF)
     huc_filepath <- file.path(here("Basin Maps/DOY_Quartile/HUC"), 
-                              paste0(subset_id, "_HUC", HUC, "_.pdf"))
+                              paste0(subset_id, "_HUC", HUC, "_.png"))
     
     create_huc_map(
       final_result = final_result,
@@ -114,9 +116,9 @@ DOY_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_er
       output_filepath = huc_filepath
     )
     
-    # Create HUC map with raw production proportion
+    # Create HUC map with raw production proportion (Using PNG instead of PDF)
     raw_huc_filepath <- file.path(here("Basin Maps/DOY_Quartile/HUC/RawProduction"), 
-                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.pdf"))
+                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.png"))
     
     create_raw_production_map(
       final_result = final_result,
@@ -131,9 +133,9 @@ DOY_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_er
       output_filepath = raw_huc_filepath
     )
     
-    # Create tributary map
+    # Create tributary map (Using PNG instead of PDF)
     trib_filepath <- file.path(here("Basin Maps/DOY_Quartile/Tribs"), 
-                               paste0(subset_id, "_.pdf"))
+                               paste0(subset_id, "_.png"))
     
     create_tributary_map(
       basin = basin,

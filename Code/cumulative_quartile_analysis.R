@@ -21,6 +21,8 @@ source(here("code/assignment.R"))
 #' @param HUC HUC level (e.g., 8, 10)
 #' @param return_values Whether to return the calculated values
 #' @return If return_values is TRUE, a list with results; otherwise NULL
+# Modified Cumulative DOY Analysis function to use PNG output
+
 Cumulative_DOY_Analysis <- function(year, watershed, sensitivity_threshold, min_error, 
                                     min_stream_order = 3, HUC = 8, 
                                     return_values = FALSE) {
@@ -114,9 +116,9 @@ Cumulative_DOY_Analysis <- function(year, watershed, sensitivity_threshold, min_
     # Process HUC data
     final_result <- process_huc_data(edges, basin, Huc, basin_assign_rescale, HUC)
     
-    # Create HUC map with production per km
+    # Create HUC map with production per km (Using PNG instead of PDF)
     huc_filepath <- file.path(here("Basin Maps/DOY_Cumulative/HUC"), 
-                              paste0(subset_id, "_HUC", HUC, "_.pdf"))
+                              paste0(subset_id, "_HUC", HUC, "_.png"))
     
     create_huc_map(
       final_result = final_result,
@@ -131,9 +133,9 @@ Cumulative_DOY_Analysis <- function(year, watershed, sensitivity_threshold, min_
       output_filepath = huc_filepath
     )
     
-    # Create HUC map with raw production proportion
+    # Create HUC map with raw production proportion (Using PNG instead of PDF)
     raw_huc_filepath <- file.path(here("Basin Maps/DOY_Cumulative/HUC/RawProduction"), 
-                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.pdf"))
+                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.png"))
     
     create_raw_production_map(
       final_result = final_result,
@@ -148,9 +150,9 @@ Cumulative_DOY_Analysis <- function(year, watershed, sensitivity_threshold, min_
       output_filepath = raw_huc_filepath
     )
     
-    # Create tributary map
+    # Create tributary map (Using PNG instead of PDF)
     trib_filepath <- file.path(here("Basin Maps/DOY_Cumulative/Tribs"), 
-                               paste0(subset_id, "_.pdf"))
+                               paste0(subset_id, "_.png"))
     
     create_tributary_map(
       basin = basin,
@@ -187,16 +189,8 @@ Cumulative_DOY_Analysis <- function(year, watershed, sensitivity_threshold, min_
   }
 }
 
-#' Perform Cumulative CPUE Quartile Analysis
-#'
-#' @param year Character or numeric representing the year
-#' @param watershed Character: "Kusko" or "Yukon"
-#' @param sensitivity_threshold Numeric threshold for assignment filtering
-#' @param min_error Minimum error value to use
-#' @param min_stream_order Minimum stream order to include
-#' @param HUC HUC level (e.g., 8, 10)
-#' @param return_values Whether to return the calculated values
-#' @return If return_values is TRUE, a list with results; otherwise NULL
+# Modified Cumulative CPUE Analysis function to use PNG output
+
 Cumulative_CPUE_Analysis <- function(year, watershed, sensitivity_threshold, min_error, 
                                      min_stream_order = 3, HUC = 8, 
                                      return_values = FALSE) {
@@ -290,9 +284,9 @@ Cumulative_CPUE_Analysis <- function(year, watershed, sensitivity_threshold, min
     # Process HUC data
     final_result <- process_huc_data(edges, basin, Huc, basin_assign_rescale, HUC)
     
-    # Create HUC map with production per km
+    # Create HUC map with production per km (Using PNG instead of PDF)
     huc_filepath <- file.path(here("Basin Maps/CPUE_Cumulative/HUC"), 
-                              paste0(subset_id, "_HUC", HUC, "_.pdf"))
+                              paste0(subset_id, "_HUC", HUC, "_.png"))
     
     create_huc_map(
       final_result = final_result,
@@ -307,9 +301,9 @@ Cumulative_CPUE_Analysis <- function(year, watershed, sensitivity_threshold, min
       output_filepath = huc_filepath
     )
     
-    # Create HUC map with raw production proportion
+    # Create HUC map with raw production proportion (Using PNG instead of PDF)
     raw_huc_filepath <- file.path(here("Basin Maps/CPUE_Cumulative/HUC/RawProduction"), 
-                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.pdf"))
+                                  paste0(subset_id, "_RawProd_HUC", HUC, "_.png"))
     
     create_raw_production_map(
       final_result = final_result,
@@ -324,9 +318,9 @@ Cumulative_CPUE_Analysis <- function(year, watershed, sensitivity_threshold, min
       output_filepath = raw_huc_filepath
     )
     
-    # Create tributary map
+    # Create tributary map (Using PNG instead of PDF)
     trib_filepath <- file.path(here("Basin Maps/CPUE_Cumulative/Tribs"), 
-                               paste0(subset_id, "_.pdf"))
+                               paste0(subset_id, "_.png"))
     
     create_tributary_map(
       basin = basin,
@@ -361,84 +355,6 @@ Cumulative_CPUE_Analysis <- function(year, watershed, sensitivity_threshold, min
   } else {
     return(invisible(NULL))
   }
-}
-
-#' Process specific datasets with cumulative quartile analyses
-#'
-#' @param years Vector of years to process
-#' @param watersheds Vector of watersheds to process
-#' @param analysis_types Types of cumulative analysis to run ("DOY", "CPUE", or both)
-#' @return Invisibly returns NULL
-run_cumulative_quartile_analysis <- function(years, watersheds, 
-                                             analysis_types = c("DOY", "CPUE")) {
-  # Create all combinations of years and watersheds
-  datasets <- c()
-  for (year in years) {
-    for (watershed in watersheds) {
-      datasets <- c(datasets, paste(year, watershed, sep = "_"))
-    }
-  }
-  
-  message(paste("Processing cumulative quartile analysis for datasets:", paste(datasets, collapse=", ")))
-  
-  # Process each dataset
-  for (dataset in datasets) {
-    parts <- strsplit(dataset, "_")[[1]]
-    year <- parts[1]
-    watershed <- parts[2]
-    
-    # Set parameters based on watershed
-    if (watershed == "Yukon") {
-      sensitivity_threshold <- 0.7
-      min_error <- 0.003
-      min_stream_order <- 5
-    } else if (watershed == "Kusko") {
-      sensitivity_threshold <- 0.7
-      min_error <- 0.0006
-      min_stream_order <- 3
-    } else {
-      stop(paste("Unknown watershed:", watershed))
-    }
-    
-    # Run DOY cumulative analysis if requested
-    if ("DOY" %in% analysis_types) {
-      message(paste("Running cumulative DOY analysis for", dataset))
-      tryCatch({
-        Cumulative_DOY_Analysis(
-          year = year,
-          watershed = watershed,
-          sensitivity_threshold = sensitivity_threshold,
-          min_error = min_error,
-          min_stream_order = min_stream_order,
-          HUC = 8
-        )
-        message(paste("Successfully processed cumulative DOY analysis for", dataset))
-      }, error = function(e) {
-        message(paste("Error processing cumulative DOY analysis for", dataset, ":", e$message))
-      })
-    }
-    
-    # Run CPUE cumulative analysis if requested
-    if ("CPUE" %in% analysis_types) {
-      message(paste("Running cumulative CPUE analysis for", dataset))
-      tryCatch({
-        Cumulative_CPUE_Analysis(
-          year = year,
-          watershed = watershed,
-          sensitivity_threshold = sensitivity_threshold,
-          min_error = min_error,
-          min_stream_order = min_stream_order,
-          HUC = 8
-        )
-        message(paste("Successfully processed cumulative CPUE analysis for", dataset))
-      }, error = function(e) {
-        message(paste("Error processing cumulative CPUE analysis for", dataset, ":", e$message))
-      })
-    }
-  }
-  
-  message("All cumulative quartile analyses complete!")
-  return(invisible(NULL))
 }
 
 # Example usage:

@@ -23,6 +23,7 @@ source(here("code/assignment.R"))
 #' @return If return_values is TRUE, a list with results; otherwise NULL
 # Modified create_basin_maps function to include raw production proportion mapping
 
+# Modified create_basin_maps function to use PNG output
 create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error, 
                               min_stream_order = 3, HUC = 8, 
                               return_values = FALSE) {
@@ -53,7 +54,11 @@ create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error,
   gg_hist <- ggplot(natal_data, aes(x = DOY, y = dailyCPUEprop)) + 
     geom_line(color = "gray20", linewidth = 2) +
     theme_minimal() +
-    ggtitle("Prop. CPUE by DOY")
+    ggtitle("Prop. CPUE by DOY") +
+    theme(
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
+    )
   
   if (nrow(natal_data) > 0) {
     gg_hist <- gg_hist +
@@ -82,7 +87,7 @@ create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error,
   # Create production per km HUC map (original)
   huc_filepath <- file.path(here("Basin Maps/Annual_Maps/HUC"), 
                             paste0(identifier, "_HUC", HUC, "_", sensitivity_threshold, 
-                                   "_StrOrd", min_stream_order, "_.pdf"))
+                                   "_StrOrd", min_stream_order, "_.png")) # Changed extension to png
   
   create_huc_map(
     final_result = final_result,
@@ -100,7 +105,7 @@ create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error,
   # Create raw production proportion HUC map (new)
   raw_huc_filepath <- file.path(here("Basin Maps/Annual_Maps/HUC/RawProduction"), 
                                 paste0(identifier, "_RawProd_HUC", HUC, "_", sensitivity_threshold, 
-                                       "_StrOrd", min_stream_order, "_.pdf"))
+                                       "_StrOrd", min_stream_order, "_.png")) # Changed extension to png
   
   create_raw_production_map(
     final_result = final_result,
@@ -118,7 +123,7 @@ create_basin_maps <- function(year, watershed, sensitivity_threshold, min_error,
   # Create tributary map
   trib_filepath <- file.path(here("Basin Maps/Annual_Maps/Tribs"), 
                              paste0(identifier, "_", sensitivity_threshold,
-                                    "_StrOrd", min_stream_order, "_.pdf"))
+                                    "_StrOrd", min_stream_order, "_.png")) # Changed extension to png
   
   create_tributary_map(
     basin = basin,

@@ -1,5 +1,5 @@
-# visualization.R
-# Visualization utilities for the watershed mapping project
+# Modified visualization.R for PNG output
+# Visualization utilities for the watershed mapping project with PNG output
 
 library(ggplot2)
 library(RColorBrewer)
@@ -56,11 +56,13 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
       plot.title = element_text(size = 10, face = "bold"),
       plot.subtitle = element_text(size = 8),
       axis.title = element_text(size = 9),
-      axis.text = element_text(size = 8)
+      axis.text = element_text(size = 8),
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
     )
 }
 
-#' Create and save a HUC map
+#' Create and save a HUC map as PNG
 #'
 #' @param final_result SF object with HUC polygons and metrics
 #' @param basin_assign_norm Vector of normalized basin assignments
@@ -71,13 +73,14 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
 #' @param min_stream_order Minimum stream order used
 #' @param HUC HUC level used
 #' @param subset_label Optional label for the subset
-#' @param output_filepath Path to save the PDF
+#' @param output_filepath Path to save the PNG
 #' @return Invisibly returns the output filepath
-# Modified version of the create_huc_map function to include raw production proportion
-
 create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
                            sensitivity_threshold, min_stream_order, HUC, 
                            subset_label = NULL, output_filepath) {
+  
+  # Update file extension from pdf to png if needed
+  output_filepath <- sub("\\.pdf$", ".png", output_filepath)
   
   huc_col <- paste0("HUC", HUC)
   name_col <- "Name"
@@ -104,7 +107,9 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
       axis.text.y = element_text(size = 7),
       panel.grid.major.y = element_blank(),
       legend.position = "none",
-      plot.margin = margin(5, 10, 5, 5, "mm")  # Add right margin
+      plot.margin = margin(5, 10, 5, 5, "mm"),  # Add right margin
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
     )
   
   # Create new bar plot of raw production proportion by HUC
@@ -130,7 +135,9 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
       axis.text.y = element_text(size = 7),
       panel.grid.major.y = element_blank(),
       legend.position = "none",
-      plot.margin = margin(5, 10, 5, 5, "mm")  # Add right margin
+      plot.margin = margin(5, 10, 5, 5, "mm"),  # Add right margin
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
     )
   
   # Create main map plot
@@ -168,12 +175,13 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
       legend.position = "right",
       legend.title = element_text(size = 9, face = "bold", color = "grey30"),
       legend.text = element_text(color = "grey30"),
-      panel.background = element_rect(fill = "grey98", color = NA),
+      panel.background = element_rect(fill = "white", color = NA), # White panel background
+      plot.background = element_rect(fill = "white", color = NA), # White plot background
       plot.margin = margin(5, 5, 5, 5, "mm")
     )
   
-  # Save plots to a PDF
-  pdf(file = output_filepath, width = 12, height = 10)
+  # Save plots to a PNG with higher resolution
+  png(file = output_filepath, width = 12, height = 10, units = "in", res = 300, bg = "white")
   
   # Set up the plotting layout with proper spacing for three plots
   grid.newpage()
@@ -197,10 +205,11 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
   
   dev.off()
   
+  message(paste("Created PNG map:", output_filepath))
   invisible(output_filepath)
 }
 
-#' Create and save a tributary map
+#' Create and save a tributary map as PNG
 #'
 #' @param basin SF object with basin boundary
 #' @param edges SF object with stream edges
@@ -214,15 +223,18 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
 #' @param min_stream_order Minimum stream order used
 #' @param min_error Minimum error used
 #' @param subset_label Optional label for the subset
-#' @param output_filepath Path to save the PDF
+#' @param output_filepath Path to save the PNG
 #' @return Invisibly returns the output filepath
 create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPrior, 
                                  pid_prior, gg_hist, year, watershed, 
                                  sensitivity_threshold, min_stream_order, min_error,
                                  subset_label = NULL, output_filepath) {
   
-  # Open PDF for tributary map
-  pdf(file = output_filepath, width = 9, height = 8)
+  # Update file extension from pdf to png if needed
+  output_filepath <- sub("\\.pdf$", ".png", output_filepath)
+  
+  # Open PNG for tributary map - higher resolution
+  png(file = output_filepath, width = 9, height = 8, units = "in", res = 300, bg = "white")
   
   # Use the YlOrRd palette with 9 colors expanded to 10
   pallete <- brewer.pal(9, "YlOrRd")
@@ -272,10 +284,10 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   )
   
   # Adjust plot margins
-  par(mar = c(8, 4, 4, 2))
+  par(mar = c(8, 4, 4, 2), bg = "white") # Set white background
   
   # Plot the basin and edges
-  plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title)
+  plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title, bg = "white")
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
   # Add legend
@@ -285,7 +297,8 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
          col = pallete_expanded, 
          lwd = 5, 
          title = "Relative posterior density", 
-         bty = "n")
+         bty = "n",
+         bg = "white") # Ensure white background for legend
   
   # Add histogram to the plot if provided
   if (!is.null(gg_hist)) {
@@ -296,8 +309,9 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   dev.off()
   
   # Reset par to default
-  par(mar = c(5, 4, 4, 2) + 0.1)
+  par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
   
+  message(paste("Created PNG tributary map:", output_filepath))
   invisible(output_filepath)
 }
 
@@ -317,21 +331,28 @@ create_split_visualization <- function(data, breaks, type, identifier) {
     labs(title = paste("Run Timing Split by", type, "Quartiles"),
          x = "Day of Year",
          y = "Daily CPUE Proportion") +
-    theme_minimal()
+    theme_minimal() +
+    theme(
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
+    )
   
   # Create directory and save
   dir.create(here::here("Basin Maps/Quartile_Splits"), showWarnings = FALSE, recursive = TRUE)
-  output_path <- paste0(here::here("Basin Maps/Quartile_Splits/"), identifier, "_", type, "_quartiles.pdf")
-  ggsave(output_path, split_plot, width = 8, height = 5)
+  output_path <- paste0(here::here("Basin Maps/Quartile_Splits/"), identifier, "_", type, "_quartiles.png")
+  ggsave(output_path, split_plot, width = 8, height = 5, bg = "white")
   
+  message(paste("Created PNG quartile visualization:", output_path))
   return(output_path)
 }
 
-# Function to create a map focusing on raw production proportion
-
+# Function to create a raw production proportion map as PNG
 create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
                                       sensitivity_threshold, min_stream_order, HUC, 
                                       subset_label = NULL, output_filepath) {
+  
+  # Update file extension from pdf to png if needed
+  output_filepath <- sub("\\.pdf$", ".png", output_filepath)
   
   huc_col <- paste0("HUC", HUC)
   name_col <- "Name"
@@ -362,7 +383,9 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
       axis.text.y = element_text(size = 8),
       panel.grid.major.y = element_blank(),
       legend.position = "none",
-      plot.margin = margin(5, 25, 5, 5, "mm")  # Add right margin
+      plot.margin = margin(5, 25, 5, 5, "mm"),  # Add right margin
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
     )
   
   # Create main map plot
@@ -400,12 +423,13 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
       legend.position = "right",
       legend.title = element_text(size = 10, face = "bold", color = "grey30"),
       legend.text = element_text(color = "grey30"),
-      panel.background = element_rect(fill = "grey98", color = NA),
+      panel.background = element_rect(fill = "white", color = NA), # White panel background
+      plot.background = element_rect(fill = "white", color = NA), # White plot background
       plot.margin = margin(5, 5, 5, 5, "mm")
     )
   
-  # Save plots to a PDF
-  pdf(file = output_filepath, width = 12, height = 8)
+  # Save plots to a PNG file
+  png(file = output_filepath, width = 12, height = 8, units = "in", res = 300, bg = "white")
   
   # Set up the plotting layout with proper spacing
   grid.newpage()
@@ -424,180 +448,6 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
   
   dev.off()
   
+  message(paste("Created PNG raw production map:", output_filepath))
   invisible(output_filepath)
-}
-
-# cumulative_visualization.R
-# Functions for creating multi-panel visualizations for cumulative quartile analysis
-
-library(sf)
-library(dplyr)
-library(here)
-library(ggplot2)
-library(gridExtra)
-library(cowplot)
-library(viridis)
-
-#' Create a multi-panel visualization showing the cumulative progression of quartiles
-#'
-#' @param year Character or numeric representing the year
-#' @param watershed Character: "Kusko" or "Yukon"
-#' @param analysis_type Type of quartile analysis ("DOY" or "CPUE")
-#' @param map_type Type of map to visualize ("HUC" or "Trib")
-#' @param raw_production Whether to use raw production maps (for HUC maps only)
-#' @return Path to the saved visualization
-create_cumulative_progression_plot <- function(year, watershed, analysis_type = "DOY", 
-                                               map_type = "HUC", raw_production = FALSE) {
-  
-  # Set appropriate base directory based on analysis type
-  if (analysis_type == "DOY") {
-    base_dir <- here("Basin Maps/DOY_Cumulative")
-  } else if (analysis_type == "CPUE") {
-    base_dir <- here("Basin Maps/CPUE_Cumulative")
-  } else {
-    stop("Analysis type must be either 'DOY' or 'CPUE'")
-  }
-  
-  # Further refine directory based on map type and production type
-  if (map_type == "HUC") {
-    if (raw_production) {
-      map_dir <- file.path(base_dir, "HUC/RawProduction")
-    } else {
-      map_dir <- file.path(base_dir, "HUC")
-    }
-  } else if (map_type == "Trib") {
-    map_dir <- file.path(base_dir, "Tribs")
-  } else {
-    stop("Map type must be either 'HUC' or 'Trib'")
-  }
-  
-  # Create output directory for multi-panel visualizations
-  out_dir <- here("Basin Maps/Cumulative_Progression")
-  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-  
-  # Generate file pattern to match quartile files
-  file_pattern <- paste0(watershed, "_", year, "_Cumulative", analysis_type, "_Q")
-  
-  # Find all relevant files
-  quartile_files <- list.files(path = map_dir, 
-                               pattern = file_pattern, 
-                               full.names = TRUE)
-  
-  # Must have at least 2 quartiles to create a progression plot
-  if (length(quartile_files) < 2) {
-    warning("Not enough quartile files found to create progression plot")
-    return(NULL)
-  }
-  
-  # Sort files to ensure proper ordering
-  quartile_files <- sort(quartile_files)
-  
-  # Create a composite image using grid.arrange
-  # Note: In a real implementation, you would extract the plots from the PDFs
-  # Here we'll just create a schematic representation
-  
-  # Create a plot title based on attributes
-  title_elements <- c(
-    year,
-    watershed,
-    paste("Cumulative", analysis_type, "Quartile Progression"),
-    if (map_type == "HUC" && raw_production) "Raw Production" else NULL,
-    if (map_type == "HUC" && !raw_production) "Production per km" else NULL,
-    if (map_type == "Trib") "Tributary Assignments" else NULL
-  )
-  
-  plot_title <- paste(title_elements[!is.na(title_elements)], collapse = " - ")
-  
-  # Generate output file name
-  output_filename <- paste0(
-    watershed, "_", year, "_", 
-    analysis_type, "_", 
-    map_type,
-    if(raw_production) "_RawProd" else "",
-    "_Progression.pdf"
-  )
-  output_filepath <- file.path(out_dir, output_filename)
-  
-  # Since we can't easily extract the plots from PDFs in this context,
-  # we'll create a script that describes how to create the combined visualization
-  message(paste("To create the cumulative progression visualization, combine the following files:"))
-  for (i in 1:length(quartile_files)) {
-    message(paste("  Q", i, ":", quartile_files[i]))
-  }
-  message(paste("Output would be saved to:", output_filepath))
-  
-  # In a production environment, this would load the PDFs and combine them
-  # For now, we'll create a script template for manual execution
-  script_content <- paste(
-    "# Script to create cumulative progression visualization",
-    paste0("# Title: ", plot_title),
-    "# Files to combine:",
-    paste0("# ", quartile_files),
-    "# ",
-    "# To implement this visualization, you would need to:",
-    "# 1. Extract plots from the PDFs (e.g., using the 'pdftools' package)",
-    "# 2. Combine them into a multi-panel figure (e.g., using 'gridExtra')",
-    "# 3. Save the combined figure to the output filepath",
-    paste0("# Output filepath: ", output_filepath),
-    sep = "\n"
-  )
-  
-  # Create temp script with instructions
-  script_file <- paste0(out_dir, "/", gsub("\\.pdf$", ".R", output_filename))
-  writeLines(script_content, script_file)
-  
-  message(paste("Created script with instructions:", script_file))
-  
-  return(output_filepath)
-}
-
-#' Create a dashboard showing the comparison of cumulative quartile analyses
-#'
-#' @param year Character or numeric representing the year
-#' @param watershed Character: "Kusko" or "Yukon"
-#' @param include_raw_production Whether to include raw production maps
-#' @return Path to the saved dashboard
-create_cumulative_dashboard <- function(year, watershed, include_raw_production = TRUE) {
-  # Create output directory
-  out_dir <- here("Basin Maps/Cumulative_Dashboards")
-  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
-  
-  # Generate dashboard filename
-  output_filename <- paste0(watershed, "_", year, "_Cumulative_Dashboard.pdf")
-  output_filepath <- file.path(out_dir, output_filename)
-  
-  # Create progression plots for each type
-  progression_plots <- list(
-    doy_huc = create_cumulative_progression_plot(year, watershed, "DOY", "HUC", FALSE),
-    doy_raw = if(include_raw_production) create_cumulative_progression_plot(year, watershed, "DOY", "HUC", TRUE) else NULL,
-    doy_trib = create_cumulative_progression_plot(year, watershed, "DOY", "Trib"),
-    cpue_huc = create_cumulative_progression_plot(year, watershed, "CPUE", "HUC", FALSE),
-    cpue_raw = if(include_raw_production) create_cumulative_progression_plot(year, watershed, "CPUE", "HUC", TRUE) else NULL,
-    cpue_trib = create_cumulative_progression_plot(year, watershed, "CPUE", "Trib")
-  )
-  
-  # Similar to the progression plot, we'll create a script that describes
-  # how to create the dashboard in a production environment
-  script_content <- paste(
-    "# Script to create cumulative dashboard",
-    paste0("# Dashboard for ", watershed, " ", year),
-    "# Progression plots to combine:",
-    paste0("# ", unlist(progression_plots[!sapply(progression_plots, is.null)])),
-    "# ",
-    "# To implement this dashboard, you would need to:",
-    "# 1. Load each progression plot",
-    "# 2. Arrange them in a grid layout",
-    "# 3. Add a title and any additional annotations",
-    "# 4. Save the combined dashboard to the output filepath",
-    paste0("# Output filepath: ", output_filepath),
-    sep = "\n"
-  )
-  
-  # Create temp script with instructions
-  script_file <- paste0(out_dir, "/", gsub("\\.pdf$", ".R", output_filename))
-  writeLines(script_content, script_file)
-  
-  message(paste("Created dashboard script with instructions:", script_file))
-  
-  return(output_filepath)
 }

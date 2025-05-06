@@ -5,6 +5,7 @@ library(sf)
 library(dplyr)
 library(here)
 library(ggplot2)
+library(tidyr)
 
 # Source all required function files
 source(here("code/utils/spatial_utils.R"))
@@ -23,7 +24,7 @@ source(here("code/cumulative_quartile_analysis.R"))  # New file
 clean_previous_outputs <- function(base_dir = here("Basin Maps")) {
   message("Cleaning previous PDF outputs...")
   pdf_files <- list.files(base_dir, 
-                          pattern = "\\.pdf$", 
+                          pattern = "\\.png$", 
                           recursive = TRUE,
                           full.names = TRUE)
   
