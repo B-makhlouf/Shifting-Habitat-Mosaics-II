@@ -24,7 +24,7 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
   highlight_color <- "tomato"
   background_color <- "gray70"
   
-  # Create the histogram
+  # Create the histogram with FIXED axis limits and coordinate system
   ggplot() + 
     # First plot the full dataset as background with reduced opacity
     geom_line(data = full_dataset, aes(x = DOY, y = dailyCPUEprop), 
@@ -44,6 +44,12 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
       max(current_subset$DOY)
     ), linetype = "dashed", color = "darkred") +
     
+    # Set fixed axis ranges - MORE EXPLICIT approach
+    scale_x_continuous(limits = c(145, 200)) +
+    scale_y_continuous(limits = c(0, 0.1)) +
+    # Force the coordinate system to respect our limits without expansion
+    coord_cartesian(xlim = c(145, 200), ylim = c(0, 0.1), expand = FALSE) +
+    
     # Add labels and theme
     labs(
       title = title,
@@ -58,7 +64,9 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
       axis.title = element_text(size = 9),
       axis.text = element_text(size = 8),
       plot.background = element_rect(fill = "white", color = NA), # White background
-      panel.background = element_rect(fill = "white", color = NA) # White panel background
+      panel.background = element_rect(fill = "white", color = NA), # White panel background
+      # Make sure plot margins don't affect scaling
+      plot.margin = margin(5, 5, 5, 5, "mm")
     )
 }
 
