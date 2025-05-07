@@ -100,7 +100,7 @@ process_dataset <- function(dataset, run_quartiles = FALSE,
   
   # Set parameters based on watershed
   if (watershed == "Yukon") {
-    sensitivity_threshold <- 0.0001
+    sensitivity_threshold <- 0.8
     min_error <- 0.003
     min_stream_order <- 4
   } else if (watershed == "Kusko") {
