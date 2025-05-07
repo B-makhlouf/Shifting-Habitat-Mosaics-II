@@ -97,7 +97,7 @@ process_huc_data <- function(edges, basin, Huc, basin_assign_rescale, HUC = 8) {
 #' @return List containing edges, basin, and HUC data
 load_spatial_data <- function(watershed, HUC = 8, min_stream_order = 3) {
   if (watershed == "Kusko") {
-    edges <- st_read("/Users/benjaminmakhlouf/Spatial Data/USGS Added/KuskoUSGS.shp", quiet = TRUE)
+    edges <- st_read("/Users/benjaminmakhlouf/Spatial Data/KuskoUSGS_HUC.shp", quiet = TRUE)
     basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp", quiet = TRUE)
   } else if (watershed == "Yukon") {
     edges <- st_read("/Users/benjaminmakhlouf/Spatial Data/USGS Added/YukonUSGS.shp", quiet = TRUE)
