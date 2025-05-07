@@ -100,11 +100,11 @@ process_dataset <- function(dataset, run_quartiles = FALSE,
   
   # Set parameters based on watershed
   if (watershed == "Yukon") {
-    sensitivity_threshold <- 0.7
+    sensitivity_threshold <- 0.0001
     min_error <- 0.003
-    min_stream_order <- 5
+    min_stream_order <- 4
   } else if (watershed == "Kusko") {
-    sensitivity_threshold <- 0.7
+    sensitivity_threshold <- 0.0001
     min_error <- 0.0006
     min_stream_order <- 3
   } else {
@@ -383,6 +383,26 @@ run_only_cumulative_analysis <- function(years, watersheds,
   message("All cumulative analysis complete!")
   return(invisible(NULL))
 }
+
+# Add this new function to enforce consistent histogram limits
+enforce_histogram_limits <- function(gg_hist) {
+  if (!is.null(gg_hist)) {
+    gg_hist <- gg_hist + 
+      scale_x_continuous(limits = c(140, 200), 
+                         breaks = seq(140, 200, by = 10),
+                         expand = c(0, 0)) +
+      scale_y_continuous(limits = c(0, 0.1), 
+                         breaks = seq(0, 0.1, by = 0.02),
+                         expand = c(0, 0)) +
+      coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+      theme(
+        axis.text.x = element_text(angle = 0, hjust = 0.5),
+        axis.text.y = element_text(hjust = 1)
+      )
+  }
+  return(gg_hist)
+}
+
 
 # Example usage:
 # 1. Run all analyses with no quartiles

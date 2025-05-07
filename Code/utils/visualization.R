@@ -44,11 +44,11 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
       max(current_subset$DOY)
     ), linetype = "dashed", color = "darkred") +
     
-    # Set fixed axis ranges - MORE EXPLICIT approach
-    scale_x_continuous(limits = c(145, 200)) +
+    # IMPORTANT: Set consistent axis ranges as requested
+    scale_x_continuous(limits = c(140, 200)) +
     scale_y_continuous(limits = c(0, 0.1)) +
     # Force the coordinate system to respect our limits without expansion
-    coord_cartesian(xlim = c(145, 200), ylim = c(0, 0.1), expand = FALSE) +
+    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
     
     # Add labels and theme
     labs(
@@ -165,7 +165,7 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
   
   # If provided, make sure the gg_hist has white background
   if (!is.null(gg_hist)) {
-    gg_hist <- gg_hist + 
+    gg_hist <- enforce_histogram_limits(gg_hist) + 
       theme(
         plot.background = element_rect(fill = "white", color = NA),
         panel.background = element_rect(fill = "white", color = NA)
@@ -318,12 +318,12 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   # Color coding with bins at every 0.1
   colcode <- rep("gray60", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'white'
-  colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.1] <- pallete_expanded[1]
-  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- pallete_expanded[2]
-  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- pallete_expanded[3]
-  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
-  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
+  colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.2] <- pallete_expanded[1]
+  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
+  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- pallete_expanded[5]
+  # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
+  # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
+  # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
   colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
   colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
@@ -331,22 +331,35 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   colcode[which(StreamOrderPrior == 0)] <- 'gray60'
   colcode[which(pid_prior == 0)] <- 'gray60'
   
-  # Set linewidths based on stream order and probability
-  stream_order_lwd <- edges$Str_Order
-  linewidths <- rep(1, length(stream_order_lwd))
-  linewidths <- ifelse(stream_order_lwd == 9, 5, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 8, 4, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 7, 3, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 6, 2, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 5, 1.8, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 4, 1.5, linewidths)
-  linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
   
-  # Add a multiplier for segments with high probability
-  high_prob_multiplier <- rep(1, length(basin_assign_norm))
-  high_prob_multiplier[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- 1.5
-  high_prob_multiplier[basin_assign_norm > 0.9] <- 1.9
-  linewidths <- linewidths * high_prob_multiplier
+  if (watershed == "Yukon") {
+    # Set linewidths based on stream order and probability
+    stream_order_lwd <- edges$Str_Order
+    linewidths <- rep(1, length(stream_order_lwd))
+    linewidths <- ifelse(stream_order_lwd == 9, 3.7, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 8, 2.5, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 7, 1.7, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 6, 1.5, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 5, 1, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 4, 1, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
+  } else {
+    # Set linewidths based on stream order and probability
+    stream_order_lwd <- edges$Str_Order
+    linewidths <- rep(1, length(stream_order_lwd))
+    linewidths <- ifelse(stream_order_lwd == 9, 5, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 8, 4, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 7, 3, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 6, 2, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 5, 1.8, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 4, 1.5, linewidths)
+    linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
+  }
+  
+  # # Add a multiplier for segments with high probability
+  # high_prob_multiplier <- rep(1, length(basin_assign_norm))
+  # high_prob_multiplier[basin_assign_norm > 0.7 ] <- 1.5
+  # linewidths <- linewidths * high_prob_multiplier
   
   # Generate title
   plot_title <- paste0(
@@ -376,9 +389,29 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
          bg = "white") # Ensure white background for legend
   
   # Add histogram to the plot if provided
+  # Add histogram to the plot if provided
   if (!is.null(gg_hist)) {
-    vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
-    print(gg_hist, vp = vp_hist)
+    # First enforce the limits but DON'T use the same function we use for other plots
+    # Instead, modify the histogram specifically for grid viewport use
+    limited_hist <- gg_hist +
+      scale_x_continuous(limits = c(140, 200)) +
+      scale_y_continuous(limits = c(0, 0.1)) +
+      coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+      theme(
+        plot.background = element_rect(fill = "white", color = NA),
+        panel.background = element_rect(fill = "white", color = NA),
+        plot.margin = margin(0, 0, 0, 0)
+      )
+    
+    # Create viewport with explicit scaling - this is key for tributary maps
+    vp_hist <- viewport(
+      x = 0.5, y = 0.05, 
+      width = 0.7, height = 0.2, 
+      just = c("center", "bottom")
+    )
+    
+    # Print the modified histogram
+    print(limited_hist, vp = vp_hist)
   }
   
   dev.off()
@@ -518,7 +551,11 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
   
   # If we have a histogram to include, add it
   if (!is.null(gg_hist)) {
-    print(gg_hist, vp = viewport(x = 0.3, y = 0.85, width = 0.5, height = 0.25))
+    gg_hist <- enforce_histogram_limits(gg_hist) + 
+      theme(
+        plot.background = element_rect(fill = "white", color = NA),
+        panel.background = element_rect(fill = "white", color = NA)
+      )
   }
   
   dev.off()
