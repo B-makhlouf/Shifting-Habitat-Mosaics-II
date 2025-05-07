@@ -17,6 +17,11 @@ process_huc_data <- function(edges, basin, Huc, basin_assign_rescale, HUC = 8) {
   huc_col <- paste0("HUC", HUC)
   name_col <- "Name"
   
+  # remove the column HUC8 from edges 
+  if (huc_col %in% colnames(edges)) {
+    edges <- edges %>% select(-all_of(huc_col))
+  }
+  
   # Transform to consistent CRS
   edges <- st_transform(edges, st_crs(Huc))
   edges$basin_assign_rescale <- basin_assign_rescale
