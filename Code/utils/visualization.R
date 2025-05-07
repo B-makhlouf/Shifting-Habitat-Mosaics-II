@@ -75,6 +75,9 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
 #' @param subset_label Optional label for the subset
 #' @param output_filepath Path to save the PNG
 #' @return Invisibly returns the output filepath
+# Modified create_huc_map function to place DOY histogram below the map
+# and remove the raw production proportion bar chart
+
 create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
                            sensitivity_threshold, min_stream_order, HUC, 
                            subset_label = NULL, output_filepath) {
@@ -101,34 +104,6 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
     labs(title = paste("Production per km by", "HUC", HUC, "(Alphabetical)"),
          x = "",
          y = "Production per km (normalized)") +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 10),
-      axis.text.y = element_text(size = 7),
-      panel.grid.major.y = element_blank(),
-      legend.position = "none",
-      plot.margin = margin(5, 10, 5, 5, "mm"),  # Add right margin
-      plot.background = element_rect(fill = "white", color = NA), # White background
-      panel.background = element_rect(fill = "white", color = NA) # White panel background
-    )
-  
-  # Create new bar plot of raw production proportion by HUC
-  bargraph_raw <- ggplot(final_result, 
-                         aes(x = !!sym(name_col), y = production_proportion)) +
-    geom_col(aes(fill = production_proportion), alpha = 0.9) +
-    # Use YlOrRd color scale
-    scale_fill_gradientn(
-      colors = (brewer.pal(9, "YlOrRd")),
-      name = "Raw proportion",
-      limits = c(0, max(final_result$production_proportion))
-    ) +
-    coord_flip() +
-    scale_y_continuous(limits = c(0, max(final_result$production_proportion) * 1.05), 
-                       expand = c(0, 0),
-                       labels = scales::percent_format(accuracy = 1)) +
-    labs(title = paste("Raw Production Proportion by", "HUC", HUC, "(Alphabetical)"),
-         x = "",
-         y = "Raw proportion of total production") +
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, size = 10),
@@ -180,32 +155,124 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
       plot.margin = margin(5, 5, 5, 5, "mm")
     )
   
+  # If provided, make sure the gg_hist has white background
+  if (!is.null(gg_hist)) {
+    gg_hist <- gg_hist + 
+      theme(
+        plot.background = element_rect(fill = "white", color = NA),
+        panel.background = element_rect(fill = "white", color = NA)
+      )
+  }
+  
   # Save plots to a PNG with higher resolution
   png(file = output_filepath, width = 12, height = 10, units = "in", res = 300, bg = "white")
   
-  # Set up the plotting layout with proper spacing for three plots
+  # Set up the plotting layout with proper spacing for two plots (map and bargraph) vertically
+  # and the DOY histogram at the bottom
   grid.newpage()
+  
+  # Create a 2-row, 2-column layout
+  # Row 1: Main map (col 1) and production per meter bar chart (col 2)
+  # Row 2: DOY histogram spans both columns
   pushViewport(viewport(layout = grid.layout(2, 2, 
-                                             heights = unit(c(0.65, 0.35), "npc"), 
+                                             heights = unit(c(0.7, 0.3), "npc"),
                                              widths = unit(c(0.6, 0.4), "npc"))))
   
-  # Plot main map in left panel (spanning both rows)
+  # Plot main map in upper left
   print(main_plot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
   
   # Plot production per meter bar chart in upper right
   print(bargraph_per_meter, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
   
-  # Plot raw production proportion bar chart in lower right
-  print(bargraph_raw, vp = viewport(layout.pos.row = 2, layout.pos.col = 2))
-  
-  # If we have a histogram to include, add it
+  # If we have a histogram to include, add it at the bottom spanning both columns
   if (!is.null(gg_hist)) {
-    print(gg_hist, vp = viewport(x = 0.3, y = 0.85, width = 0.4, height = 0.2))
+    print(gg_hist, vp = viewport(layout.pos.row = 2, layout.pos.col = 1:2))
   }
   
   dev.off()
   
   message(paste("Created PNG map:", output_filepath))
+  invisible(output_filepath)
+}
+
+# For consistency, also modify the create_raw_production_map function to follow the same layout
+create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
+                                      sensitivity_threshold, min_stream_order, HUC, 
+                                      subset_label = NULL, output_filepath) {
+  
+  # Update file extension from pdf to png if needed
+  output_filepath <- sub("\\.pdf$", ".png", output_filepath)
+  
+  # Find the maximum production proportion for scaling
+  max_prod <- max(final_result$production_proportion, na.rm = TRUE)
+  
+  # Create main map plot
+  main_plot <- ggplot() +
+    geom_sf(
+      data = final_result,
+      aes(fill = production_proportion),
+      color = "white",
+      size = 0.1
+    ) +
+    scale_fill_gradientn(
+      colors = (brewer.pal(9, "YlOrRd")),
+      name = "Raw proportion of\ntotal production",
+      na.value = "grey95",
+      limits = c(0, max_prod),
+      labels = scales::percent_format(accuracy = 1),
+      guide = guide_colorbar(
+        barwidth = 1,
+        barheight = 15,
+        frame.colour = "grey40",
+        ticks.colour = "grey40",
+        show.limits = TRUE
+      )
+    ) +
+    coord_sf(datum = NA) +
+    labs(
+      title = paste0(ifelse(is.null(subset_label), "", paste(subset_label, ": ")), 
+                     "Raw Production Proportion - Watershed:", watershed),
+      subtitle = paste("Year", year, "- Sensitivity:", sensitivity_threshold, 
+                       "- Min Stream Order:", min_stream_order)
+    ) +
+    theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5, color = "grey30"),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey50"),
+      legend.position = "right",
+      legend.title = element_text(size = 10, face = "bold", color = "grey30"),
+      legend.text = element_text(color = "grey30"),
+      panel.background = element_rect(fill = "white", color = NA), # White panel background
+      plot.background = element_rect(fill = "white", color = NA), # White plot background
+      plot.margin = margin(5, 5, 5, 5, "mm")
+    )
+  
+  # If provided, make sure the gg_hist has white background
+  if (!is.null(gg_hist)) {
+    gg_hist <- gg_hist + 
+      theme(
+        plot.background = element_rect(fill = "white", color = NA),
+        panel.background = element_rect(fill = "white", color = NA)
+      )
+  }
+  
+  # Save plots to a PNG file
+  png(file = output_filepath, width = 12, height = 8, units = "in", res = 300, bg = "white")
+  
+  # Set up the plotting layout - no bar chart, just map with histogram below
+  grid.newpage()
+  pushViewport(viewport(layout = grid.layout(2, 1, heights = unit(c(0.7, 0.3), "npc"))))
+  
+  # Plot main map
+  print(main_plot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+  
+  # If we have a histogram to include, add it below the map
+  if (!is.null(gg_hist)) {
+    print(gg_hist, vp = viewport(layout.pos.row = 2, layout.pos.col = 1))
+  }
+  
+  dev.off()
+  
+  message(paste("Created PNG raw production map:", output_filepath))
   invisible(output_filepath)
 }
 
