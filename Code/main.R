@@ -409,7 +409,7 @@ enforce_histogram_limits <- function(gg_hist) {
 # run_all_analysis()
 
 # 2. Run all analyses with DOY quartiles, including cumulative
-run_all_analysis(run_quartiles = FALSE, run_cumulative = FALSE, quartile_types = c("DOY"))
+run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
 
 # 3. Process specific datasets with both quartile analyses and cumulative
 # process_specific_datasets(
