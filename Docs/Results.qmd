@@ -1,0 +1,338 @@
+---
+title: "Kuskokwim Basin Maps"
+format: 
+  html:
+    theme: cosmo
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(knitr)
+library(fs)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(png)
+library(patchwork) # For arranging plots
+
+# Create output directory for image copies
+output_dir <- "_output_images"
+dir_create(output_dir)
+
+# Function to copy an image to the output directory and return the new path
+copy_and_get_path <- function(original_path, new_name) {
+  # Create the new path
+  new_path <- file.path(output_dir, new_name)
+  
+  # Copy file if it exists
+  if (file.exists(original_path)) {
+    file_copy(original_path, new_path, overwrite = TRUE)
+    return(new_path)
+  } else {
+    # If file doesn't exist, return NULL
+    message("File not found: ", original_path)
+    return(NULL)
+  }
+}
+
+# Function to display an image with error handling
+display_image <- function(path) {
+  if (is.null(path) || !file.exists(path)) {
+    cat("Image not available")
+    return(invisible(NULL))
+  }
+  
+  include_graphics(path, dpi = 300)
+}
+```
+
+## Kuskokwim Annual HUC Maps
+
+::: {.panel-tabset}
+
+## 2017
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2017_Kusko_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2017_huc.png")
+display_image(new_path)
+```
+
+## 2019
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2019_Kusko_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2019_huc.png")
+display_image(new_path)
+```
+
+## 2020
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2020_Kusko_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2020_huc.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2021_Kusko_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2021_huc.png")
+display_image(new_path)
+```
+
+:::
+
+## Kuskokwim Raw Production Maps
+
+::: {.panel-tabset}
+
+## 2017
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2017_Kusko_RawProd_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2017_raw.png")
+display_image(new_path)
+```
+
+## 2019
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2019_Kusko_RawProd_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2019_raw.png")
+display_image(new_path)
+```
+
+## 2020
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2020_Kusko_RawProd_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2020_raw.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2021_Kusko_RawProd_HUC8_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2021_raw.png")
+display_image(new_path)
+```
+
+:::
+
+## Kuskokwim Tributary Maps
+
+::: {.panel-tabset}
+
+## 2017
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2017_Kusko_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2017_tribs.png")
+display_image(new_path)
+```
+
+## 2019
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2019_Kusko_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2019_tribs.png")
+display_image(new_path)
+```
+
+## 2020
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2020_Kusko_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2020_tribs.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2021_Kusko_1e-04_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2021_tribs.png")
+display_image(new_path)
+```
+
+:::
+
+## CPUE Quartile Analysis
+
+This section shows how salmon production is distributed across different portions of the run based on Catch Per Unit Effort (CPUE). The composite figures display all years side by side for each quartile.
+
+::: {.panel-tabset}
+
+## Q1 (First 25%)
+
+```{r}
+# Get the composite figure for CPUE Q1
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/HUC/Q1_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q1_composite.png")
+display_image(new_path)
+```
+
+## Q2 (25-50%)
+
+```{r}
+# Get the composite figure for CPUE Q2
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/HUC/Q2_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q2_composite.png")
+display_image(new_path)
+```
+
+## Q3 (50-75%)
+
+```{r}
+# Get the composite figure for CPUE Q3
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/HUC/Q3_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q3_composite.png")
+display_image(new_path)
+```
+
+## Q4 (75-100%)
+
+```{r}
+# Get the composite figure for CPUE Q4
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/HUC/Q4_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q4_composite.png")
+display_image(new_path)
+```
+
+:::
+
+## DOY Quartile Analysis
+
+This section shows how salmon production is distributed across different calendar periods (Day of Year quartiles). The composite figures display all years side by side for each quartile.
+
+::: {.panel-tabset}
+
+## Q1 (Early Run)
+
+```{r}
+# Get the composite figure for DOY Q1
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q1_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q1_composite.png")
+display_image(new_path)
+```
+
+## Q2
+
+```{r}
+# Get the composite figure for DOY Q2
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q2_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q2_composite.png")
+display_image(new_path)
+```
+
+## Q3
+
+```{r}
+# Get the composite figure for DOY Q3
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q3_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q3_composite.png")
+display_image(new_path)
+```
+
+## Q4 (Late Run)
+
+```{r}
+# Get the composite figure for DOY Q4
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q4_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q4_composite.png")
+display_image(new_path)
+```
+
+:::
+
+## Raw Production Quartile Analysis
+
+This section shows the raw production proportion across different parts of the run.
+
+::: {.panel-tabset}
+
+## CPUE Q1
+
+```{r}
+# Get the composite figure for CPUE Q1 Raw Production
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/RawProduction/Q1_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q1_raw_composite.png")
+display_image(new_path)
+```
+
+## CPUE Q4
+
+```{r}
+# Get the composite figure for CPUE Q4 Raw Production
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/RawProduction/Q4_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q4_raw_composite.png")
+display_image(new_path)
+```
+
+## DOY Q1
+
+```{r}
+# Get the composite figure for DOY Q1 Raw Production
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q1_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q1_raw_composite.png")
+display_image(new_path)
+```
+
+## DOY Q4
+
+```{r}
+# Get the composite figure for DOY Q4 Raw Production
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q4_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q4_raw_composite.png")
+display_image(new_path)
+```
+
+:::
+
+## Tributary Quartile Analysis
+
+This section shows tributary-level production across different parts of the run.
+
+::: {.panel-tabset}
+
+## CPUE Q1
+
+```{r}
+# Get the composite figure for CPUE Q1 Tributaries
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/Tribs/Q1_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q1_tribs_composite.png")
+display_image(new_path)
+```
+
+## CPUE Q4
+
+```{r}
+# Get the composite figure for CPUE Q4 Tributaries
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/CPUE/Tribs/Q4_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_cpue_q4_tribs_composite.png")
+display_image(new_path)
+```
+
+## DOY Q1
+
+```{r}
+# Get the composite figure for DOY Q1 Tributaries
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q1_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q1_tribs_composite.png")
+display_image(new_path)
+```
+
+## DOY Q4
+
+```{r}
+# Get the composite figure for DOY Q4 Tributaries
+composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q4_Composite.png"
+new_path <- copy_and_get_path(composite_path, "kusko_doy_q4_tribs_composite.png")
+display_image(new_path)
+```
+
+:::
