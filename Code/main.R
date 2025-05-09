@@ -387,14 +387,27 @@ run_only_cumulative_analysis <- function(years, watersheds,
 # Add this new function to enforce consistent histogram limits
 enforce_histogram_limits <- function(gg_hist) {
   if (!is.null(gg_hist)) {
+    # Create a function to convert DOY to date for the x-axis labels
+    doy_to_date <- function(doy, year = 2024) {  # Use 2024 as default (leap year)
+      as.Date(doy - 1, origin = paste0(year, "-01-01"))
+    }
+    
+    # Create custom x-axis breaks and labels
+    doy_breaks <- seq(140, 200, by = 10)
+    
     gg_hist <- gg_hist + 
       scale_x_continuous(limits = c(140, 200), 
-                         breaks = seq(140, 200, by = 10),
+                         breaks = doy_breaks,
+                         labels = function(x) {
+                           # Create two-line labels with DOY and date
+                           paste0(x, "\n", format(doy_to_date(x), "%b %d"))
+                         },
                          expand = c(0, 0)) +
       scale_y_continuous(limits = c(0, 0.1), 
                          breaks = seq(0, 0.1, by = 0.02),
                          expand = c(0, 0)) +
       coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+      labs(x = "Day of Year (Date)") +
       theme(
         axis.text.x = element_text(angle = 0, hjust = 0.5),
         axis.text.y = element_text(hjust = 1)

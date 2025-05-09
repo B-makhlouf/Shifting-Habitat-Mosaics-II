@@ -4,11 +4,17 @@ format:
   html:
     theme: cosmo
     toc: true
+    toc-location: left
+    css: custom.css
+    page-layout: full
+    fig-width: 12
+    fig-height: 9
+    fig-format: "png"
+    fig-dpi: 300
 ---
 
 ```{r setup, include=FALSE}
-
-knitr::opts_chunk$set(echo = FALSE, fig.width = 16, fig.height = 10, out.width = "100%")
+knitr::opts_chunk$set(echo = FALSE, fig.width = 12, fig.height = 9, out.width = "100%")
 library(knitr)
 library(fs)
 library(ggplot2)
@@ -49,7 +55,13 @@ display_image <- function(path) {
 }
 ```
 
+# **Annual Maps**
+
+This section contains annual maps that show the distribution of salmon production across the Kuskokwim watershed for each available year.
+
 ## Kuskokwim Annual HUC Maps
+
+These maps show the relative production per river kilometer in different Hydrologic Unit Code (HUC) subwatersheds.
 
 ::: {.panel-tabset}
 
@@ -89,6 +101,8 @@ display_image(new_path)
 
 ## Kuskokwim Raw Production Maps
 
+These maps show the raw proportion of total production in each HUC subwatershed, without adjusting for stream length.
+
 ::: {.panel-tabset}
 
 ## 2017
@@ -127,6 +141,8 @@ display_image(new_path)
 
 ## Kuskokwim Tributary Maps
 
+These maps show production at the individual tributary level, with colors representing the relative posterior density of production.
+
 ::: {.panel-tabset}
 
 ## 2017
@@ -163,6 +179,10 @@ display_image(new_path)
 
 :::
 
+# **Run Timing Analysis**
+
+This section examines how salmon production varies throughout the run season, using both calendar-based (Day of Year) quartiles and cumulative analysis approaches.
+
 ## DOY Quartile Analysis
 
 This section shows how salmon production is distributed across different calendar periods (Day of Year quartiles). The composite figures display all years side by side for each quartile.
@@ -171,7 +191,7 @@ This section shows how salmon production is distributed across different calenda
 
 ## Q1 (Early Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q1
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q1_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q1_composite.png")
@@ -180,7 +200,7 @@ display_image(new_path)
 
 ## Q2
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q2
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q2_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q2_composite.png")
@@ -189,7 +209,7 @@ display_image(new_path)
 
 ## Q3
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q3
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q3_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q3_composite.png")
@@ -198,7 +218,7 @@ display_image(new_path)
 
 ## Q4 (Late Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q4
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q4_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q4_composite.png")
@@ -215,7 +235,7 @@ This section shows the raw production proportion across different parts of the r
 
 ## Q1 (Early Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q1 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q1_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q1_raw_composite.png")
@@ -224,7 +244,7 @@ display_image(new_path)
 
 ## Q2
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q2 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q2_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q2_raw_composite.png")
@@ -233,7 +253,7 @@ display_image(new_path)
 
 ## Q3
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q3 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q3_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q3_raw_composite.png")
@@ -242,7 +262,7 @@ display_image(new_path)
 
 ## Q4 (Late Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q4 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q4_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q4_raw_composite.png")
@@ -259,7 +279,7 @@ This section shows tributary-level production across different parts of the run 
 
 ## Q1 (Early Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q1 Tributaries
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q1_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q1_tribs_composite.png")
@@ -268,7 +288,7 @@ display_image(new_path)
 
 ## Q2
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q2 Tributaries
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q2_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q2_tribs_composite.png")
@@ -277,7 +297,7 @@ display_image(new_path)
 
 ## Q3
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q3 Tributaries
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q3_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q3_tribs_composite.png")
@@ -286,7 +306,7 @@ display_image(new_path)
 
 ## Q4 (Late Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Q4 Tributaries
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q4_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_q4_tribs_composite.png")
@@ -303,7 +323,7 @@ This section shows the cumulative progression of salmon production by Day of Yea
 
 ## Q1 (First 25%)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q1
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q1_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q1_composite.png")
@@ -312,7 +332,7 @@ display_image(new_path)
 
 ## Q2 (First 50%)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q2
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q2_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q2_composite.png")
@@ -321,7 +341,7 @@ display_image(new_path)
 
 ## Q3 (First 75%)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q3
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q3_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q3_composite.png")
@@ -330,7 +350,7 @@ display_image(new_path)
 
 ## Q4 (Full Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q4
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q4_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q4_composite.png")
@@ -347,7 +367,7 @@ This section shows the cumulative raw production progression by Day of Year peri
 
 ## Q1 (First 25%)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q1 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q1_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q1_raw_composite.png")
@@ -356,7 +376,7 @@ display_image(new_path)
 
 ## Q2 (First 50%)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q2 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q2_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q2_raw_composite.png")
@@ -365,7 +385,7 @@ display_image(new_path)
 
 ## Q3 (First 75%)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q3 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q3_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q3_raw_composite.png")
@@ -374,7 +394,7 @@ display_image(new_path)
 
 ## Q4 (Full Run)
 
-```{r}
+```{r, fig.width=14, fig.height=10}
 # Get the composite figure for DOY Cumulative Q4 Raw Production
 composite_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q4_Composite.png"
 new_path <- copy_and_get_path(composite_path, "kusko_doy_cum_q4_raw_composite.png")

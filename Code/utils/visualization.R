@@ -14,6 +14,7 @@ library(viridis)
 #' @param current_subset Subset of data to highlight
 #' @param title Optional custom title for the plot
 #' @return ggplot object with the histogram
+# Modified create_cpue_histogram function to add dates under DOY
 create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
   # Set default title if not provided
   if (is.null(title)) {
@@ -23,6 +24,15 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
   # Create a custom color for highlighting the subset
   highlight_color <- "tomato"
   background_color <- "gray70"
+  
+  # Create a function to convert DOY to date for the x-axis labels
+  doy_to_date <- function(doy, year = 2024) {  # Use 2024 as default (leap year)
+    as.Date(doy - 1, origin = paste0(year, "-01-01"))
+  }
+  
+  # Create custom x-axis breaks and labels
+  doy_breaks <- seq(140, 200, by = 10)
+  date_labels <- format(doy_to_date(doy_breaks), "%b %d")  # Format as "Jun 01"
   
   # Create the histogram with FIXED axis limits and coordinate system
   ggplot() + 
@@ -44,8 +54,13 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
       max(current_subset$DOY)
     ), linetype = "dashed", color = "darkred") +
     
-    # IMPORTANT: Set consistent axis ranges as requested
-    scale_x_continuous(limits = c(140, 200)) +
+    # IMPORTANT: Set consistent axis ranges with custom breaks and labels
+    scale_x_continuous(limits = c(140, 200),
+                       breaks = doy_breaks,
+                       labels = function(x) {
+                         # Create two-line labels with DOY and date
+                         paste0(x, "\n", format(doy_to_date(x), "%b %d"))
+                       }) +
     scale_y_continuous(limits = c(0, 0.1)) +
     # Force the coordinate system to respect our limits without expansion
     coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
@@ -54,7 +69,7 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
     labs(
       title = title,
       subtitle = "Current subset highlighted in red",
-      x = "Day of Year", 
+      x = "Day of Year (Date)", 
       y = "Daily CPUE Proportion"
     ) +
     theme_minimal() +
@@ -63,6 +78,7 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
       plot.subtitle = element_text(size = 8),
       axis.title = element_text(size = 9),
       axis.text = element_text(size = 8),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),  # Adjust x-axis text alignment
       plot.background = element_rect(fill = "white", color = NA), # White background
       panel.background = element_rect(fill = "white", color = NA), # White panel background
       # Make sure plot margins don't affect scaling
