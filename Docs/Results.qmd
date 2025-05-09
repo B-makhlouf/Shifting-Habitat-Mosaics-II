@@ -57,11 +57,12 @@ display_image <- function(path) {
 
 # **Annual Maps**
 
-This section contains annual maps that show the distribution of salmon production across the Kuskokwim watershed for each available year.
+This section contains annual maps for each year of full data. 
+
 
 ## Kuskokwim Annual HUC Maps
 
-These maps show the relative production per river kilometer in different Hydrologic Unit Code (HUC) subwatersheds.
+These maps show the relative production per river kilometer in different Hydrologic Unit Code (HUC) subwatersheds. 
 
 ::: {.panel-tabset}
 
@@ -141,7 +142,7 @@ display_image(new_path)
 
 ## Kuskokwim Tributary Maps
 
-These maps show production at the individual tributary level, with colors representing the relative posterior density of production.
+These maps show the concentration of natal origin locations for each tributary in the basin. 
 
 ::: {.panel-tabset}
 
@@ -181,11 +182,11 @@ display_image(new_path)
 
 # **Run Timing Analysis**
 
-This section examines how salmon production varies throughout the run season, using both calendar-based (Day of Year) quartiles and cumulative analysis approaches.
+This section examines how salmon production varies throughout the run season, calculated in several different ways. 
 
 ## DOY Quartile Analysis
 
-This section shows how salmon production is distributed across different calendar periods (Day of Year quartiles). The composite figures display all years side by side for each quartile.
+This section shows how salmon production is distributed across different quartiles of the DOY distribution. The total days of the run are split into 4 quartiles and each figure shows the relative distribution of natal origins in that quartile, scaled to the km of stream in each HUC. 
 
 ::: {.panel-tabset}
 
@@ -229,7 +230,7 @@ display_image(new_path)
 
 ## DOY Raw Production Quartile Analysis
 
-This section shows the raw production proportion across different parts of the run by Day of Year quartiles.
+This section shows the raw production proportion (non scaled) across different parts of the run by Day of Year quartiles.
 
 ::: {.panel-tabset}
 
@@ -317,7 +318,7 @@ display_image(new_path)
 
 ## DOY Cumulative Analysis
 
-This section shows the cumulative progression of salmon production by Day of Year periods.
+This section shows the cumulative progression of salmon production by Day of Year periods. For example, the 1st quartile of the DOY, then the first and second, etc.
 
 ::: {.panel-tabset}
 
@@ -361,7 +362,7 @@ display_image(new_path)
 
 ## DOY Cumulative Raw Production Analysis
 
-This section shows the cumulative raw production progression by Day of Year periods.
+This section shows the cumulative raw production progression by Day of Year periods, but in unscaled raw production. 
 
 ::: {.panel-tabset}
 
@@ -402,3 +403,10 @@ display_image(new_path)
 ```
 
 :::
+
+# **Methods**
+
+# Here I will walk through an invididual assignment, constrain above the threshold , binned into hucs, and constrained to only the HUC with the higest number of top5%
+
+# I will also show maps of the priors here 
+

@@ -148,10 +148,11 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
       size = 0.1
     ) +
     scale_fill_gradientn(
-      colors = (brewer.pal(9, "YlOrRd")),
+      colors = brewer.pal(6, "YlOrRd"),
       name = "Relative production\nper river km",
       na.value = "grey95",
-      limits = c(0, 1),
+      limits = c(0, 1),  # Change upper limit to 0.5 (50%)
+      breaks = seq(0, 1, by = 0.2),  # Breaks at 0%, 10%, 20%, 30%, 40%, 50%
       labels = scales::percent_format(accuracy = 1),
       guide = guide_colorbar(
         barwidth = 1,
@@ -239,13 +240,14 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
       size = 0.1
     ) +
     scale_fill_gradientn(
-      colors = (brewer.pal(9, "YlOrRd")),
+      colors = brewer.pal(6, "YlOrRd"),
       name = "Raw proportion of\ntotal production",
       na.value = "grey95",
-      limits = c(0, max_prod),
+      limits = c(0, 1),  # Change upper limit to 0.5 (50%)
+      breaks = seq(0, 1, by = 0.2),  # Breaks at 0%, 10%, 20%, 30%, 40%, 50%
       labels = scales::percent_format(accuracy = 1),
       guide = guide_colorbar(
-        barwidth = 1,
+        barwidth = 1, 
         barheight = 15,
         frame.colour = "grey40",
         ticks.colour = "grey40",
