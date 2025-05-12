@@ -416,31 +416,17 @@ enforce_histogram_limits <- function(gg_hist) {
   return(gg_hist)
 }
 
-
-# Example usage:
-# 1. Run all analyses with no quartiles
-# run_all_analysis()
-
-# 2. Run all analyses with DOY quartiles, including cumulative
-#run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
-
-# 3. Process specific datasets with both quartile analyses and cumulative
-# process_specific_datasets(
-#   years = c("2015", "2016"), 
-#   watersheds = c("Yukon", "Kusko"),
-#   run_quartiles = TRUE,
-#   run_cumulative = TRUE,
-#   quartile_types = c("DOY", "CPUE")
-# )
-
-# 4. Run only the cumulative analysis for specific datasets
-# run_only_cumulative_analysis(
-#   years = c("2015", "2016"), 
-#   watersheds = c("Yukon", "Kusko"),
-#   quartile_types = c("DOY", "CPUE")
-# )
-
+#' Export production values for all years, watersheds, and quartiles to CSV files
+#'
+#' @param years Vector of years to process
+#' @param watersheds Vector of watersheds to process
+#' @param include_quartiles Whether to include DOY and CPUE quartile data
+#' @param include_cumulative Whether to include cumulative quartile data
+#' @param output_dir Directory to save output CSV files
+#' @return List with paths to created CSV files
 export_production_values <- function(years, watersheds, 
+                                     include_quartiles = TRUE,
+                                     include_cumulative = TRUE,
                                      output_dir = here("Analysis_Results")) {
   
   # Create output directory
@@ -468,89 +454,394 @@ export_production_values <- function(years, watersheds,
         stop(paste("Unknown watershed:", watershed))
       }
       
+      # ==== Annual data ====
       # Run analysis with return_values = TRUE to get data for export
-      results <- create_basin_maps(
+      message("  Processing annual data...")
+      annual_results <- create_basin_maps(
         year = year,
         watershed = watershed,
         sensitivity_threshold = sensitivity_threshold,
         min_error = min_error,
         min_stream_order = min_stream_order,
         HUC = 8,
-        return_values = TRUE  # Important: return values instead of just creating maps
+        return_values = TRUE
       )
       
-      # Extract HUC data
-      huc_data <- results$huc_data
+      # Extract annual HUC data
+      annual_huc_data <- annual_results$huc_data
       
-      # Add year and watershed identifiers
-      huc_data$year <- year
-      huc_data$watershed <- watershed
+      # Add year, watershed, and analysis type identifiers
+      annual_huc_data$year <- year
+      annual_huc_data$watershed <- watershed
+      annual_huc_data$analysis_type <- "Annual"
+      annual_huc_data$quartile <- NA
       
       # Drop geometry for CSV export
-      if (inherits(huc_data, "sf")) {
-        huc_data_df <- st_drop_geometry(huc_data)
+      if (inherits(annual_huc_data, "sf")) {
+        annual_huc_data_df <- st_drop_geometry(annual_huc_data)
       } else {
-        huc_data_df <- huc_data
+        annual_huc_data_df <- annual_huc_data
       }
       
-      # Extract tributary data
-      trib_data <- results$stream_data
-      trib_data$basin_assign_norm <- results$basin_assign_norm
-      trib_data$year <- year
-      trib_data$watershed <- watershed
+      # Extract annual tributary data
+      annual_trib_data <- annual_results$stream_data
+      annual_trib_data$basin_assign_norm <- annual_results$basin_assign_norm
+      annual_trib_data$year <- year
+      annual_trib_data$watershed <- watershed
+      annual_trib_data$analysis_type <- "Annual"
+      annual_trib_data$quartile <- NA
       
       # Create simplified tributary dataframe
-      if (inherits(trib_data, "sf")) {
-        # Extract important attributes from trib_data
-        if ("reachid" %in% colnames(trib_data)) {
+      if (inherits(annual_trib_data, "sf")) {
+        # Extract tributary ID
+        if ("reachid" %in% colnames(annual_trib_data)) {
           trib_id_col <- "reachid"
-        } else if ("SEGMENT_ID" %in% colnames(trib_data)) {
+        } else if ("SEGMENT_ID" %in% colnames(annual_trib_data)) {
           trib_id_col <- "SEGMENT_ID"
         } else {
-          # Create an identifier based on geometry if no ID column exists
-          trib_data$temp_id <- 1:nrow(trib_data)
+          annual_trib_data$temp_id <- 1:nrow(annual_trib_data)
           trib_id_col <- "temp_id"
         }
         
-        # Get stream order if available
-        if ("Str_Order" %in% colnames(trib_data)) {
+        # Get stream order
+        if ("Str_Order" %in% colnames(annual_trib_data)) {
           str_order_col <- "Str_Order"
         } else {
-          trib_data$str_order <- NA
+          annual_trib_data$str_order <- NA
           str_order_col <- "str_order"
         }
         
-        # Create a simplified dataframe with essential columns
-        trib_data_df <- data.frame(
-          segment_id = trib_data[[trib_id_col]],
-          stream_order = trib_data[[str_order_col]],
-          basin_assign_norm = trib_data$basin_assign_norm,
-          year = trib_data$year,
-          watershed = trib_data$watershed
+        # Create simplified dataframe
+        annual_trib_data_df <- data.frame(
+          segment_id = annual_trib_data[[trib_id_col]],
+          stream_order = annual_trib_data[[str_order_col]],
+          basin_assign_norm = annual_trib_data$basin_assign_norm,
+          year = annual_trib_data$year,
+          watershed = annual_trib_data$watershed,
+          analysis_type = annual_trib_data$analysis_type,
+          quartile = annual_trib_data$quartile
         )
         
         # Add stream length if available
-        if ("stream_length_m" %in% colnames(trib_data)) {
-          trib_data_df$stream_length_m <- trib_data$stream_length_m
-        } else if (inherits(trib_data, "sf")) {
-          trib_data_df$stream_length_m <- as.numeric(st_length(trib_data))
+        if ("stream_length_m" %in% colnames(annual_trib_data)) {
+          annual_trib_data_df$stream_length_m <- annual_trib_data$stream_length_m
+        } else if (inherits(annual_trib_data, "sf")) {
+          annual_trib_data_df$stream_length_m <- as.numeric(st_length(annual_trib_data))
         }
-        
       } else {
-        trib_data_df <- trib_data
+        annual_trib_data_df <- annual_trib_data
       }
       
-      # Add to combined dataframes
+      # Add annual data to combined dataframes
       if (is.null(all_huc_data)) {
-        all_huc_data <- huc_data_df
+        all_huc_data <- annual_huc_data_df
       } else {
-        all_huc_data <- bind_rows(all_huc_data, huc_data_df)
+        all_huc_data <- bind_rows(all_huc_data, annual_huc_data_df)
       }
       
       if (is.null(all_trib_data)) {
-        all_trib_data <- trib_data_df
+        all_trib_data <- annual_trib_data_df
       } else {
-        all_trib_data <- bind_rows(all_trib_data, trib_data_df)
+        all_trib_data <- bind_rows(all_trib_data, annual_trib_data_df)
+      }
+      
+      # ==== DOY Quartile data ====
+      if (include_quartiles) {
+        message("  Processing DOY quartile data...")
+        
+        # Try to run or load DOY quartile analysis
+        tryCatch({
+          doy_results <- DOY_Quartile_Analysis(
+            year = year,
+            watershed = watershed,
+            sensitivity_threshold = sensitivity_threshold,
+            min_error = min_error,
+            min_stream_order = min_stream_order,
+            HUC = 8,
+            return_values = TRUE
+          )
+          
+          # Process each DOY quartile
+          for (q in 1:length(doy_results)) {
+            quartile_label <- paste0("DOY Q", q)
+            message(paste("    Processing", quartile_label))
+            
+            # Extract HUC data for this quartile
+            quartile_huc_data <- doy_results[[q]]$huc_result
+            
+            # Add metadata
+            quartile_huc_data$year <- year
+            quartile_huc_data$watershed <- watershed
+            quartile_huc_data$analysis_type <- "DOY"
+            quartile_huc_data$quartile <- paste0("Q", q)
+            
+            # Drop geometry
+            if (inherits(quartile_huc_data, "sf")) {
+              quartile_huc_data_df <- st_drop_geometry(quartile_huc_data)
+            } else {
+              quartile_huc_data_df <- quartile_huc_data
+            }
+            
+            # Add to combined HUC data
+            all_huc_data <- bind_rows(all_huc_data, quartile_huc_data_df)
+            
+            # Extract tributary data for this quartile
+            quartile_trib_data <- annual_trib_data
+            quartile_trib_data$basin_assign_norm <- doy_results[[q]]$basin_assign_norm
+            quartile_trib_data$analysis_type <- "DOY"
+            quartile_trib_data$quartile <- paste0("Q", q)
+            
+            # Create simplified tributary dataframe
+            if (inherits(quartile_trib_data, "sf")) {
+              quartile_trib_data_df <- data.frame(
+                segment_id = quartile_trib_data[[trib_id_col]],
+                stream_order = quartile_trib_data[[str_order_col]],
+                basin_assign_norm = quartile_trib_data$basin_assign_norm,
+                year = quartile_trib_data$year,
+                watershed = quartile_trib_data$watershed,
+                analysis_type = quartile_trib_data$analysis_type,
+                quartile = quartile_trib_data$quartile
+              )
+              
+              # Add stream length if available
+              if ("stream_length_m" %in% colnames(quartile_trib_data)) {
+                quartile_trib_data_df$stream_length_m <- quartile_trib_data$stream_length_m
+              } else if (inherits(quartile_trib_data, "sf")) {
+                quartile_trib_data_df$stream_length_m <- as.numeric(st_length(quartile_trib_data))
+              }
+            } else {
+              quartile_trib_data_df <- quartile_trib_data
+            }
+            
+            # Add to combined tributary data
+            all_trib_data <- bind_rows(all_trib_data, quartile_trib_data_df)
+          }
+        }, error = function(e) {
+          message(paste("    Error processing DOY quartiles:", e$message))
+        })
+        
+        # ==== CPUE Quartile data ====
+        message("  Processing CPUE quartile data...")
+        
+        # Try to run or load CPUE quartile analysis
+        tryCatch({
+          cpue_results <- CPUE_Quartile_Analysis(
+            year = year,
+            watershed = watershed,
+            sensitivity_threshold = sensitivity_threshold,
+            min_error = min_error,
+            min_stream_order = min_stream_order,
+            HUC = 8,
+            return_values = TRUE
+          )
+          
+          # Process each CPUE quartile
+          for (q in 1:length(cpue_results)) {
+            quartile_label <- paste0("CPUE Q", q)
+            message(paste("    Processing", quartile_label))
+            
+            # Extract HUC data for this quartile
+            quartile_huc_data <- cpue_results[[q]]$huc_result
+            
+            # Add metadata
+            quartile_huc_data$year <- year
+            quartile_huc_data$watershed <- watershed
+            quartile_huc_data$analysis_type <- "CPUE"
+            quartile_huc_data$quartile <- paste0("Q", q)
+            
+            # Drop geometry
+            if (inherits(quartile_huc_data, "sf")) {
+              quartile_huc_data_df <- st_drop_geometry(quartile_huc_data)
+            } else {
+              quartile_huc_data_df <- quartile_huc_data
+            }
+            
+            # Add to combined HUC data
+            all_huc_data <- bind_rows(all_huc_data, quartile_huc_data_df)
+            
+            # Extract tributary data for this quartile
+            quartile_trib_data <- annual_trib_data
+            quartile_trib_data$basin_assign_norm <- cpue_results[[q]]$basin_assign_norm
+            quartile_trib_data$analysis_type <- "CPUE"
+            quartile_trib_data$quartile <- paste0("Q", q)
+            
+            # Create simplified tributary dataframe
+            if (inherits(quartile_trib_data, "sf")) {
+              quartile_trib_data_df <- data.frame(
+                segment_id = quartile_trib_data[[trib_id_col]],
+                stream_order = quartile_trib_data[[str_order_col]],
+                basin_assign_norm = quartile_trib_data$basin_assign_norm,
+                year = quartile_trib_data$year,
+                watershed = quartile_trib_data$watershed,
+                analysis_type = quartile_trib_data$analysis_type,
+                quartile = quartile_trib_data$quartile
+              )
+              
+              # Add stream length if available
+              if ("stream_length_m" %in% colnames(quartile_trib_data)) {
+                quartile_trib_data_df$stream_length_m <- quartile_trib_data$stream_length_m
+              } else if (inherits(quartile_trib_data, "sf")) {
+                quartile_trib_data_df$stream_length_m <- as.numeric(st_length(quartile_trib_data))
+              }
+            } else {
+              quartile_trib_data_df <- quartile_trib_data
+            }
+            
+            # Add to combined tributary data
+            all_trib_data <- bind_rows(all_trib_data, quartile_trib_data_df)
+          }
+        }, error = function(e) {
+          message(paste("    Error processing CPUE quartiles:", e$message))
+        })
+      }
+      
+      # ==== Cumulative quartile data ====
+      if (include_cumulative) {
+        # Process cumulative DOY data
+        message("  Processing cumulative DOY data...")
+        
+        tryCatch({
+          cum_doy_results <- Cumulative_DOY_Analysis(
+            year = year,
+            watershed = watershed,
+            sensitivity_threshold = sensitivity_threshold,
+            min_error = min_error,
+            min_stream_order = min_stream_order,
+            HUC = 8,
+            return_values = TRUE
+          )
+          
+          # Process each cumulative DOY quartile
+          for (q in 1:length(cum_doy_results)) {
+            quartile_label <- paste0("Cumulative DOY Q", q)
+            message(paste("    Processing", quartile_label))
+            
+            # Extract HUC data for this quartile
+            quartile_huc_data <- cum_doy_results[[q]]$huc_result
+            
+            # Add metadata
+            quartile_huc_data$year <- year
+            quartile_huc_data$watershed <- watershed
+            quartile_huc_data$analysis_type <- "Cumulative DOY"
+            quartile_huc_data$quartile <- paste0("Q", q)
+            
+            # Drop geometry
+            if (inherits(quartile_huc_data, "sf")) {
+              quartile_huc_data_df <- st_drop_geometry(quartile_huc_data)
+            } else {
+              quartile_huc_data_df <- quartile_huc_data
+            }
+            
+            # Add to combined HUC data
+            all_huc_data <- bind_rows(all_huc_data, quartile_huc_data_df)
+            
+            # Extract tributary data for this quartile
+            quartile_trib_data <- annual_trib_data
+            quartile_trib_data$basin_assign_norm <- cum_doy_results[[q]]$basin_assign_norm
+            quartile_trib_data$analysis_type <- "Cumulative DOY"
+            quartile_trib_data$quartile <- paste0("Q", q)
+            
+            # Create simplified tributary dataframe
+            if (inherits(quartile_trib_data, "sf")) {
+              quartile_trib_data_df <- data.frame(
+                segment_id = quartile_trib_data[[trib_id_col]],
+                stream_order = quartile_trib_data[[str_order_col]],
+                basin_assign_norm = quartile_trib_data$basin_assign_norm,
+                year = quartile_trib_data$year,
+                watershed = quartile_trib_data$watershed,
+                analysis_type = quartile_trib_data$analysis_type,
+                quartile = quartile_trib_data$quartile
+              )
+              
+              # Add stream length if available
+              if ("stream_length_m" %in% colnames(quartile_trib_data)) {
+                quartile_trib_data_df$stream_length_m <- quartile_trib_data$stream_length_m
+              } else if (inherits(quartile_trib_data, "sf")) {
+                quartile_trib_data_df$stream_length_m <- as.numeric(st_length(quartile_trib_data))
+              }
+            } else {
+              quartile_trib_data_df <- quartile_trib_data
+            }
+            
+            # Add to combined tributary data
+            all_trib_data <- bind_rows(all_trib_data, quartile_trib_data_df)
+          }
+        }, error = function(e) {
+          message(paste("    Error processing cumulative DOY data:", e$message))
+        })
+        
+        # Process cumulative CPUE data
+        message("  Processing cumulative CPUE data...")
+        
+        tryCatch({
+          cum_cpue_results <- Cumulative_CPUE_Analysis(
+            year = year,
+            watershed = watershed,
+            sensitivity_threshold = sensitivity_threshold,
+            min_error = min_error,
+            min_stream_order = min_stream_order,
+            HUC = 8,
+            return_values = TRUE
+          )
+          
+          # Process each cumulative CPUE quartile
+          for (q in 1:length(cum_cpue_results)) {
+            quartile_label <- paste0("Cumulative CPUE Q", q)
+            message(paste("    Processing", quartile_label))
+            
+            # Extract HUC data for this quartile
+            quartile_huc_data <- cum_cpue_results[[q]]$huc_result
+            
+            # Add metadata
+            quartile_huc_data$year <- year
+            quartile_huc_data$watershed <- watershed
+            quartile_huc_data$analysis_type <- "Cumulative CPUE"
+            quartile_huc_data$quartile <- paste0("Q", q)
+            
+            # Drop geometry
+            if (inherits(quartile_huc_data, "sf")) {
+              quartile_huc_data_df <- st_drop_geometry(quartile_huc_data)
+            } else {
+              quartile_huc_data_df <- quartile_huc_data
+            }
+            
+            # Add to combined HUC data
+            all_huc_data <- bind_rows(all_huc_data, quartile_huc_data_df)
+            
+            # Extract tributary data for this quartile
+            quartile_trib_data <- annual_trib_data
+            quartile_trib_data$basin_assign_norm <- cum_cpue_results[[q]]$basin_assign_norm
+            quartile_trib_data$analysis_type <- "Cumulative CPUE"
+            quartile_trib_data$quartile <- paste0("Q", q)
+            
+            # Create simplified tributary dataframe
+            if (inherits(quartile_trib_data, "sf")) {
+              quartile_trib_data_df <- data.frame(
+                segment_id = quartile_trib_data[[trib_id_col]],
+                stream_order = quartile_trib_data[[str_order_col]],
+                basin_assign_norm = quartile_trib_data$basin_assign_norm,
+                year = quartile_trib_data$year,
+                watershed = quartile_trib_data$watershed,
+                analysis_type = quartile_trib_data$analysis_type,
+                quartile = quartile_trib_data$quartile
+              )
+              
+              # Add stream length if available
+              if ("stream_length_m" %in% colnames(quartile_trib_data)) {
+                quartile_trib_data_df$stream_length_m <- quartile_trib_data$stream_length_m
+              } else if (inherits(quartile_trib_data, "sf")) {
+                quartile_trib_data_df$stream_length_m <- as.numeric(st_length(quartile_trib_data))
+              }
+            } else {
+              quartile_trib_data_df <- quartile_trib_data
+            }
+            
+            # Add to combined tributary data
+            all_trib_data <- bind_rows(all_trib_data, quartile_trib_data_df)
+          }
+        }, error = function(e) {
+          message(paste("    Error processing cumulative CPUE data:", e$message))
+        })
       }
     }
   }
@@ -559,7 +850,7 @@ export_production_values <- function(years, watersheds,
   huc_filepath <- file.path(output_dir, "all_huc_production_values.csv")
   trib_filepath <- file.path(output_dir, "all_tributary_production_values.csv")
   
-  # Write CSV files with appropriate options
+  # Write CSV files
   write.csv(all_huc_data, huc_filepath, row.names = FALSE)
   write.csv(all_trib_data, trib_filepath, row.names = FALSE)
   
@@ -572,8 +863,69 @@ export_production_values <- function(years, watersheds,
   ))
 }
 
+
+# Example usage:
+# 1. Run all analyses with no quartiles
+# run_all_analysis()
+
+# 2. Run all analyses with DOY quartiles, including cumulative
+#run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
+
+# 3. Process specific datasets with both quartile analyses and cumulative
+# process_specific_datasets(
+#   years = c("2015", "2016"), 
+#   watersheds = c("Yukon", "Kusko"),
+#   run_quartiles = TRUE,
+#   run_cumulative = TRUE,
+#   quartile_types = c("DOY", "CPUE")
+# )
+
+# 4. Run only the cumulative analysis for specific datasets
+# run_only_cumulative_analysis(
+#   years = c("2015", "2016"), 
+#   watersheds = c("Yukon", "Kusko"),
+#   quartile_types = c("DOY", "CPUE")
+# )
+
+
+
+# # Add this function to your main.R if you want a one-step approach
+# run_analysis_and_export <- function(years, watersheds, 
+#                                     run_quartiles = FALSE, 
+#                                     run_cumulative = FALSE,
+#                                     export_cv = TRUE) {
+#   # Run the analysis
+#   run_all_analysis(run_quartiles = run_quartiles, 
+#                    run_cumulative = run_cumulative)
+#   
+#   # Export production values
+#   export_production_values(years = years, watersheds = watersheds)
+#   
+#   # Export CV analysis if requested
+#   if (export_cv) {
+#     export_cv_analysis(years = years, watersheds = watersheds, top_percent = 50)
+#   }
+#   
+#   message("Analysis and export complete!")
+# }
+# 
+# 
+# export_production_values(
+#   years = c("2017", "2019", "2020", "2021"),
+#   watersheds = c("Kusko")
+# )
+
+# Then use it like:
+# run_analysis_and_export(
+#   years = c("2017", "2019", "2020", "2021"),
+#   watersheds = c("Kusko"),
+#   run_quartiles = TRUE,
+#   run_cumulative = TRUE
+# )
+
 export_production_values(
   years = c("2017", "2019", "2020", "2021"),
-  watersheds = c("Kusko")
+  watersheds = c("Kusko"),
+  include_quartiles = TRUE,
+  include_cumulative = TRUE
 )
-
