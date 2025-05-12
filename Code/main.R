@@ -422,7 +422,7 @@ enforce_histogram_limits <- function(gg_hist) {
 # run_all_analysis()
 
 # 2. Run all analyses with DOY quartiles, including cumulative
-run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
+#run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
 
 # 3. Process specific datasets with both quartile analyses and cumulative
 # process_specific_datasets(
@@ -439,4 +439,141 @@ run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c
 #   watersheds = c("Yukon", "Kusko"),
 #   quartile_types = c("DOY", "CPUE")
 # )
+
+export_production_values <- function(years, watersheds, 
+                                     output_dir = here("Analysis_Results")) {
+  
+  # Create output directory
+  dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  # Initialize data frames to store combined results
+  all_huc_data <- NULL
+  all_trib_data <- NULL
+  
+  # Process each watershed and year
+  for (watershed in watersheds) {
+    for (year in years) {
+      message(paste("Processing", watershed, "watershed for year", year))
+      
+      # Set parameters based on watershed
+      if (watershed == "Yukon") {
+        sensitivity_threshold <- 0.7
+        min_error <- 0.003
+        min_stream_order <- 5
+      } else if (watershed == "Kusko") {
+        sensitivity_threshold <- 0.7
+        min_error <- 0.0006
+        min_stream_order <- 3
+      } else {
+        stop(paste("Unknown watershed:", watershed))
+      }
+      
+      # Run analysis with return_values = TRUE to get data for export
+      results <- create_basin_maps(
+        year = year,
+        watershed = watershed,
+        sensitivity_threshold = sensitivity_threshold,
+        min_error = min_error,
+        min_stream_order = min_stream_order,
+        HUC = 8,
+        return_values = TRUE  # Important: return values instead of just creating maps
+      )
+      
+      # Extract HUC data
+      huc_data <- results$huc_data
+      
+      # Add year and watershed identifiers
+      huc_data$year <- year
+      huc_data$watershed <- watershed
+      
+      # Drop geometry for CSV export
+      if (inherits(huc_data, "sf")) {
+        huc_data_df <- st_drop_geometry(huc_data)
+      } else {
+        huc_data_df <- huc_data
+      }
+      
+      # Extract tributary data
+      trib_data <- results$stream_data
+      trib_data$basin_assign_norm <- results$basin_assign_norm
+      trib_data$year <- year
+      trib_data$watershed <- watershed
+      
+      # Create simplified tributary dataframe
+      if (inherits(trib_data, "sf")) {
+        # Extract important attributes from trib_data
+        if ("reachid" %in% colnames(trib_data)) {
+          trib_id_col <- "reachid"
+        } else if ("SEGMENT_ID" %in% colnames(trib_data)) {
+          trib_id_col <- "SEGMENT_ID"
+        } else {
+          # Create an identifier based on geometry if no ID column exists
+          trib_data$temp_id <- 1:nrow(trib_data)
+          trib_id_col <- "temp_id"
+        }
+        
+        # Get stream order if available
+        if ("Str_Order" %in% colnames(trib_data)) {
+          str_order_col <- "Str_Order"
+        } else {
+          trib_data$str_order <- NA
+          str_order_col <- "str_order"
+        }
+        
+        # Create a simplified dataframe with essential columns
+        trib_data_df <- data.frame(
+          segment_id = trib_data[[trib_id_col]],
+          stream_order = trib_data[[str_order_col]],
+          basin_assign_norm = trib_data$basin_assign_norm,
+          year = trib_data$year,
+          watershed = trib_data$watershed
+        )
+        
+        # Add stream length if available
+        if ("stream_length_m" %in% colnames(trib_data)) {
+          trib_data_df$stream_length_m <- trib_data$stream_length_m
+        } else if (inherits(trib_data, "sf")) {
+          trib_data_df$stream_length_m <- as.numeric(st_length(trib_data))
+        }
+        
+      } else {
+        trib_data_df <- trib_data
+      }
+      
+      # Add to combined dataframes
+      if (is.null(all_huc_data)) {
+        all_huc_data <- huc_data_df
+      } else {
+        all_huc_data <- bind_rows(all_huc_data, huc_data_df)
+      }
+      
+      if (is.null(all_trib_data)) {
+        all_trib_data <- trib_data_df
+      } else {
+        all_trib_data <- bind_rows(all_trib_data, trib_data_df)
+      }
+    }
+  }
+  
+  # Save to CSV files
+  huc_filepath <- file.path(output_dir, "all_huc_production_values.csv")
+  trib_filepath <- file.path(output_dir, "all_tributary_production_values.csv")
+  
+  # Write CSV files with appropriate options
+  write.csv(all_huc_data, huc_filepath, row.names = FALSE)
+  write.csv(all_trib_data, trib_filepath, row.names = FALSE)
+  
+  message(paste("Saved HUC data to:", huc_filepath))
+  message(paste("Saved tributary data to:", trib_filepath))
+  
+  return(list(
+    huc_file = huc_filepath,
+    trib_file = trib_filepath
+  ))
+}
+
+export_production_values(
+  years = c("2017", "2019", "2020", "2021"),
+  watersheds = c("Kusko")
+)
 

@@ -404,9 +404,14 @@ display_image(new_path)
 
 :::
 
-# **Methods**
+# **Variability and Hotspot Analysis**
 
-# Here I will walk through an invididual assignment, constrain above the threshold , binned into hucs, and constrained to only the HUC with the higest number of top5%
+This section will analyze the year-to-year variability in salmon production across the Kuskokwim watershed. The coefficient of variation (CV) analysis will identify areas with consistent production (hotspots) versus areas with more variable production. This analysis is based on the `cv_visualization.R` script and focuses on top producers across multiple years.
 
-# I will also show maps of the priors here 
+[Placeholder for CV maps and hotspot analysis]
 
+# **Priors and Methods**
+
+This section will explain the methodological approach used to generate the watershed maps and analyses presented above. It will detail the Bayesian assignment framework, the various priors (stream order, presence, and isoscape), and the process for assigning natal origins.
+
+[Placeholder for methodological details and prior maps]

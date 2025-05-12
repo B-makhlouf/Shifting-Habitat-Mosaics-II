@@ -60,6 +60,8 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#doy-cumulative-analysis" id="toc-doy-cumulative-analysis" class="nav-link" data-scroll-target="#doy-cumulative-analysis">DOY Cumulative Analysis</a></li>
   <li><a href="#doy-cumulative-raw-production-analysis" id="toc-doy-cumulative-raw-production-analysis" class="nav-link" data-scroll-target="#doy-cumulative-raw-production-analysis">DOY Cumulative Raw Production Analysis</a></li>
   </ul></li>
+  <li><a href="#variability-and-hotspot-analysis" id="toc-variability-and-hotspot-analysis" class="nav-link" data-scroll-target="#variability-and-hotspot-analysis"><strong>Variability and Hotspot Analysis</strong></a></li>
+  <li><a href="#priors-and-methods" id="toc-priors-and-methods" class="nav-link" data-scroll-target="#priors-and-methods"><strong>Priors and Methods</strong></a></li>
   </ul>
 </nav>
 </div>
@@ -88,7 +90,7 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="annual-maps" class="level1">
 <h1><strong>Annual Maps</strong></h1>
-<p>This section contains annual maps that show the distribution of salmon production across the Kuskokwim watershed for each available year.</p>
+<p>This section contains annual maps for each year of full data.</p>
 <section id="kuskokwim-annual-huc-maps" class="level2">
 <h2 class="anchored" data-anchor-id="kuskokwim-annual-huc-maps">Kuskokwim Annual HUC Maps</h2>
 <p>These maps show the relative production per river kilometer in different Hydrologic Unit Code (HUC) subwatersheds.</p>
@@ -197,7 +199,7 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="kuskokwim-tributary-maps" class="level2">
 <h2 class="anchored" data-anchor-id="kuskokwim-tributary-maps">Kuskokwim Tributary Maps</h2>
-<p>These maps show production at the individual tributary level, with colors representing the relative posterior density of production.</p>
+<p>These maps show the concentration of natal origin locations for each tributary in the basin.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-3-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-1" role="tab" aria-controls="tabset-3-1" aria-selected="true" href="">2017</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-2" role="tab" aria-controls="tabset-3-2" aria-selected="false" href="">2019</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-3" role="tab" aria-controls="tabset-3-3" aria-selected="false" href="">2020</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-4" role="tab" aria-controls="tabset-3-4" aria-selected="false" href="">2021</a></li></ul>
 <div class="tab-content">
@@ -251,54 +253,50 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="run-timing-analysis" class="level1">
 <h1><strong>Run Timing Analysis</strong></h1>
-<p>This section examines how salmon production varies throughout the run season, using both calendar-based (Day of Year) quartiles and cumulative analysis approaches.</p>
+<p>This section examines how salmon production varies throughout the run season, calculated in several different ways.</p>
 <section id="doy-quartile-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="doy-quartile-analysis">DOY Quartile Analysis</h2>
-<p>This section shows how salmon production is distributed across different calendar periods (Day of Year quartiles). The composite figures display all years side by side for each quartile.</p>
+<p>This section shows how salmon production is distributed across different quartiles of the DOY distribution. The total days of the run are split into 4 quartiles and each figure shows the relative distribution of natal origins in that quartile, scaled to the km of stream in each HUC.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-4-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-1" role="tab" aria-controls="tabset-4-1" aria-selected="true" href="">Q1 (Early Run)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-4-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-2" role="tab" aria-controls="tabset-4-2" aria-selected="false" href="">Q2</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-4-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-3" role="tab" aria-controls="tabset-4-3" aria-selected="false" href="">Q3</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-4-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-4-4" role="tab" aria-controls="tabset-4-4" aria-selected="false" href="">Q4 (Late Run)</a></li></ul>
 <div class="tab-content">
 <div id="tabset-4-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-4-1-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q1_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q1_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-4-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-4-2-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q2_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q2_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-4-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-4-3-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q3_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q3_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-4-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-4-4-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q4_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/HUC/Q4_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
@@ -307,51 +305,47 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="doy-raw-production-quartile-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="doy-raw-production-quartile-analysis">DOY Raw Production Quartile Analysis</h2>
-<p>This section shows the raw production proportion across different parts of the run by Day of Year quartiles.</p>
+<p>This section shows the raw production proportion (non scaled) across different parts of the run by Day of Year quartiles.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-5-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-1" role="tab" aria-controls="tabset-5-1" aria-selected="true" href="">Q1 (Early Run)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-5-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-2" role="tab" aria-controls="tabset-5-2" aria-selected="false" href="">Q2</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-5-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-3" role="tab" aria-controls="tabset-5-3" aria-selected="false" href="">Q3</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-5-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-4" role="tab" aria-controls="tabset-5-4" aria-selected="false" href="">Q4 (Late Run)</a></li></ul>
 <div class="tab-content">
 <div id="tabset-5-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-5-1-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q1_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q1_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-5-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-5-2-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q2_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q2_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-5-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-5-3-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q3_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q3_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-5-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-5-4-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q4_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/RawProduction/Q4_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
@@ -366,45 +360,41 @@ ul.task-list li input[type="checkbox"] {
 <div class="tab-content">
 <div id="tabset-6-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-6-1-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q1_tribs_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q1_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-6-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-6-2-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q2_tribs_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q2_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-6-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-6-3-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q3_tribs_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q3_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-6-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-6-4-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_q4_tribs_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/DOY/Tribs/Q4_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
@@ -413,51 +403,47 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="doy-cumulative-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="doy-cumulative-analysis">DOY Cumulative Analysis</h2>
-<p>This section shows the cumulative progression of salmon production by Day of Year periods.</p>
+<p>This section shows the cumulative progression of salmon production by Day of Year periods. For example, the 1st quartile of the DOY, then the first and second, etc.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-7-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-1" role="tab" aria-controls="tabset-7-1" aria-selected="true" href="">Q1 (First 25%)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-7-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-2" role="tab" aria-controls="tabset-7-2" aria-selected="false" href="">Q2 (First 50%)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-7-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-3" role="tab" aria-controls="tabset-7-3" aria-selected="false" href="">Q3 (First 75%)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-7-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-7-4" role="tab" aria-controls="tabset-7-4" aria-selected="false" href="">Q4 (Full Run)</a></li></ul>
 <div class="tab-content">
 <div id="tabset-7-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-7-1-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q1_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q1_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-7-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-7-2-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q2_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q2_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-7-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-7-3-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q3_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q3_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-7-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-7-4-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q4_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/HUC/Q4_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
@@ -466,57 +452,63 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="doy-cumulative-raw-production-analysis" class="level2">
 <h2 class="anchored" data-anchor-id="doy-cumulative-raw-production-analysis">DOY Cumulative Raw Production Analysis</h2>
-<p>This section shows the cumulative raw production progression by Day of Year periods.</p>
+<p>This section shows the cumulative raw production progression by Day of Year periods, but in unscaled raw production.</p>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-8-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-8-1" role="tab" aria-controls="tabset-8-1" aria-selected="true" href="">Q1 (First 25%)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-8-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-8-2" role="tab" aria-controls="tabset-8-2" aria-selected="false" href="">Q2 (First 50%)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-8-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-8-3" role="tab" aria-controls="tabset-8-3" aria-selected="false" href="">Q3 (First 75%)</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-8-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-8-4" role="tab" aria-controls="tabset-8-4" aria-selected="false" href="">Q4 (Full Run)</a></li></ul>
 <div class="tab-content">
 <div id="tabset-8-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-8-1-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q1_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q1_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-8-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-8-2-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q2_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q2_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-8-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-8-3-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q3_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q3_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 <div id="tabset-8-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-8-4-tab">
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="_output_images/kusko_doy_cum_q4_raw_composite.png" class="img-fluid figure-img" style="width:100.0%"></p>
-</figure>
+<div class="cell-output cell-output-stderr">
+<pre><code>File not found: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Composite_Figures/Kusko/Cumulative_DOY/RawProduction/Q4_Composite.png</code></pre>
 </div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Image not available</code></pre>
 </div>
 </div>
 </div>
 </div>
 </div>
 </section>
+</section>
+<section id="variability-and-hotspot-analysis" class="level1">
+<h1><strong>Variability and Hotspot Analysis</strong></h1>
+<p>This section will analyze the year-to-year variability in salmon production across the Kuskokwim watershed. The coefficient of variation (CV) analysis will identify areas with consistent production (hotspots) versus areas with more variable production. This analysis is based on the <code>cv_visualization.R</code> script and focuses on top producers across multiple years.</p>
+<p>[Placeholder for CV maps and hotspot analysis]</p>
+</section>
+<section id="priors-and-methods" class="level1">
+<h1><strong>Priors and Methods</strong></h1>
+<p>This section will explain the methodological approach used to generate the watershed maps and analyses presented above. It will detail the Bayesian assignment framework, the various priors (stream order, presence, and isoscape), and the process for assigning natal origins.</p>
+<p>[Placeholder for methodological details and prior maps]</p>
 </section>
 
 </main>

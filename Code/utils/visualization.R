@@ -220,7 +220,6 @@ create_huc_map <- function(final_result, basin_assign_norm, gg_hist, year, water
   invisible(output_filepath)
 }
 
-# For consistency, also modify the create_raw_production_map function to follow the same layout
 create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, year, watershed, 
                                       sensitivity_threshold, min_stream_order, HUC, 
                                       subset_label = NULL, output_filepath) {
@@ -228,30 +227,66 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
   # Update file extension from pdf to png if needed
   output_filepath <- sub("\\.pdf$", ".png", output_filepath)
   
-  # Find the maximum production proportion for scaling
-  max_prod <- max(final_result$production_proportion, na.rm = TRUE)
+  huc_col <- paste0("HUC", HUC)
+  name_col <- "Name"
+  
+  # Define consistent color bins (0-100% with 10% increments)
+  color_bins <- 10
+  color_breaks <- seq(0, 1, length.out = color_bins + 1)
+  color_labels <- paste0(seq(0, 90, by = 10), "-", seq(10, 100, by = 10), "%")
+  bin_colors <- colorRampPalette(brewer.pal(9, "YlOrRd"))(color_bins)
+  
+  # Create a factor variable for binning
+  final_result$prod_prop_binned <- cut(final_result$production_proportion, 
+                                       breaks = color_breaks,
+                                       labels = color_labels,
+                                       include.lowest = TRUE)
+  
+  # Create bar plot of raw production proportion by HUC
+  bargraph <- ggplot(final_result, 
+                     aes(x = reorder(!!sym(name_col), production_proportion), 
+                         y = production_proportion)) +
+    geom_col(aes(fill = prod_prop_binned), alpha = 0.9) +
+    # Use discrete color scale
+    scale_fill_manual(
+      values = bin_colors,
+      name = "Raw proportion",
+      drop = FALSE
+    ) +
+    coord_flip() +
+    scale_y_continuous(limits = c(0, 1), expand = c(0, 0),
+                       labels = scales::percent_format(accuracy = 1)) +
+    labs(title = paste("Raw Production Proportion by", "HUC", HUC, "(Ordered)"),
+         x = "",
+         y = "Proportion of total production") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 12),
+      axis.text.y = element_text(size = 8),
+      panel.grid.major.y = element_blank(),
+      legend.position = "none",
+      plot.margin = margin(5, 25, 5, 5, "mm"),  # Add right margin
+      plot.background = element_rect(fill = "white", color = NA), # White background
+      panel.background = element_rect(fill = "white", color = NA) # White panel background
+    )
   
   # Create main map plot
   main_plot <- ggplot() +
     geom_sf(
       data = final_result,
-      aes(fill = production_proportion),
+      aes(fill = prod_prop_binned),
       color = "white",
       size = 0.1
     ) +
-    scale_fill_gradientn(
-      colors = brewer.pal(6, "YlOrRd"),
+    # Use discrete color scale with manual colors
+    scale_fill_manual(
+      values = bin_colors,
       name = "Raw proportion of\ntotal production",
-      na.value = "grey95",
-      limits = c(0, 1),  # Change upper limit to 0.5 (50%)
-      breaks = seq(0, 1, by = 0.2),  # Breaks at 0%, 10%, 20%, 30%, 40%, 50%
-      labels = scales::percent_format(accuracy = 1),
-      guide = guide_colorbar(
-        barwidth = 1, 
-        barheight = 15,
-        frame.colour = "grey40",
-        ticks.colour = "grey40",
-        show.limits = TRUE
+      drop = FALSE,
+      guide = guide_legend(
+        title.position = "top",
+        ncol = 1,
+        byrow = TRUE
       )
     ) +
     coord_sf(datum = NA) +
@@ -266,15 +301,15 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
       plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey50"),
       legend.position = "right",
       legend.title = element_text(size = 10, face = "bold", color = "grey30"),
-      legend.text = element_text(color = "grey30"),
+      legend.text = element_text(color = "grey30", size = 8),
       panel.background = element_rect(fill = "white", color = NA), # White panel background
       plot.background = element_rect(fill = "white", color = NA), # White plot background
       plot.margin = margin(5, 5, 5, 5, "mm")
     )
   
-  # If provided, make sure the gg_hist has white background
+  # If provided, make sure the gg_hist has white background and proper limits
   if (!is.null(gg_hist)) {
-    gg_hist <- gg_hist + 
+    gg_hist <- enforce_histogram_limits(gg_hist) + 
       theme(
         plot.background = element_rect(fill = "white", color = NA),
         panel.background = element_rect(fill = "white", color = NA)
@@ -284,16 +319,21 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
   # Save plots to a PNG file
   png(file = output_filepath, width = 12, height = 8, units = "in", res = 300, bg = "white")
   
-  # Set up the plotting layout - no bar chart, just map with histogram below
+  # Set up the plotting layout with proper spacing
   grid.newpage()
-  pushViewport(viewport(layout = grid.layout(2, 1, heights = unit(c(0.7, 0.3), "npc"))))
+  pushViewport(viewport(layout = grid.layout(2, 2, 
+                                             heights = unit(c(0.7, 0.3), "npc"),
+                                             widths = unit(c(0.6, 0.4), "npc"))))
   
-  # Plot main map
+  # Plot main map in top-left
   print(main_plot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
   
-  # If we have a histogram to include, add it below the map
+  # Plot bar chart in top-right 
+  print(bargraph, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
+  
+  # If we have a histogram to include, add it at the bottom
   if (!is.null(gg_hist)) {
-    print(gg_hist, vp = viewport(layout.pos.row = 2, layout.pos.col = 1))
+    print(gg_hist, vp = viewport(layout.pos.row = 2, layout.pos.col = 1:2))
   }
   
   dev.off()
