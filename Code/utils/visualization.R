@@ -31,12 +31,14 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
   }
   
   # Create custom x-axis breaks and labels
-  doy_breaks <- seq(140, 200, by = 10)
+  # Modified to extend to 210
+  doy_breaks <- seq(140, 210, by = 10)
   date_labels <- format(doy_to_date(doy_breaks), "%b %d")  # Format as "Jun 01"
   
   # Create the histogram with FIXED axis limits and coordinate system
   ggplot() + 
     # First plot the full dataset as background with reduced opacity
+    # Always show the complete CPUE curve regardless of subset
     geom_line(data = full_dataset, aes(x = DOY, y = dailyCPUEprop), 
               color = "gray40", linewidth = 1, alpha = 0.5) +
     geom_ribbon(data = full_dataset, aes(x = DOY, ymin = 0, ymax = dailyCPUEprop), 
@@ -55,7 +57,8 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
     ), linetype = "dashed", color = "darkred") +
     
     # IMPORTANT: Set consistent axis ranges with custom breaks and labels
-    scale_x_continuous(limits = c(140, 200),
+    # Modified x limit to 210 instead of 200
+    scale_x_continuous(limits = c(140, 210),
                        breaks = doy_breaks,
                        labels = function(x) {
                          # Create two-line labels with DOY and date
@@ -63,7 +66,8 @@ create_cpue_histogram <- function(full_dataset, current_subset, title = NULL) {
                        }) +
     scale_y_continuous(limits = c(0, 0.1)) +
     # Force the coordinate system to respect our limits without expansion
-    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+    # Modified x limit to 210 instead of 200
+    coord_cartesian(xlim = c(140, 210), ylim = c(0, 0.1), expand = FALSE) +
     
     # Add labels and theme
     labs(
@@ -428,8 +432,8 @@ create_raw_production_map <- function(final_result, basin_assign_norm, gg_hist, 
   
   # Create bar plot of raw production proportion by HUC
   bargraph <- ggplot(final_result, 
-                     aes(x = reorder(!!sym(name_col), production_proportion), 
-                         y = production_proportion_capped)) +
+                     aes(x = !!sym(name_col), 
+                         y = production_proportion)) +
     geom_col(aes(fill = production_proportion_capped), alpha = 0.9) +
     # Use YlOrRd color scale
     scale_fill_gradientn(

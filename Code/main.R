@@ -75,7 +75,8 @@ get_available_datasets <- function(data_dir) {
   dataset_names <- unique(sub("^([a-zA-Z0-9]+_[a-zA-Z0-9]+)_.*\\.csv$", "\\1", file_names))
   
   # Remove incomplete datasets
-  dataset_names <- dataset_names[!dataset_names %in% c("2017_Yukon", "2018_Yukon", "2019_Yukon")]
+  # Remove incomplete datasets (be more specific about which datasets to exclude)
+  dataset_names <- dataset_names[!(dataset_names == "2017_Yukon" | dataset_names == "2018_Yukon" | dataset_names == "2019_Yukon")]
   
   message(paste("Found", length(dataset_names), "valid datasets for analysis."))
   return(dataset_names)
@@ -393,10 +394,11 @@ enforce_histogram_limits <- function(gg_hist) {
     }
     
     # Create custom x-axis breaks and labels
-    doy_breaks <- seq(140, 200, by = 10)
+    # Modified to extend to 210
+    doy_breaks <- seq(140, 210, by = 10)
     
     gg_hist <- gg_hist + 
-      scale_x_continuous(limits = c(140, 200), 
+      scale_x_continuous(limits = c(140, 210), 
                          breaks = doy_breaks,
                          labels = function(x) {
                            # Create two-line labels with DOY and date
@@ -406,7 +408,8 @@ enforce_histogram_limits <- function(gg_hist) {
       scale_y_continuous(limits = c(0, 0.1), 
                          breaks = seq(0, 0.1, by = 0.02),
                          expand = c(0, 0)) +
-      coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+      # Modified x limit to 210 instead of 200
+      coord_cartesian(xlim = c(140, 210), ylim = c(0, 0.1), expand = FALSE) +
       labs(x = "Day of Year (Date)") +
       theme(
         axis.text.x = element_text(angle = 0, hjust = 0.5),
@@ -415,7 +418,6 @@ enforce_histogram_limits <- function(gg_hist) {
   }
   return(gg_hist)
 }
-
 #' Export production values for multiple watersheds and years to CSV files
 #'
 #' @param years Vector of years to process
@@ -925,7 +927,7 @@ export_production_values <- function(years, watersheds,
 # )
 
 export_production_values(
-  years = c("2017", "2019", "2020", "2021"),
+  years = c("2017","2018", "2019", "2020", "2021"),
   watersheds = c("Kusko"),
   include_quartiles = TRUE,
   include_cumulative = TRUE
