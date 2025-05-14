@@ -1,0 +1,322 @@
+---
+title: "Annual Production Patterns"
+format: 
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    css: custom.css
+    page-layout: full
+    self-contained: true
+    fig-width: 8
+    fig-height: 8
+    fig-format: "png"
+    fig-dpi: 300
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.width = 4, fig.height = 4, out.width = "75%")
+library(knitr)
+library(fs)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(png)
+library(patchwork) # For arranging plots
+
+# Create output directory for image copies
+output_dir <- "_output_images"
+dir_create(output_dir)
+
+# Function to copy an image to the output directory and return the new path
+copy_and_get_path <- function(original_path, new_name) {
+  # Create the new path
+  new_path <- file.path(output_dir, new_name)
+  
+  # Copy file if it exists
+  if (file.exists(original_path)) {
+    file_copy(original_path, new_path, overwrite = TRUE)
+    return(new_path)
+  } else {
+    # If file doesn't exist, return NULL
+    message("File not found: ", original_path)
+    return(NULL)
+  }
+}
+
+# Function to display an image with error handling and wider display
+display_image <- function(path) {
+  if (is.null(path) || !file.exists(path)) {
+    cat("Image not available")
+    return(invisible(NULL))
+  }
+  
+  # Set a wider image
+  include_graphics(path, dpi = 300)
+}
+```
+
+## Overview
+
+These maps show:
+
+- **Production per km**: Relative production scaled by stream length in each HUC subwatershed
+- **Raw production**: Total proportion of production in each area (unscaled)
+- **Tributary patterns**: Stream-by-stream production concentrations
+
+# Kuskokwim Watershed
+
+### Management Rivers
+
+Tried my hand at making a better version of the management rivers figure for the Kusko. Needs some work. 
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Figures/Non_production_maps/mngmnt_rivers.png"
+new_path <- copy_and_get_path(img_path, "management_rivers.png")
+display_image(new_path)
+```
+
+
+
+## Annual HUC Maps
+
+
+These maps show the relative production per river kilometer in different subwatersheds.
+
+::: {.panel-tabset}
+
+## 2017
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2017_Kusko_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2017_huc.png")
+display_image(new_path)
+```
+
+## 2018
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2018_Kusko_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2018_huc.png")
+display_image(new_path)
+```
+
+## 2019
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2019_Kusko_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2019_huc.png")
+display_image(new_path)
+```
+
+## 2020
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2020_Kusko_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2020_huc.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2021_Kusko_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2021_huc.png")
+display_image(new_path)
+```
+
+:::
+
+## Raw Production Maps
+
+These maps show the raw proportion of total production in each HUC subwatershed, without adjusting for stream length.
+
+::: {.panel-tabset}
+
+## 2017
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2017_Kusko_RawProd_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2017_raw.png")
+display_image(new_path)
+```
+
+## 2018
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2018_Kusko_RawProd_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2018_raw.png")
+display_image(new_path)
+```
+
+## 2019
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2019_Kusko_RawProd_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2019_raw.png")
+display_image(new_path)
+```
+
+## 2020
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2020_Kusko_RawProd_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2020_raw.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2021_Kusko_RawProd_HUC8_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2021_raw.png")
+display_image(new_path)
+```
+
+:::
+
+## Tributary Maps
+
+These maps show the concentration of natal origin locations for each tributary in the basin. The stream thickness indicates stream order (larger rivers shown with thicker lines), and colors represent the relative contribution of each tributary to the overall production.
+
+::: {.panel-tabset}
+
+## 2017
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2017_Kusko_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2017_tribs.png")
+display_image(new_path)
+```
+
+## 2018
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2018_Kusko_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2018_tribs.png")
+display_image(new_path)
+```
+
+## 2019
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2019_Kusko_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2019_tribs.png")
+display_image(new_path)
+```
+
+## 2020
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2020_Kusko_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2020_tribs.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2021_Kusko_0.7_StrOrd3_.png"
+new_path <- copy_and_get_path(img_path, "kusko_2021_tribs.png")
+display_image(new_path)
+```
+
+:::
+
+# Yukon Watershed
+
+## Annual HUC Maps
+
+These maps show the relative production per river kilometer in different subwatersheds for the Yukon basin.
+
+::: {.panel-tabset}
+
+## 2015
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2015_Yukon_HUC8_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2015_huc.png")
+display_image(new_path)
+```
+
+## 2016
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2016_Yukon_HUC8_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2016_huc.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/2021_Yukon_HUC8_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2021_huc.png")
+display_image(new_path)
+```
+
+:::
+
+## Raw Production Maps
+
+These maps show the raw proportion of total production in each HUC subwatershed, without adjusting for stream length.
+
+::: {.panel-tabset}
+
+## 2015
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2015_Yukon_RawProd_HUC8_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2015_raw.png")
+display_image(new_path)
+```
+
+## 2016
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2016_Yukon_RawProd_HUC8_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2016_raw.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/HUC/RawProduction/2021_Yukon_RawProd_HUC8_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2021_raw.png")
+display_image(new_path)
+```
+
+:::
+
+## Tributary Maps
+
+These maps show the concentration of natal origin locations for each tributary in the Yukon basin. The stream thickness indicates stream order, with larger rivers shown as thicker lines.
+
+::: {.panel-tabset}
+
+## 2015
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2015_Yukon_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2015_tribs.png")
+display_image(new_path)
+```
+
+## 2016
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2016_Yukon_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2016_tribs.png")
+display_image(new_path)
+```
+
+## 2021
+
+```{r}
+img_path <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II/Basin Maps/Annual_Maps/Tribs/2021_Yukon_0.8_StrOrd4_.png"
+new_path <- copy_and_get_path(img_path, "yukon_2021_tribs.png")
+display_image(new_path)
+```
+
+:::
