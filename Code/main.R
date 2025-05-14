@@ -105,7 +105,7 @@ process_dataset <- function(dataset, run_quartiles = FALSE,
     min_error <- 0.003
     min_stream_order <- 4
   } else if (watershed == "Kusko") {
-    sensitivity_threshold <- 0.0001
+    sensitivity_threshold <- 0.7
     min_error <- 0.0006
     min_stream_order <- 3
   } else {
@@ -418,6 +418,9 @@ enforce_histogram_limits <- function(gg_hist) {
   }
   return(gg_hist)
 }
+
+
+
 #' Export production values for multiple watersheds and years to CSV files
 #'
 #' @param years Vector of years to process
@@ -427,6 +430,10 @@ enforce_histogram_limits <- function(gg_hist) {
 #' @param output_dir Directory to save output CSV files
 #' @param cache_dir Directory to look for cached analysis results
 #' @return List with paths to created CSV files
+# Modified export_production_values function to include CPUE percentage for each subset
+
+# Modified export_production_values function to include CPUE percentage for each subset
+
 export_production_values <- function(years, watersheds, 
                                      include_quartiles = TRUE,
                                      include_cumulative = TRUE,
@@ -527,6 +534,14 @@ export_production_values <- function(years, watersheds,
     }
   }
   
+  # Helper function to calculate CPUE percentage for a subset
+  calculate_cpue_percentage <- function(subset_data, total_data) {
+    if (nrow(subset_data) == 0 || nrow(total_data) == 0) {
+      return(0)
+    }
+    return(sum(subset_data$dailyCPUEprop, na.rm = TRUE) / sum(total_data$dailyCPUEprop, na.rm = TRUE))
+  }
+  
   # Process each watershed and year
   for (watershed in watersheds) {
     for (year in years) {
@@ -545,6 +560,10 @@ export_production_values <- function(years, watersheds,
         warning(paste("Unknown watershed:", watershed, "- skipping"))
         next
       }
+      
+      # Load the natal origins data to calculate CPUE percentages
+      natal_data <- load_natal_data(year, watershed)
+      total_cpue <- sum(natal_data$dailyCPUEprop, na.rm = TRUE)
       
       # Try to load cached assignment data
       assignment_file <- file.path(cache_dir, paste0(year, "_", watershed, "_assignments.rds"))
@@ -624,12 +643,16 @@ export_production_values <- function(years, watersheds,
         next
       }
       
+      # Calculate CPUE percentage for annual data (should be 100% or 1.0)
+      annual_cpue_percentage <- calculate_cpue_percentage(natal_data, natal_data)
+      
       # Process and add annual data
       annual_metadata <- list(
         year = year,
         watershed = watershed,
         analysis_type = "Annual",
-        quartile = NA
+        quartile = NA,
+        cpue_percentage = annual_cpue_percentage
       )
       
       # Add annual HUC data
@@ -653,6 +676,10 @@ export_production_values <- function(years, watersheds,
       if (include_quartiles) {
         message("  Processing DOY quartile data")
         
+        # First get the DOY quartile subsets to calculate CPUE percentages
+        doy_quartile_data <- divide_doy_quartiles(natal_data)
+        doy_quartile_subsets <- doy_quartile_data$subsets
+        
         tryCatch({
           doy_results <- DOY_Quartile_Analysis(
             year = year,
@@ -670,11 +697,15 @@ export_production_values <- function(years, watersheds,
             
             message(paste("    Processing DOY Q", q))
             
+            # Calculate CPUE percentage for this quartile
+            doy_cpue_percentage <- calculate_cpue_percentage(doy_quartile_subsets[[q]], natal_data)
+            
             doy_metadata <- list(
               year = year,
               watershed = watershed,
               analysis_type = "DOY",
-              quartile = paste0("Q", q)
+              quartile = paste0("Q", q),
+              cpue_percentage = doy_cpue_percentage
             )
             
             # Add HUC data
@@ -699,6 +730,10 @@ export_production_values <- function(years, watersheds,
         # Process CPUE quartile data
         message("  Processing CPUE quartile data")
         
+        # Get the CPUE quartile subsets to calculate CPUE percentages
+        cpue_quartile_data <- divide_cpue_quartiles(natal_data)
+        cpue_quartile_subsets <- cpue_quartile_data$subsets
+        
         tryCatch({
           cpue_results <- CPUE_Quartile_Analysis(
             year = year,
@@ -716,11 +751,15 @@ export_production_values <- function(years, watersheds,
             
             message(paste("    Processing CPUE Q", q))
             
+            # Calculate CPUE percentage for this quartile
+            cpue_cpue_percentage <- calculate_cpue_percentage(cpue_quartile_subsets[[q]], natal_data)
+            
             cpue_metadata <- list(
               year = year,
               watershed = watershed,
               analysis_type = "CPUE",
-              quartile = paste0("Q", q)
+              quartile = paste0("Q", q),
+              cpue_percentage = cpue_cpue_percentage
             )
             
             # Add HUC data
@@ -748,6 +787,10 @@ export_production_values <- function(years, watersheds,
         # Process cumulative DOY data
         message("  Processing cumulative DOY data")
         
+        # Get DOY quartile subsets for cumulative calculation
+        doy_quartile_data <- divide_doy_quartiles(natal_data)
+        doy_quartile_subsets <- doy_quartile_data$subsets
+        
         tryCatch({
           cum_doy_results <- Cumulative_DOY_Analysis(
             year = year,
@@ -765,11 +808,17 @@ export_production_values <- function(years, watersheds,
             
             message(paste("    Processing Cumulative DOY Q", q))
             
+            # Calculate cumulative CPUE percentage
+            # Combine quartiles 1 through q
+            cum_subset <- do.call(rbind, doy_quartile_subsets[1:q])
+            cum_doy_cpue_percentage <- calculate_cpue_percentage(cum_subset, natal_data)
+            
             cum_doy_metadata <- list(
               year = year,
               watershed = watershed,
               analysis_type = "Cumulative_DOY",
-              quartile = paste0("Q", q)
+              quartile = paste0("Q", q),
+              cpue_percentage = cum_doy_cpue_percentage
             )
             
             # Add HUC data
@@ -794,6 +843,10 @@ export_production_values <- function(years, watersheds,
         # Process cumulative CPUE data
         message("  Processing cumulative CPUE data")
         
+        # Get CPUE quartile subsets for cumulative calculation
+        cpue_quartile_data <- divide_cpue_quartiles(natal_data)
+        cpue_quartile_subsets <- cpue_quartile_data$subsets
+        
         tryCatch({
           cum_cpue_results <- Cumulative_CPUE_Analysis(
             year = year,
@@ -811,11 +864,17 @@ export_production_values <- function(years, watersheds,
             
             message(paste("    Processing Cumulative CPUE Q", q))
             
+            # Calculate cumulative CPUE percentage
+            # Combine quartiles 1 through q
+            cum_subset <- do.call(rbind, cpue_quartile_subsets[1:q])
+            cum_cpue_cpue_percentage <- calculate_cpue_percentage(cum_subset, natal_data)
+            
             cum_cpue_metadata <- list(
               year = year,
               watershed = watershed,
               analysis_type = "Cumulative_CPUE",
-              quartile = paste0("Q", q)
+              quartile = paste0("Q", q),
+              cpue_percentage = cum_cpue_cpue_percentage
             )
             
             # Add HUC data
@@ -869,7 +928,7 @@ export_production_values <- function(years, watersheds,
 
 # Example usage:
 # 1. Run all analyses with no quartiles
- run_all_analysis()
+#run_all_analysis()
 
 # 2. Run all analyses with DOY quartiles, including cumulative
 #run_all_analysis(run_quartiles = TRUE, run_cumulative = TRUE, quartile_types = c("DOY"))
@@ -930,5 +989,5 @@ export_production_values(
   years = c("2017","2018", "2019", "2020", "2021"),
   watersheds = c("Kusko"),
   include_quartiles = TRUE,
-  include_cumulative = TRUE
+  include_cumulative = FALSE
 )

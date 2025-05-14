@@ -45,6 +45,7 @@ CPUE_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_e
   quartile_data <- divide_cpue_quartiles(natal_data)
   quartile_subsets <- quartile_data$subsets
   subset_labels <- quartile_data$labels
+  quartile_stats <- quartile_data$stats  # NEW: Get the statistics
   
   # Create visualization of the CPUE splits
   create_split_visualization(natal_data, quartile_data$breaks, "CPUE", identifier)
@@ -153,14 +154,15 @@ CPUE_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_e
       output_filepath = trib_filepath
     )
     
-    # Store results if needed
+    # Store results if need
     if (return_values) {
       all_results[[q]] <- list(
         subset = current_subset,
         label = subset_labels[q],
         basin_assign_rescale = basin_assign_rescale,
         basin_assign_norm = basin_assign_norm,
-        huc_result = final_result
+        huc_result = final_result,
+        timing_stats = quartile_stats[[q]]  # NEW: Add timing statistics
       )
     }
   }

@@ -98,6 +98,10 @@ process_assignments <- function(assignment_matrix) {
 #'
 #' @param natal_data Data frame with natal origins data
 #' @return List containing quartile subsets, breaks, and labels
+#' Divide data into quartiles based on DOY with CPUE distribution statistics
+#'
+#' @param natal_data Data frame with natal origins data
+#' @return List containing quartile subsets, breaks, labels, and CPUE statistics
 divide_doy_quartiles <- function(natal_data) {
   # Get full DOY range
   full_doy_range <- range(natal_data$DOY, na.rm = TRUE)
@@ -105,29 +109,66 @@ divide_doy_quartiles <- function(natal_data) {
   # Create breaks at even intervals
   doy_breaks <- seq(full_doy_range[1], full_doy_range[2], length.out = 5)
   
-  # Create quartile subsets
+  # Calculate total CPUE for the year
+  total_annual_cpue <- sum(natal_data$dailyCPUEprop, na.rm = TRUE)
+  
+  # Create quartile subsets and calculate statistics
   quartile_subsets <- list()
+  quartile_stats <- list()
+  
   for (i in 1:4) {
+    # Create quartile subset
     quartile_subsets[[i]] <- natal_data %>% 
       filter(DOY >= doy_breaks[i] & DOY < doy_breaks[i+1])
+    
+    # Calculate CPUE statistics for this quartile
+    if (nrow(quartile_subsets[[i]]) > 0) {
+      quartile_cpue <- sum(quartile_subsets[[i]]$dailyCPUEprop, na.rm = TRUE)
+      quartile_stats[[i]] <- list(
+        quartile = paste0("Q", i),
+        n_days = nrow(quartile_subsets[[i]]),
+        doy_start = floor(doy_breaks[i]),
+        doy_end = floor(doy_breaks[i+1]),
+        total_cpue = quartile_cpue,
+        percent_of_annual_cpue = (quartile_cpue / total_annual_cpue) * 100,
+        mean_daily_cpue = mean(quartile_subsets[[i]]$dailyCPUEprop, na.rm = TRUE),
+        peak_daily_cpue = max(quartile_subsets[[i]]$dailyCPUEprop, na.rm = TRUE)
+      )
+    } else {
+      quartile_stats[[i]] <- list(
+        quartile = paste0("Q", i),
+        n_days = 0,
+        doy_start = floor(doy_breaks[i]),
+        doy_end = floor(doy_breaks[i+1]),
+        total_cpue = 0,
+        percent_of_annual_cpue = 0,
+        mean_daily_cpue = 0,
+        peak_daily_cpue = 0
+      )
+    }
   }
   
-  # Create labels
+  # Create labels with CPUE percentages
   subset_labels <- sapply(1:4, function(i) {
-    sprintf("DOY Q%d: %d-%d", i, ceiling(doy_breaks[i]), floor(doy_breaks[i+1]))
+    sprintf("DOY Q%d: %d-%d (%.1f%% of annual CPUE)", 
+            i, 
+            quartile_stats[[i]]$doy_start, 
+            quartile_stats[[i]]$doy_end,
+            quartile_stats[[i]]$percent_of_annual_cpue)
   })
   
   return(list(
     subsets = quartile_subsets,
     breaks = doy_breaks,
-    labels = subset_labels
+    labels = subset_labels,
+    stats = quartile_stats  # NEW: Add statistics
   ))
 }
 
-#' Divide data into quartiles based on CPUE
+#' Divide data into quartiles based on CPUE with timing statistics
 #'
 #' @param natal_data Data frame with natal origins data
-#' @return List containing quartile subsets, breaks, and labels
+#' @return List containing quartile subsets, breaks, labels, and timing statistics
 divide_cpue_quartiles <- function(natal_data) {
   # Calculate cumulative CPUE proportions
   natal_data <- natal_data %>% 
@@ -146,8 +187,9 @@ divide_cpue_quartiles <- function(natal_data) {
   # Add min and max DOY to breaks
   all_breaks <- c(min(natal_data$DOY), cpue_breaks, max(natal_data$DOY))
   
-  # Create quartile subsets
+  # Create quartile subsets and calculate statistics
   quartile_subsets <- list()
+  quartile_stats <- list()
   
   # Q1: Start to 25% of run
   quartile_subsets[[1]] <- natal_data %>% filter(DOY <= cpue_breaks[1])
@@ -161,17 +203,55 @@ divide_cpue_quartiles <- function(natal_data) {
   # Q4: 75% to end of run
   quartile_subsets[[4]] <- natal_data %>% filter(DOY > cpue_breaks[3])
   
-  # Create labels
-  subset_labels <- c(
-    sprintf("CPUE Q1: Early Run (DOY ≤ %d)", floor(cpue_breaks[1])),
-    sprintf("CPUE Q2: Early-Mid Run (DOY %d-%d)", ceiling(cpue_breaks[1]), floor(cpue_breaks[2])),
-    sprintf("CPUE Q3: Mid-Late Run (DOY %d-%d)", ceiling(cpue_breaks[2]), floor(cpue_breaks[3])),
-    sprintf("CPUE Q4: Late Run (DOY > %d)", ceiling(cpue_breaks[3]))
-  )
+  # Calculate statistics for each quartile
+  for (i in 1:4) {
+    if (nrow(quartile_subsets[[i]]) > 0) {
+      doy_range <- range(quartile_subsets[[i]]$DOY)
+      quartile_cpue <- sum(quartile_subsets[[i]]$dailyCPUEprop, na.rm = TRUE)
+      
+      quartile_stats[[i]] <- list(
+        quartile = paste0("Q", i),
+        n_days = nrow(quartile_subsets[[i]]),
+        doy_start = min(quartile_subsets[[i]]$DOY),
+        doy_end = max(quartile_subsets[[i]]$DOY),
+        duration_days = doy_range[2] - doy_range[1] + 1,
+        total_cpue = quartile_cpue,
+        percent_of_annual_cpue = 25,  # By definition, each CPUE quartile is 25%
+        mean_daily_cpue = mean(quartile_subsets[[i]]$dailyCPUEprop, na.rm = TRUE),
+        peak_daily_cpue = max(quartile_subsets[[i]]$dailyCPUEprop, na.rm = TRUE)
+      )
+    } else {
+      quartile_stats[[i]] <- list(
+        quartile = paste0("Q", i),
+        n_days = 0,
+        doy_start = NA,
+        doy_end = NA,
+        duration_days = 0,
+        total_cpue = 0,
+        percent_of_annual_cpue = 0,
+        mean_daily_cpue = 0,
+        peak_daily_cpue = 0
+      )
+    }
+  }
+  
+  # Create labels with timing information
+  subset_labels <- sapply(1:4, function(i) {
+    if (!is.na(quartile_stats[[i]]$doy_start)) {
+      sprintf("CPUE Q%d: DOY %d-%d (%d days, 25%% of CPUE)", 
+              i, 
+              quartile_stats[[i]]$doy_start, 
+              quartile_stats[[i]]$doy_end,
+              quartile_stats[[i]]$duration_days)
+    } else {
+      sprintf("CPUE Q%d: No data", i)
+    }
+  })
   
   return(list(
     subsets = quartile_subsets,
     breaks = all_breaks,
-    labels = subset_labels
+    labels = subset_labels,
+    stats = quartile_stats  # NEW: Add statistics
   ))
 }

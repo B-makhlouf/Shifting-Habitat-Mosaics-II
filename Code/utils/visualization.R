@@ -257,15 +257,12 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   pallete <- brewer.pal(9, "YlOrRd")
   pallete_expanded <- colorRampPalette(pallete)(10)
   
-  # Color coding with bins at every 0.1
+  # Color coding with bins at custom intervals (keeping your original binning)
   colcode <- rep("gray60", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'white'
   colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.2] <- pallete_expanded[1]
   colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
   colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- pallete_expanded[5]
-  # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
-  # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
-  # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
   colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
   colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
@@ -298,11 +295,6 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
     linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
   }
   
-  # # Add a multiplier for segments with high probability
-  # high_prob_multiplier <- rep(1, length(basin_assign_norm))
-  # high_prob_multiplier[basin_assign_norm > 0.7 ] <- 1.5
-  # linewidths <- linewidths * high_prob_multiplier
-  
   # Generate title
   plot_title <- paste0(
     ifelse(is.null(subset_label), "", paste0(subset_label, "\n")),
@@ -320,17 +312,18 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title, bg = "white")
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
-  # Add legend
+  # Add legend - now matching your custom bins
   legend("topleft", 
-         legend = c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
-                    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"), 
-         col = pallete_expanded, 
+         legend = c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", 
+                    "0.8-0.9", "0.9-1.0"), 
+         col = c(pallete_expanded[1], pallete_expanded[4], pallete_expanded[5], 
+                 pallete_expanded[7], pallete_expanded[8], pallete_expanded[9], 
+                 pallete_expanded[10]), 
          lwd = 5, 
          title = "Relative posterior density", 
          bty = "n",
          bg = "white") # Ensure white background for legend
   
-  # Add histogram to the plot if provided
   # Add histogram to the plot if provided
   if (!is.null(gg_hist)) {
     # First enforce the limits but DON'T use the same function we use for other plots
@@ -363,37 +356,6 @@ create_tributary_map <- function(basin, edges, basin_assign_norm, StreamOrderPri
   
   message(paste("Created PNG tributary map:", output_filepath))
   invisible(output_filepath)
-}
-
-#' Create visualization of data splits (DOY or CPUE quartiles)
-#'
-#' @param data Data frame containing the data
-#' @param breaks Vector of break points
-#' @param type Type of split ("DOY" or "CPUE")
-#' @param identifier Identifier for the output file
-#' @return Path to saved plot
-create_split_visualization <- function(data, breaks, type, identifier) {
-  # Create visualization of the splits
-  split_plot <- ggplot(data, aes(x = DOY, y = dailyCPUEprop)) +
-    geom_line(color = "black", linewidth = 1) +
-    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "grey70", alpha = 0.5) +
-    geom_vline(xintercept = breaks, linetype = "dashed", color = "red") +
-    labs(title = paste("Run Timing Split by", type, "Quartiles"),
-         x = "Day of Year",
-         y = "Daily CPUE Proportion") +
-    theme_minimal() +
-    theme(
-      plot.background = element_rect(fill = "white", color = NA), # White background
-      panel.background = element_rect(fill = "white", color = NA) # White panel background
-    )
-  
-  # Create directory and save
-  dir.create(here::here("Basin Maps/Quartile_Splits"), showWarnings = FALSE, recursive = TRUE)
-  output_path <- paste0(here::here("Basin Maps/Quartile_Splits/"), identifier, "_", type, "_quartiles.png")
-  ggsave(output_path, split_plot, width = 8, height = 5, bg = "white")
-  
-  message(paste("Created PNG quartile visualization:", output_path))
-  return(output_path)
 }
 
 #' Create and save a raw production proportion map as PNG

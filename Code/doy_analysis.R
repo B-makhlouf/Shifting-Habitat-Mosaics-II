@@ -45,6 +45,7 @@ DOY_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_er
   quartile_data <- divide_doy_quartiles(natal_data)
   quartile_subsets <- quartile_data$subsets
   subset_labels <- quartile_data$labels
+  quartile_stats <- quartile_data$stats  # NEW: Get the statistics
   
   # Create visualization of the DOY splits
   create_split_visualization(natal_data, quartile_data$breaks, "DOY", identifier)
@@ -160,7 +161,8 @@ DOY_Quartile_Analysis <- function(year, watershed, sensitivity_threshold, min_er
         label = subset_labels[q],
         basin_assign_rescale = basin_assign_rescale,
         basin_assign_norm = basin_assign_norm,
-        huc_result = final_result
+        huc_result = final_result,
+        timing_stats = quartile_stats[[q]]  # NEW: Add timing statistics
       )
     }
   }
