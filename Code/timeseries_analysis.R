@@ -130,6 +130,11 @@ p1_continuous <- ggplot(plot_data, aes(x = year_decimal, y = estimated_fish_from
   ) +
   guides(color = guide_legend(ncol = 3))
 
+
+###########
+
+
+
 p2_faceted <- ggplot(plot_data, aes(x = factor(year), y = estimated_fish_from_huc, color = huc_name, group = huc_name)) +
   geom_line(size = 1.1) +
   geom_point(size = 2.5) +

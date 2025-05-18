@@ -1,6 +1,7 @@
 # combine_quartile_maps.R
 # Script to combine all non-annual maps into 4-panel figures based on their split
 # Includes improved organization with subfolders by type
+# Updated to handle 5 maps in a 2x3 layout
 
 library(ggplot2)
 library(gridExtra)
@@ -111,8 +112,11 @@ create_quartile_composite <- function(watershed,
   # Create the composite figure
   if (length(png_list) > 0) {
     # Determine the layout based on number of files
-    # Aim for 1 row if 4 or fewer files, otherwise use 2 rows
-    if (length(png_list) <= 4) {
+    # Special handling for 5 maps: 2x3 layout with 3 on top, 2 on bottom
+    if (length(png_list) == 5) {
+      ncols <- 3
+      nrows <- 2
+    } else if (length(png_list) <= 4) {
       ncols <- length(png_list)
       nrows <- 1
     } else {
@@ -145,8 +149,21 @@ create_quartile_composite <- function(watershed,
     # Add individual maps
     for (i in 1:length(png_list)) {
       # Calculate row and column indices
-      row_idx <- ceiling(i / ncols)
-      col_idx <- ((i - 1) %% ncols) + 1
+      if (length(png_list) == 5) {
+        # Special layout for 5 maps: 3 on top row, 2 on bottom
+        if (i <= 3) {
+          row_idx <- 1
+          col_idx <- i
+        } else {
+          row_idx <- 2
+          # Center the bottom 2 maps by starting at column 1 with offset
+          col_idx <- i - 3
+        }
+      } else {
+        # Standard layout for other numbers
+        row_idx <- ceiling(i / ncols)
+        col_idx <- ((i - 1) %% ncols) + 1
+      }
       
       # Create a subtitle with year
       year_text <- paste("Year:", years[i])
@@ -355,7 +372,7 @@ create_composite_index <- function(output_dir = here("Basin Maps/Composite_Figur
 
 # Example usage:
 # Generate all composite figures
- process_all_quartile_maps()
+process_all_quartile_maps()
 # create_composite_index()
 
 # Or, generate specific composite figures
