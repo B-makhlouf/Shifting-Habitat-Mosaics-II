@@ -255,5 +255,3 @@ create_annual_summary_table <- function(annual_summary_data, watershed, output_d
 cat("✓ Annual tributary mapping visualization functions loaded.\n")
 cat("Functions available:\n")
 cat("  - create_annual_tributary_map() - matches original style exactly\n")
-cat("  - create_multiyear_comparison()\n")
-cat("  - create_annual_summary_table()\n")
