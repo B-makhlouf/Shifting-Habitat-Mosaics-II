@@ -3,6 +3,7 @@
 ################################################################################
 # Visualization functions matching original tributary map style exactly
 # Uses base R plotting system with YlOrRd palette and specific formatting
+# UPDATED: Now includes watershed-specific aesthetics (Yukon vs Kusko differences)
 ################################################################################
 
 # Check if setup is loaded
@@ -73,7 +74,7 @@ create_doy_histogram <- function(full_dataset, current_subset, title = NULL) {
     )
 }
 
-#' Create tributary map (matching original style exactly)
+#' Create tributary map with watershed-specific aesthetics (EXACT ORIGINAL STYLE)
 create_annual_tributary_map <- function(edges, basin, year, watershed, 
                                         map_filename, basin_assign_sum, natal_data = NULL) {
   
@@ -95,25 +96,39 @@ create_annual_tributary_map <- function(edges, basin, year, watershed,
   pallete <- brewer.pal(9, "YlOrRd")
   pallete_expanded <- colorRampPalette(pallete)(10)
   
-  # Color coding with bins at every 0.1 (matching original exactly)
+  # Color coding - WATERSHED-SPECIFIC from archive
   colcode <- rep("gray60", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'white'
-  colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.1] <- pallete_expanded[1]
-  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- pallete_expanded[2]
-  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- pallete_expanded[3]
-  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
-  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
-  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
-  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
-  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- pallete_expanded[10]
   
-  # Set linewidths based on stream order (matching original exactly)
+  if (watershed == "Yukon") {
+    # YUKON COLOR CODING (from archive - custom bins at 0.2 intervals)
+    colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.2] <- pallete_expanded[1]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- pallete_expanded[5]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- pallete_expanded[10]
+  } else {
+    # KUSKO COLOR CODING (from archive - 0.1 intervals)
+    colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.1] <- pallete_expanded[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- pallete_expanded[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- pallete_expanded[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- pallete_expanded[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- pallete_expanded[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- pallete_expanded[6]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- pallete_expanded[7]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- pallete_expanded[8]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- pallete_expanded[9]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- pallete_expanded[10]
+  }
+  
+  # Set linewidths based on stream order - WATERSHED-SPECIFIC (EXACT ORIGINAL)
   stream_order_lwd <- edges$Str_Order
   linewidths <- rep(1, length(stream_order_lwd))
   
   if (watershed == "Yukon") {
+    # YUKON LINEWIDTHS (from archive - more conservative)
     linewidths <- ifelse(stream_order_lwd == 9, 3.7, linewidths)
     linewidths <- ifelse(stream_order_lwd == 8, 2.5, linewidths)
     linewidths <- ifelse(stream_order_lwd == 7, 1.7, linewidths)
@@ -122,7 +137,7 @@ create_annual_tributary_map <- function(edges, basin, year, watershed,
     linewidths <- ifelse(stream_order_lwd == 4, 1, linewidths)
     linewidths <- ifelse(stream_order_lwd == 3, 1, linewidths)
   } else {
-    # Kuskokwim linewidths
+    # KUSKOKWIM LINEWIDTHS (from archive - more dramatic differences)
     linewidths <- ifelse(stream_order_lwd == 9, 5, linewidths)
     linewidths <- ifelse(stream_order_lwd == 8, 4, linewidths)
     linewidths <- ifelse(stream_order_lwd == 7, 3, linewidths)
@@ -142,15 +157,30 @@ create_annual_tributary_map <- function(edges, basin, year, watershed,
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', main = plot_title, bg = "white")
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
-  # Add legend (matching original exactly)
-  legend("topleft", 
-         legend = c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
-                    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"), 
-         col = pallete_expanded, 
-         lwd = 5, 
-         title = "Relative posterior density", 
-         bty = "n",
-         bg = "white")
+  # Add legend - WATERSHED-SPECIFIC (EXACT ORIGINAL)
+  if (watershed == "Yukon") {
+    # YUKON LEGEND (custom bins)
+    legend("topleft", 
+           legend = c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", 
+                      "0.8-0.9", "0.9-1.0"), 
+           col = c(pallete_expanded[1], pallete_expanded[4], pallete_expanded[5], 
+                   pallete_expanded[7], pallete_expanded[8], pallete_expanded[9], 
+                   pallete_expanded[10]), 
+           lwd = 5, 
+           title = "Relative posterior density", 
+           bty = "n",
+           bg = "white")
+  } else {
+    # KUSKO LEGEND (0.1 intervals)
+    legend("topleft", 
+           legend = c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
+                      "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0"), 
+           col = pallete_expanded, 
+           lwd = 5, 
+           title = "Relative posterior density", 
+           bty = "n",
+           bg = "white")
+  }
   
   # Add histogram overlay if provided
   if (!is.null(gg_hist)) {
@@ -254,4 +284,6 @@ create_annual_summary_table <- function(annual_summary_data, watershed, output_d
 
 cat("✓ Annual tributary mapping visualization functions loaded.\n")
 cat("Functions available:\n")
-cat("  - create_annual_tributary_map() - matches original style exactly\n")
+cat("  - create_annual_tributary_map() - includes watershed-specific aesthetics\n")
+cat("  - Yukon: Custom color bins (0.2 intervals), conservative linewidths\n")
+cat("  - Kusko: Fine color bins (0.1 intervals), dramatic linewidths\n")

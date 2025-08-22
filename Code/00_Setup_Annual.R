@@ -3,6 +3,7 @@
 ################################################################################
 # Essential configuration and functions for simple annual production mapping
 # Creates total annual production maps by year - no quartiles or management units
+# UPDATED: Now includes full Yukon watershed support
 ################################################################################
 
 # Load required libraries
@@ -19,11 +20,24 @@ suppressPackageStartupMessages({
 # CONFIGURATION - UPDATE PATHS FOR YOUR SYSTEM
 ################################################################################
 
-# Core configuration
+# Core configuration - different years available for each watershed
 CONFIG <- list(
-  years = c(2017, 2018, 2019, 2020, 2021, 2022),
-  watersheds = c("Kusko")  # Can add "Yukon" if needed
+  # Watershed-specific available years (based on data availability)
+  kusko_years = c(2017, 2018, 2019, 2020, 2021, 2022),
+  yukon_years = c(2015, 2016),  # Yukon has different available years
+  watersheds = c("Kusko", "Yukon")
 )
+
+# Helper function to get available years for a watershed
+get_watershed_years <- function(watershed) {
+  if (watershed == "Kusko") {
+    return(CONFIG$kusko_years)
+  } else if (watershed == "Yukon") {
+    return(CONFIG$yukon_years)
+  } else {
+    stop("Unknown watershed: ", watershed)
+  }
+}
 
 # IMPORTANT: Update BASE_DIR for your system
 BASE_DIR <- "/Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II"
@@ -38,11 +52,16 @@ PATHS <- list(
   # Data directories - using original data location
   natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
   
-  # Spatial data paths
-  kusko_edges = "/Users/benjaminmakhlouf/Spatial Data/KuskoUSGS_HUC_joined.shp",
+  # Spatial data paths - UPDATED for both watersheds
+  kusko_edges = "/Users/benjaminmakhlouf/Spatial Data/KuskoUSGS_HUC.shp",
   kusko_basin = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp",
-  yukon_edges = "/Users/benjaminmakhlouf/Spatial Data/YukonUSGS_HUC_joined.shp",
-  yukon_basin = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/Yukon_basin.shp"
+  yukon_edges = "/Users/benjaminmakhlouf/Spatial Data/USGS Added/YukonUSGS.shp",
+  yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
+  
+  # Yukon genetic data paths (needed for Yukon assignments)
+  yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
+  yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
+  yukon_uy_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp"
 )
 
 # Watershed-specific parameters (EXACT VALUES FROM ORIGINAL)
@@ -50,12 +69,12 @@ WATERSHED_PARAMS <- list(
   Kusko = list(
     min_stream_order = 3,
     min_error = 0.0006,
-    sensitivity_threshold = 0.7  # CRITICAL: Original uses 0.7, not 0.01!
+    sensitivity_threshold = 0.7
   ),
   Yukon = list(
-    min_stream_order = 4,
-    min_error = 0.003,
-    sensitivity_threshold = 0.7  # CRITICAL: Original uses 0.7, not 0.01!
+    min_stream_order = 4,  # Original uses 4, not 5!
+    min_error = 0.003,     
+    sensitivity_threshold = 0.8  # Original Yukon uses 0.8, not 0.7!
   )
 )
 
@@ -63,7 +82,7 @@ WATERSHED_PARAMS <- list(
 # ESSENTIAL DATA LOADING FUNCTIONS
 ################################################################################
 
-#' Load spatial data for a watershed
+#' Load spatial data for a watershed (UPDATED for both watersheds)
 load_spatial_data <- function(watershed) {
   params <- WATERSHED_PARAMS[[watershed]]
   
@@ -84,7 +103,7 @@ load_spatial_data <- function(watershed) {
   return(list(edges = edges, basin = basin))
 }
 
-#' Load natal origins data for a specific year and watershed
+#' Load natal origins data for a specific year and watershed (UPDATED for both watersheds)
 load_natal_data <- function(year, watershed) {
   file_path <- file.path(PATHS$natal_data_dir, 
                          paste0(year, "_", watershed, "_Natal_Origins_Genetics_CPUE.csv"))
@@ -95,11 +114,13 @@ load_natal_data <- function(year, watershed) {
   
   natal_data <- read_csv(file_path, show_col_types = FALSE)
   
-  # Clean data based on watershed requirements
+  # Clean data based on watershed requirements (EXACT ORIGINAL LOGIC)
   if (watershed == "Yukon") {
+    # Yukon requires Lower, Middle, Upper genetic columns
     clean_data <- natal_data %>%
       filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
   } else {
+    # Kusko only needs natal_iso and dailyCPUEprop
     clean_data <- natal_data %>%
       filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
   }
@@ -111,7 +132,7 @@ load_natal_data <- function(year, watershed) {
 # CORE CALCULATION FUNCTIONS
 ################################################################################
 
-#' Calculate error values for Bayesian assignment
+#' Calculate error values for Bayesian assignment (EXACT ORIGINAL)
 calculate_error <- function(pid_isose, min_error) {
   pid_isose_mod <- ifelse(pid_isose < min_error, min_error, pid_isose)
   within_site <- 0.0003133684 / 1.96
@@ -120,7 +141,7 @@ calculate_error <- function(pid_isose, min_error) {
   return(error)
 }
 
-#' Set up watershed-specific priors (EXACT ORIGINAL ALGORITHM)
+#' Set up watershed-specific priors (UPDATED for both watersheds - EXACT ORIGINAL ALGORITHM)
 setup_priors <- function(edges, watershed, natal_data = NULL) {
   params <- WATERSHED_PARAMS[[watershed]]
   StreamOrderPrior <- ifelse(edges$Str_Order >= params$min_stream_order, 1, 0)
@@ -139,15 +160,32 @@ setup_priors <- function(edges, watershed, natal_data = NULL) {
     ))
     
   } else if (watershed == "Yukon") {
-    # YUKON PRIORS (EXACT ORIGINAL)
+    # YUKON PRIORS (EXACT ORIGINAL) - includes genetic data
     pid_prior <- edges$PriorSl2
     PresencePrior <- ifelse((edges$Str_Order %in% c(7, 8, 9)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1)
     
-    # Load Yukon genetic groups (simplified for this example)
+    # Load Yukon genetic groups (EXACT ORIGINAL METHOD)
+    ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
+    ly.gen_reachid <- ly.gen$reachid
+    my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
+    my.gen_reachid <- my.gen$reachid
+    uy.gen <- st_read(PATHS$yukon_uy_gen, quiet = TRUE)
+    uy.gen_reachid <- uy.gen$reachid
+    
+    # Create genetic management unit assignments (EXACT ORIGINAL LOGIC)
+    edges$GenLMU <- 0  # Initialize with 0, not character
+    edges$GenLMU[edges$reachid %in% ly.gen_reachid] <- "lower"
+    edges$GenLMU[edges$reachid %in% my.gen_reachid] <- "middle"
+    edges$GenLMU[edges$reachid %in% uy.gen_reachid] <- "upper"
+    
+    # Find sites for each genetic group (EXACT ORIGINAL)
     LYsites <- which(edges$GenLMU == "lower")
-    MYsites <- which(edges$GenLMU == "middle") 
+    MYsites <- which(edges$GenLMU == "middle")
     UYsites <- which(edges$GenLMU == "upper")
+    
+    # Debug: Print genetic group sizes
+    cat("  Genetic groups - Lower:", length(LYsites), "Middle:", length(MYsites), "Upper:", length(UYsites), "\n")
     
     return(list(
       pid_prior = pid_prior,
@@ -161,7 +199,7 @@ setup_priors <- function(edges, watershed, natal_data = NULL) {
   }
 }
 
-#' Perform Bayesian assignment for entire annual dataset (EXACT ORIGINAL ALGORITHM)
+#' Perform Bayesian assignment for entire annual dataset (UPDATED for both watersheds - EXACT ORIGINAL ALGORITHM)
 perform_assignment <- function(natal_data, edges, watershed, priors, pid_iso, error, sensitivity_threshold) {
   n_basins <- nrow(edges)
   n_fish <- nrow(natal_data)
@@ -182,8 +220,14 @@ perform_assignment <- function(natal_data, edges, watershed, priors, pid_iso, er
       gen_prior[priors$MYsites] <- as.numeric(natal_data$Middle[i])
       gen_prior[priors$UYsites] <- as.numeric(natal_data$Upper[i])
       
+      # Debug: Check genetic values for first fish
+      if (i == 1) {
+        cat("  First fish genetic values - Lower:", natal_data$Lower[i], "Middle:", natal_data$Middle[i], "Upper:", natal_data$Upper[i], "\n")
+        cat("  Non-zero genetic priors:", sum(gen_prior > 0), "out of", length(gen_prior), "\n")
+      }
+      
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        priors$pid_prior * priors$StreamOrderPrior * gen_prior
+        priors$pid_prior * priors$StreamOrderPrior * gen_prior * priors$PresencePrior * priors$NewHabitatPrior
     }
     
     # NORMALIZE AND THRESHOLD assignments (EXACT ORIGINAL ALGORITHM)
@@ -205,6 +249,10 @@ create_output_dirs <- function() {
 }
 
 cat("✓ Annual tributary mapping setup complete.\n")
+cat("✓ Now supports both Kusko and Yukon watersheds.\n")
+cat("✓ Available years:\n")
+cat("  - Kusko:", paste(CONFIG$kusko_years, collapse = ", "), "\n")
+cat("  - Yukon:", paste(CONFIG$yukon_years, collapse = ", "), "\n")
 cat("✓ All outputs will be saved to: /Users/benjaminmakhlouf/Research_repos/03_Shifting-Habitat-Mosaics-II\n")
 cat("✓ Input data will be read from: /Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE\n")
 cat("✓ Update spatial data paths in PATHS list if needed for your system.\n")
