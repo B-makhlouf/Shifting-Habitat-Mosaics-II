@@ -4,6 +4,8 @@
 # Contains all functions for performing Bayesian assignment of salmon to 
 # natal tributaries based on isotopes, genetics, and spatial priors
 # ANNUAL ANALYSIS ONLY
+# CORRECTED: Paths updated for repository 05
+# MODIFIED: Added CSV export functionality for assignment results
 ################################################################################
 
 library(sf)
@@ -28,7 +30,11 @@ PATHS <- list(
   yukon_uy_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp",
   
   # Natal origins data
-  natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE"
+  natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
+  
+  # Output directories
+  output_kusko = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Kusko",
+  output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
 )
 
 # Watershed parameters
@@ -36,12 +42,12 @@ PARAMS <- list(
   Kusko = list(
     min_stream_order = 3,
     min_error = 0.0006,
-    sensitivity_threshold = 0.7
+    sensitivity_threshold = 0.01
   ),
   Yukon = list(
     min_stream_order = 4,
     min_error = 0.003,
-    sensitivity_threshold = 0.8
+    sensitivity_threshold = 0.01
   )
 )
 
@@ -233,6 +239,63 @@ process_assignments <- function(assignment_matrix) {
 }
 
 ################################################################################
+# EXPORT FUNCTIONS
+################################################################################
+
+#' Export assignment results to CSV
+export_results <- function(edges, basin_results, year, watershed) {
+  
+  # Determine output directory
+  output_dir <- if (watershed == "Kusko") PATHS$output_kusko else PATHS$output_yukon
+  
+  # Create output directory if it doesn't exist
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+    cat(paste("  Created output directory:", output_dir, "\n"))
+  }
+  
+  # Prepare data frame with spatial and assignment data
+  # Drop geometry to make it a regular data frame
+  edges_df <- edges
+  if ("sf" %in% class(edges_df)) {
+    edges_df <- st_drop_geometry(edges_df)
+  }
+  
+  # Create output data frame
+  output_data <- data.frame(
+    reachid = edges_df$reachid,
+    Str_Order = edges_df$Str_Order,
+    iso_pred = edges_df$iso_pred,
+    assignment_sum = basin_results$sum,
+    assignment_rescale = basin_results$rescale,
+    assignment_norm = basin_results$norm
+  )
+  
+  # Add genetic information for Yukon
+  if (watershed == "Yukon" && "GenLMU" %in% names(edges_df)) {
+    output_data$GenLMU <- edges_df$GenLMU
+  }
+  
+  # Create filename
+  filename <- paste0(year, "_", watershed, "_Assignment_Results.csv")
+  filepath <- file.path(output_dir, filename)
+  
+  # Write CSV
+  write_csv(output_data, filepath)
+  
+  cat(paste("  ✓ Results exported to:", filepath, "\n"))
+  
+  # Print summary statistics
+  cat(paste("  Summary:\n"))
+  cat(paste("    - Total segments:", nrow(output_data), "\n"))
+  cat(paste("    - Sum of rescaled assignments:", round(sum(basin_results$rescale), 4), "\n"))
+  cat(paste("    - Max normalized assignment:", round(max(basin_results$norm), 4), "\n"))
+  cat(paste("    - Segments with assignment > 0:", sum(basin_results$sum > 0), "\n"))
+  
+  return(filepath)
+}
+
+################################################################################
 # HIGH-LEVEL WRAPPER FUNCTION
 ################################################################################
 
@@ -261,19 +324,66 @@ run_annual_analysis <- function(year, watershed) {
   # Process results
   basin_results <- process_assignments(assignment_matrix)
   
-  cat(paste("  Total annual production:", round(basin_results$sum[1], 2), "\n"))
+  cat(paste("  Total annual production:", round(sum(basin_results$sum), 2), "\n"))
+  
+  # Export results (automatic)
+  export_filepath <- export_results(spatial_data$edges, basin_results, year, watershed)
+  
   cat("  ✓ Analysis complete\n")
   
   return(list(
     spatial_data = spatial_data,
     natal_data = natal_data,
     basin_results = basin_results,
-    priors = priors
+    priors = priors,
+    export_filepath = export_filepath
   ))
 }
 
+################################################################################
+# BATCH PROCESSING FUNCTION
+################################################################################
+
+#' Run analysis for multiple years and watersheds
+run_batch_analysis <- function(years, watersheds = c("Kusko", "Yukon")) {
+  cat("\n================================================================================\n")
+  cat("BATCH PROCESSING: Assignment Analysis\n")
+  cat("================================================================================\n")
+  
+  results <- list()
+  
+  for (watershed in watersheds) {
+    for (year in years) {
+      tryCatch({
+        key <- paste(year, watershed, sep = "_")
+        results[[key]] <- run_annual_analysis(year, watershed)
+      }, error = function(e) {
+        cat(paste("  ✗ Error processing", watershed, year, ":", e$message, "\n"))
+      })
+    }
+  }
+  
+  cat("\n================================================================================\n")
+  cat("BATCH PROCESSING COMPLETE\n")
+  cat(paste("Successfully processed:", length(results), "datasets\n"))
+  cat("================================================================================\n")
+  
+  return(results)
+}
+
+################################################################################
+# INITIALIZATION MESSAGE
+################################################################################
+
 cat("✓ Assignment.R loaded successfully\n")
-cat("Main function:\n")
-cat("  - run_annual_analysis(year, watershed)\n")
+cat("\nMain functions:\n")
+cat("  - run_annual_analysis(year, watershed) - automatically exports results\n")
+cat("  - run_batch_analysis(years, watersheds = c('Kusko', 'Yukon'))\n")
+cat("  - export_results(edges, basin_results, year, watershed) - manual export\n")
 cat("\nExample usage:\n")
-cat("  results <- run_annual_analysis(2017, 'Kusko')\n")
+cat("  # Single year analysis (auto-exports):\n")
+cat("  results <- run_annual_analysis(2017, 'Kusko')\n\n")
+cat("  # Batch processing (auto-exports all):\n")
+cat("  all_results <- run_batch_analysis(2015:2021)\n\n")
+
+results<- run_annual_analysis(2017, 'Kusko')
