@@ -45,7 +45,7 @@ for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 
 cat("\n=== PROCESSING YUKON WATERSHED ===\n")
 
-for (year in c(2015, 2018, 2021)) {
+for (year in c(2015,2016, 2018, 2021)) {
   cat("\n--- Yukon", year, "---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Yukon")
