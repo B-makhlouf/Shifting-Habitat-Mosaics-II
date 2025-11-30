@@ -45,10 +45,14 @@ for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 
 cat("\n=== PROCESSING YUKON WATERSHED ===\n")
 
-for (year in c(2015,2016, 2018, 2021)) {
+for (year in c(2015,2016,2017,2018,2019, 2021)) {
   cat("\n--- Yukon", year, "---\n")
   tryCatch({
-    results <- run_annual_analysis(year, "Yukon")
+    results <- run_annual_analysis(year, "Yukon", 
+                                   filter_type = "date_range",
+                                   date_start = 145,    # Start DOY
+                                   date_end = 173)      # End DOY
+                                   
     create_annual_map(results, YUKON_OUTPUT, year, "Yukon")
   }, error = function(e) {
     cat("ERROR processing Yukon", year, ":", e$message, "\n")
