@@ -22,7 +22,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   palette_expanded <- colorRampPalette(palette)(10)
   
   # 3. COLOR CODING (watershed-specific bins)
-  colcode <- rep("gray60", length(basin_assign_norm))
+  colcode <- rep("white", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'white'
   
   if (watershed == "Yukon") {

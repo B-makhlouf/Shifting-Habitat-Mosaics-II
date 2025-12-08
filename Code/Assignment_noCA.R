@@ -19,6 +19,8 @@ PATHS <- list(
   output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
 )
 
+
+
 PARAMS <- list(
   Kusko = list(min_stream_order = 3, min_error = 0.0006, sensitivity_threshold = 0.6),
   Yukon = list(min_stream_order = 5, min_error = 0.003, sensitivity_threshold = 0.0001)
@@ -230,11 +232,11 @@ run_annual_analysis <- function(year,
   
   if (watershed == "Kusko") {
     pid_prior <- edges$UniPh2oNoE
-    PresencePrior <- ifelse((edges$Str_Order %in% c(5,6,7,8)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(6,7,8)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1)
   } else {
     pid_prior <- edges$PriorSl2
-    PresencePrior <-  ifelse((edges$Str_Order %in% c(5,6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <-  ifelse((edges$Str_Order %in% c(6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
     
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
     
