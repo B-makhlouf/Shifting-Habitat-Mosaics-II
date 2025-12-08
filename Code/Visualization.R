@@ -1,12 +1,160 @@
 ################################################################################
-# CONSOLIDATED SALMON VISUALIZATION - UPDATED FOR ALL STREAM ORDERS
+# CONSOLIDATED SALMON VISUALIZATION - WITH GENETIC COMPOSITION COLORING
 # UPDATED: Now handles all stream orders (below-threshold streams show as white/gray)
 ################################################################################
 
-library(ggplot2); library(RColorBrewer); library(scales); library(grid); library(sf)
+library(ggplot2); library(RColorBrewer); library(scales); library(grid); library(sf); library(dplyr); library(tidyr)
 
 #------------------------------------------------------------------------------
-# MAIN FUNCTION - UPDATED
+# HISTOGRAM CREATION FUNCTIONS
+#------------------------------------------------------------------------------
+
+#' Create CPUE histogram with genetic composition coloring (for Yukon)
+#' Matches the QC script approach EXACTLY - with red circles for otolith availability
+create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
+  
+  if (watershed != "Yukon") {
+    # For Kusko, use simple tomato-colored histogram (no genetic data)
+    return(create_cpue_histogram_simple(natal_data, year))
+  }
+  
+  # For Yukon: Create data with genetic composition by DOY - EXACT match to QC figure
+  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
+  doy_breaks <- seq(100, 200, by = 20)
+  
+  # Calculate by DOY (matching QC script exactly)
+  daily_genetic <- natal_data %>%
+    group_by(DOY) %>%
+    summarise(
+      cpue = first(dailyCPUEprop),
+      has_genetics = sum(!is.na(Lower) & !is.na(Middle), na.rm = TRUE) > 0,
+      has_otolith = sum(!is.na(natal_iso), na.rm = TRUE) > 0,
+      mean_Lower = mean(Lower[!is.na(Lower)], na.rm = TRUE),
+      mean_Middle = mean(Middle[!is.na(Middle)], na.rm = TRUE),
+      mean_Upper = mean(Upper[!is.na(Upper)], na.rm = TRUE),
+      .groups = 'drop'
+    ) %>%
+    mutate(
+      mean_Lower = ifelse(is.na(mean_Lower), 0, mean_Lower),
+      mean_Middle = ifelse(is.na(mean_Middle), 0, mean_Middle),
+      mean_Upper = ifelse(is.na(mean_Upper), 0, mean_Upper)
+    )
+  
+  # Create stacked data for ggplot (all three groups: Lower, Middle, Upper)
+  stacked_data <- daily_genetic %>%
+    filter(has_genetics) %>%
+    select(DOY, cpue, mean_Lower, mean_Middle, mean_Upper) %>%
+    pivot_longer(
+      cols = starts_with("mean_"),
+      names_to = "genetic_group",
+      values_to = "proportion",
+      names_prefix = "mean_"
+    ) %>%
+    mutate(
+      genetic_group = factor(genetic_group, levels = c("Lower", "Middle", "Upper")),
+      cpue_segment = cpue * proportion
+    )
+  
+  # Define genetic group colors - EXACT match to QC figure
+  genetic_colors <- c("Lower" = "#1b9e77", "Middle" = "#d95f02", "Upper" = "#7570b3")
+  
+  # Get max y value for positioning points
+  max_cpue <- max(daily_genetic$cpue, na.rm = TRUE)
+  
+  # Create histogram - EXACT match to QC figure style
+  gg_hist <- ggplot(daily_genetic, aes(x = DOY)) +
+    # Gray bars for days WITHOUT genetics
+    geom_col(data = filter(daily_genetic, !has_genetics),
+             aes(y = cpue), fill = "gray70", alpha = 0.8, width = 0.8) +
+    
+    # Stacked colored bars for days WITH genetics
+    geom_col(data = stacked_data,
+             aes(y = cpue_segment, fill = genetic_group), alpha = 0.85, width = 0.8) +
+    
+    # Red circles for otolith data availability (EXACT match to QC)
+    geom_point(data = filter(daily_genetic, has_otolith),
+               aes(y = max_cpue * 1.12),
+               color = "#e41a1c", shape = 16, size = 2.5, alpha = 0.7) +
+    
+    # Color scale for genetic groups
+    scale_fill_manual(values = genetic_colors, name = "Genetic Group") +
+    
+    # X-axis
+    scale_x_continuous(
+      limits = c(100, 200),
+      breaks = doy_breaks,
+      labels = doy_breaks
+    ) +
+    
+    # Y-axis limits
+    scale_y_continuous(limits = c(0, max_cpue * 1.2)) +
+    
+    # Coordinates
+    coord_cartesian(xlim = c(100, 200), expand = FALSE) +
+    
+    # Labels and theme - EXACT match to QC figure
+    labs(
+      title = NULL,
+      x = "Day of Year",
+      y = "Daily CPUE Proportion"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 10, face = "bold"),
+      axis.title = element_text(size = 8),
+      axis.text = element_text(size = 7),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.background = element_rect(fill = "white", color = NA),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "gray95", size = 0.2),
+      plot.margin = margin(2, 2, 2, 2, "mm"),
+      legend.position = "bottom",
+      legend.text = element_text(size = 6),
+      legend.title = element_text(size = 7),
+      legend.margin = margin(0, 0, 0, 0)
+    )
+  
+  return(gg_hist)
+}
+
+#' Simple CPUE histogram (for Kusko or when genetic data unavailable)
+create_cpue_histogram_simple <- function(natal_data, year) {
+  
+  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
+  doy_breaks <- seq(140, 210, by = 10)
+  
+  gg_hist <- ggplot(natal_data, aes(x = DOY, y = dailyCPUEprop)) + 
+    geom_line(color = "black", linewidth = 2) +
+    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "tomato", alpha = 0.7) +
+    scale_x_continuous(
+      limits = c(140, 200),
+      breaks = doy_breaks,
+      labels = function(x) paste0(x, "\n", format(doy_to_date(x), "%b %d"))
+    ) +
+    scale_y_continuous(limits = c(0, 0.1)) +
+    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+    labs(
+      title = paste("Annual Distribution", year),
+      x = "Day of Year (Date)",
+      y = "Daily CPUE Proportion"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 10, face = "bold"),
+      axis.title = element_text(size = 9),
+      axis.text = element_text(size = 8),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.margin = margin(0, 0, 0, 0)
+    )
+  
+  return(gg_hist)
+}
+
+#------------------------------------------------------------------------------
+# MAIN MAPPING FUNCTION - UPDATED
 #------------------------------------------------------------------------------
 create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   
@@ -95,25 +243,8 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                                                             ifelse(stream_order >= 3, 0.8, 0.5)))))))
   }
   
-  # 5. CREATE CPUE HISTOGRAM (for overlay)
-  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
-  doy_breaks <- seq(140, 210, by = 10)
-  
-  gg_hist <- ggplot(natal_data, aes(x = DOY, y = dailyCPUEprop)) + 
-    geom_line(color = "black", linewidth = 2) +
-    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "tomato", alpha = 0.7) +
-    scale_x_continuous(limits = c(140, 200), breaks = doy_breaks,
-                       labels = function(x) paste0(x, "\n", format(doy_to_date(x), "%b %d"))) +
-    scale_y_continuous(limits = c(0, 0.1)) +
-    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
-    labs(title = paste("Annual Distribution", year), x = "Day of Year (Date)", y = "Daily CPUE Proportion") +
-    theme_minimal() +
-    theme(plot.title = element_text(size = 10, face = "bold"),
-          axis.title = element_text(size = 9),
-          axis.text = element_text(size = 8),
-          plot.background = element_rect(fill = "white", color = NA),
-          panel.background = element_rect(fill = "white", color = NA),
-          plot.margin = margin(0, 0, 0, 0))
+  # 5. CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
+  gg_hist <- create_cpue_histogram_genetic(natal_data, year, watershed)
   
   # 6. CREATE OUTPUT FILE
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -145,12 +276,16 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
 }
 
 #------------------------------------------------------------------------------
-# RUN
+# DOCUMENTATION
 #------------------------------------------------------------------------------
-cat("\n✓ UPDATED Visualization script loaded.\n")
-cat("  - Now handles all stream orders in maps\n")
-cat("  - Below-threshold streams appear as white (zero assignment)\n")
-cat("  - Run: create_annual_map(analysis_results, output_dir, year, watershed)\n")
+cat("\n✓ UPDATED Visualization.R loaded with genetic composition coloring\n")
+cat("New features:\n")
+cat("  - For Yukon: CPUE bars colored by genetic composition (Lower=green, Middle=orange)\n")
+cat("  - For Kusko: Simple tomato-colored CPUE histogram (no genetic data)\n")
+cat("  - Gray bars for days without genetic data (Yukon only)\n")
+cat("  - Genetic group legend integrated into histogram\n")
+cat("  - Now handles all stream orders (below-threshold appear as gray)\n\n")
+cat("Usage: create_annual_map(analysis_results, output_dir, year, watershed)\n")
 cat("Example: create_annual_map(results, '/path/to/output', 2017, 'Kusko')\n\n")
 
 # Uncomment to run:
