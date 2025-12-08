@@ -10,7 +10,7 @@ library(ggplot2); library(RColorBrewer); library(scales); library(grid); library
 #------------------------------------------------------------------------------
 
 #' Create CPUE histogram with genetic composition coloring (for Yukon)
-#' Matches the QC script approach EXACTLY - with red circles for otolith availability
+#' Matches the QC script approach with filtered data underline
 create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
   
   if (watershed != "Yukon") {
@@ -18,9 +18,8 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
     return(create_cpue_histogram_simple(natal_data, year))
   }
   
-  # For Yukon: Create data with genetic composition by DOY - EXACT match to QC figure
-  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
-  doy_breaks <- seq(100, 200, by = 20)
+  # For Yukon: Create data with genetic composition by DOY
+  doy_breaks <- seq(150, 190, by = 10)
   
   # Calculate by DOY (matching QC script exactly)
   daily_genetic <- natal_data %>%
@@ -28,7 +27,6 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
     summarise(
       cpue = first(dailyCPUEprop),
       has_genetics = sum(!is.na(Lower) & !is.na(Middle), na.rm = TRUE) > 0,
-      has_otolith = sum(!is.na(natal_iso), na.rm = TRUE) > 0,
       mean_Lower = mean(Lower[!is.na(Lower)], na.rm = TRUE),
       mean_Middle = mean(Middle[!is.na(Middle)], na.rm = TRUE),
       mean_Upper = mean(Upper[!is.na(Upper)], na.rm = TRUE),
@@ -55,13 +53,16 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
       cpue_segment = cpue * proportion
     )
   
-  # Define genetic group colors - EXACT match to QC figure
+  # Define genetic group colors
   genetic_colors <- c("Lower" = "#1b9e77", "Middle" = "#d95f02", "Upper" = "#7570b3")
   
-  # Get max y value for positioning points
+  # Get DOY range of actual data to show red underline
+  doy_range <- range(natal_data$DOY, na.rm = TRUE)
+  
+  # Get max y value for scaling
   max_cpue <- max(daily_genetic$cpue, na.rm = TRUE)
   
-  # Create histogram - EXACT match to QC figure style
+  # Create histogram with red underline for filtered data range
   gg_hist <- ggplot(daily_genetic, aes(x = DOY)) +
     # Gray bars for days WITHOUT genetics
     geom_col(data = filter(daily_genetic, !has_genetics),
@@ -71,28 +72,24 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
     geom_col(data = stacked_data,
              aes(y = cpue_segment, fill = genetic_group), alpha = 0.85, width = 0.8) +
     
-    # Red circles for otolith data availability (EXACT match to QC)
-    geom_point(data = filter(daily_genetic, has_otolith),
-               aes(y = max_cpue * 1.12),
-               color = "#e41a1c", shape = 16, size = 2.5, alpha = 0.7) +
-    
+
     # Color scale for genetic groups
     scale_fill_manual(values = genetic_colors, name = "Genetic Group") +
     
-    # X-axis
+    # X-axis fixed from 150 to 190
     scale_x_continuous(
-      limits = c(100, 200),
+      limits = c(150, 190),
       breaks = doy_breaks,
       labels = doy_breaks
     ) +
     
-    # Y-axis limits
-    scale_y_continuous(limits = c(0, max_cpue * 1.2)) +
+    # Y-axis limits (extended above to show line)
+    scale_y_continuous(limits = c(0, max_cpue * 1.3)) +
     
     # Coordinates
-    coord_cartesian(xlim = c(100, 200), expand = FALSE) +
+    coord_cartesian(xlim = c(150, 190), expand = FALSE) +
     
-    # Labels and theme - EXACT match to QC figure
+    # Labels and theme
     labs(
       title = NULL,
       x = "Day of Year",
