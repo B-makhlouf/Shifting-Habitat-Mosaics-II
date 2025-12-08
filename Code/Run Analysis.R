@@ -26,18 +26,18 @@ cat("  Yukon:    ", YUKON_OUTPUT, "\n\n")
 ################################################################################
 # KUSKOKWIM ANALYSIS
 ################################################################################
-
-cat("=== PROCESSING KUSKOKWIM WATERSHED ===\n")
-
-for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
-  cat("\n--- Kuskokwim", year, "---\n")
-  tryCatch({
-    results <- run_annual_analysis(year, "Kusko")
-    create_annual_map(results, KUSKO_OUTPUT, year, "Kusko")
-  }, error = function(e) {
-    cat("ERROR processing Kusko", year, ":", e$message, "\n")
-  })
-}
+# 
+# cat("=== PROCESSING KUSKOKWIM WATERSHED ===\n")
+# 
+# for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
+#   cat("\n--- Kuskokwim", year, "---\n")
+#   tryCatch({
+#     results <- run_annual_analysis(year, "Kusko")
+#     create_annual_map(results, KUSKO_OUTPUT, year, "Kusko")
+#   }, error = function(e) {
+#     cat("ERROR processing Kusko", year, ":", e$message, "\n")
+#   })
+# }
 
 ################################################################################
 # YUKON ANALYSIS
@@ -45,13 +45,13 @@ for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 
 cat("\n=== PROCESSING YUKON WATERSHED ===\n")
 
-for (year in c(2015,2016, 2021)) {
+for (year in c(2015,2016, 2018,2021)) {
   cat("\n--- Yukon", year, "---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Yukon", 
                                    filter_type = "date_range",
                                    date_start = 140,    # Start DOY
-                                   date_end = 200)      # End DOY
+                                   date_end = 183)      # End DOY
                                    
     create_annual_map(results, YUKON_OUTPUT, year, "Yukon")
   }, error = function(e) {

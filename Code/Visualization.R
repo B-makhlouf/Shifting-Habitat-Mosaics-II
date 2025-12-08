@@ -27,9 +27,11 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   
   if (watershed == "Yukon") {
     # YUKON: Assign colors to bins
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[1]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[5]
+    
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.3] <- palette_expanded[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[6]
     colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]

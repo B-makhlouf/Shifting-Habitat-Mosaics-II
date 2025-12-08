@@ -21,7 +21,7 @@ PATHS <- list(
 
 PARAMS <- list(
   Kusko = list(min_stream_order = 3, min_error = 0.0006, sensitivity_threshold = 0.6),
-  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.75)
+  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.0001)
 )
 
 ################################################################################
@@ -234,7 +234,7 @@ run_annual_analysis <- function(year,
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1)
   } else {
     pid_prior <- edges$PriorSl2
-    PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <-  ifelse(edges$SPAWNING_C == 0 ,0, 1)       #ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1)
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
@@ -266,7 +266,7 @@ run_annual_analysis <- function(year,
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
 
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        pid_prior * StreamOrderPrior * gen_prior
+        pid_prior * StreamOrderPrior * gen_prior * NewHabitatPrior * PresencePrior
     }
     
     assign_norm <- assign / sum(assign)
@@ -276,9 +276,9 @@ run_annual_analysis <- function(year,
   }
   
   # 7. PROCESS RESULTS
-  basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
-  basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum, na.rm = TRUE)
-  basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
+  basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE) #Sum across all individuals 
+  basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum, na.rm = TRUE) #Rescale to sum to 1 across the basin
+  basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE) #normalize to range from 0-1 
   
   cat(paste("  Total production:", round(sum(basin_assign_sum), 2), "\n"))
   
