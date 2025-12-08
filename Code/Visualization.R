@@ -79,6 +79,11 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                                               ifelse(stream_order >= 5, 1.2,
                                                      ifelse(stream_order >= 4, .8, 
                                                             ifelse(stream_order >= 3, 0.4, 0.2)))))))
+    
+    production_boost <- 1 + (pmax(basin_assign_norm - 0.7, 0) / 0.3) * 0.3
+    production_boost[basin_assign_norm < 0.7] <- 1  # No boost below 0.7
+    linewidths <- linewidths * production_boost
+    
   } else {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
