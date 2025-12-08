@@ -24,13 +24,15 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   
   # 3. COLOR CODING (watershed-specific bins)
   # White for zero assignments, gray for NA/missing data
-  colcode <- rep("white", length(basin_assign_norm))
+  colcode <- rep("gray90", length(basin_assign_norm))
   colcode[is.na(basin_assign_norm)] <- 'gray80'  # For any NA values
+  # Stream order less then threshold will be slighly lighter grey 
+  colcode[edges$Str_Order < 5] <- 'gray75'
   
   if (watershed == "Yukon") {
     # YUKON: Assign colors to bins (0 = white, >0 gets colors)
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
-    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
+    
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
     colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
     colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
@@ -74,9 +76,9 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                          ifelse(stream_order >= 8, 2.5,
                                 ifelse(stream_order >= 7, 1.7,
                                        ifelse(stream_order >= 6, 1.5,
-                                              ifelse(stream_order >= 5, 1.5,
-                                                     ifelse(stream_order >= 4, 1.5, 
-                                                            ifelse(stream_order >= 3, 0.8, 0.5)))))))
+                                              ifelse(stream_order >= 5, 1.2,
+                                                     ifelse(stream_order >= 4, .8, 
+                                                            ifelse(stream_order >= 3, 0.4, 0.2)))))))
   } else {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
