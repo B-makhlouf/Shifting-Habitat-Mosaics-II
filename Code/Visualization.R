@@ -1,11 +1,12 @@
 ################################################################################
-# CONSOLIDATED SALMON VISUALIZATION - FIXED YUKON LEGEND
+# CONSOLIDATED SALMON VISUALIZATION - UPDATED FOR ALL STREAM ORDERS
+# UPDATED: Now handles all stream orders (below-threshold streams show as white/gray)
 ################################################################################
 
 library(ggplot2); library(RColorBrewer); library(scales); library(grid); library(sf)
 
 #------------------------------------------------------------------------------
-# MAIN FUNCTION
+# MAIN FUNCTION - UPDATED
 #------------------------------------------------------------------------------
 create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   
@@ -22,11 +23,12 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   palette_expanded <- colorRampPalette(palette)(10)
   
   # 3. COLOR CODING (watershed-specific bins)
+  # White for zero assignments, gray for NA/missing data
   colcode <- rep("white", length(basin_assign_norm))
-  colcode[basin_assign_norm == 0] <- 'white'
+  colcode[is.na(basin_assign_norm)] <- 'gray80'  # For any NA values
   
   if (watershed == "Yukon") {
-    # YUKON: Assign colors to bins
+    # YUKON: Assign colors to bins (0 = white, >0 gets colors)
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
     colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
@@ -73,7 +75,8 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                                 ifelse(stream_order >= 7, 1.7,
                                        ifelse(stream_order >= 6, 1.5,
                                               ifelse(stream_order >= 5, 1.5,
-                                                     ifelse(stream_order >= 4, 1.5, 1))))))
+                                                     ifelse(stream_order >= 4, 1.5, 
+                                                            ifelse(stream_order >= 3, 0.8, 0.5)))))))
   } else {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
@@ -81,7 +84,8 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                                 ifelse(stream_order >= 7, 3,
                                        ifelse(stream_order >= 6, 2,
                                               ifelse(stream_order >= 5, 1.8,
-                                                     ifelse(stream_order >= 4, 1.5, 1))))))
+                                                     ifelse(stream_order >= 4, 1.5,
+                                                            ifelse(stream_order >= 3, 0.8, 0.5)))))))
   }
   
   # 5. CREATE CPUE HISTOGRAM (for overlay)
@@ -128,6 +132,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
   
   cat(paste("  ✓ Saved:", basename(output_file), "\n"))
+  cat(paste("  ✓ Map includes ALL stream orders (white = zero assignment, colors = assignment values)\n"))
   
   return(output_file)
 }
@@ -135,7 +140,10 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
 #------------------------------------------------------------------------------
 # RUN
 #------------------------------------------------------------------------------
-cat("\n✓ Script loaded. Run: create_annual_map(analysis_results, output_dir, year, watershed)\n")
+cat("\n✓ UPDATED Visualization script loaded.\n")
+cat("  - Now handles all stream orders in maps\n")
+cat("  - Below-threshold streams appear as white (zero assignment)\n")
+cat("  - Run: create_annual_map(analysis_results, output_dir, year, watershed)\n")
 cat("Example: create_annual_map(results, '/path/to/output', 2017, 'Kusko')\n\n")
 
 # Uncomment to run:

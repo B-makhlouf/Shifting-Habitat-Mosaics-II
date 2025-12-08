@@ -1,5 +1,6 @@
 ################################################################################
 # CONSOLIDATED SALMON ASSIGNMENT ANALYSIS WITH FLEXIBLE FILTERING
+# UPDATED: Keeps all stream orders, assigns 0 to below-threshold streams
 ################################################################################
 
 library(sf); library(dplyr); library(readr)
@@ -18,8 +19,6 @@ PATHS <- list(
   output_kusko = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Kusko",
   output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
 )
-
-
 
 PARAMS <- list(
   Kusko = list(min_stream_order = 3, min_error = 0.0006, sensitivity_threshold = 0.6),
@@ -135,10 +134,11 @@ print_filter_summary <- function(filtered_data) {
 }
 
 ################################################################################
-# MAIN FUNCTION (UPDATED)
+# MAIN FUNCTION (UPDATED - KEEPS ALL STREAMS WITH ZERO ASSIGNMENTS)
 ################################################################################
 
 #' Run annual analysis with optional filtering
+#' UPDATED: Keeps ALL stream orders in output (lower order streams get 0 assignment)
 #'
 #' @param year Numeric year to analyze
 #' @param watershed Character: "Kusko" or "Yukon"
@@ -179,7 +179,7 @@ run_annual_analysis <- function(year,
   
   params <- PARAMS[[watershed]]
   
-  # 1. LOAD SPATIAL DATA
+  # 1. LOAD SPATIAL DATA - KEEP ALL STREAM ORDERS
   if (watershed == "Kusko") {
     edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
     basin <- st_read(PATHS$kusko_basin, quiet = TRUE)
@@ -187,7 +187,15 @@ run_annual_analysis <- function(year,
     edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
     basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
   }
-  edges <- st_transform(edges, st_crs(basin)) %>% filter(Str_Order >= params$min_stream_order)
+  
+  # Transform CRS but DO NOT filter by stream order yet
+  edges <- st_transform(edges, st_crs(basin))
+  
+  cat(paste("  Loaded", nrow(edges), "total stream segments (all stream orders)\n"))
+  
+  # Create a logical vector for streams that meet minimum stream order
+  meets_threshold <- edges$Str_Order >= params$min_stream_order
+  cat(paste("  Segments meeting min stream order threshold:", sum(meets_threshold), "\n"))
   
   # 2. LOAD NATAL DATA
   natal_data_raw <- read_csv(file.path(PATHS$natal_data_dir, 
@@ -219,7 +227,7 @@ run_annual_analysis <- function(year,
     stop("No data remaining after filtering!")
   }
   
-  cat(paste("  Loaded", nrow(natal_data), "fish,", nrow(edges), "segments\n"))
+  cat(paste("  Using", nrow(natal_data), "fish for assignment\n"))
   
   # 4. CALCULATE ERROR
   pid_iso <- edges$iso_pred
@@ -233,30 +241,30 @@ run_annual_analysis <- function(year,
   if (watershed == "Kusko") {
     pid_prior <- edges$UniPh2oNoE
     PresencePrior <- ifelse((edges$Str_Order %in% c(6,7,8)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1)
+    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
   } else {
     pid_prior <- edges$PriorSl2
     PresencePrior <-  ifelse((edges$Str_Order %in% c(6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
     my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
-
+    
     edges$GenLMU <- 0
     edges$GenLMU[edges$reachid %in% ly.gen$reachid] <- "lower"
     edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "middle"
-
+    
     LYsites <- which(edges$GenLMU == "lower")
     MYsites <- which(edges$GenLMU == "middle")
   }
   
-  # 6. BAYESIAN ASSIGNMENT
+  # 6. BAYESIAN ASSIGNMENT - Initialize with zeros for all streams
   if (verbose) cat("  Performing Bayesian assignment...\n")
-  n_basins <- length(pid_iso)
+  n_basins <- nrow(edges)  # Use ALL streams, not just filtered ones
   n_fish <- nrow(natal_data)
-  assignment_matrix <- matrix(NA, nrow = n_basins, ncol = n_fish)
+  assignment_matrix <- matrix(0, nrow = n_basins, ncol = n_fish)
   
+  # Only perform assignment for streams meeting threshold
   for (i in 1:n_fish) {
     fish_iso <- natal_data$natal_iso[i]
     
@@ -267,7 +275,7 @@ run_annual_analysis <- function(year,
       gen_prior <- rep(0, length(pid_iso))
       gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
-
+      
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
         pid_prior * StreamOrderPrior * gen_prior * NewHabitatPrior * PresencePrior
     }
@@ -280,10 +288,19 @@ run_annual_analysis <- function(year,
   
   # 7. PROCESS RESULTS
   basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE) #Sum across all individuals 
-  basin_assign_rescale <- basin_assign_sum / sum(basin_assign_sum, na.rm = TRUE) #Rescale to sum to 1 across the basin
-  basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE) #normalize to range from 0-1 
+  
+  # Handle case where sum is 0 (avoid division by zero)
+  total_sum <- sum(basin_assign_sum, na.rm = TRUE)
+  if (total_sum > 0) {
+    basin_assign_rescale <- basin_assign_sum / total_sum
+    basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
+  } else {
+    basin_assign_rescale <- rep(0, length(basin_assign_sum))
+    basin_assign_norm <- rep(0, length(basin_assign_sum))
+  }
   
   cat(paste("  Total production:", round(sum(basin_assign_sum), 2), "\n"))
+  cat(paste("  Segments with assignment > 0:", sum(basin_assign_sum > 0), "/", nrow(edges), "\n"))
   
   # 8. EXPORT TO CSV
   output_dir <- if (watershed == "Kusko") PATHS$output_kusko else PATHS$output_yukon
@@ -317,7 +334,7 @@ run_annual_analysis <- function(year,
   write_csv(output_data, filepath)
   
   cat(paste("  ✓ Exported:", filepath, "\n"))
-  cat(paste("  ✓ Segments with assignment > 0:", sum(basin_assign_sum > 0), "/", nrow(output_data), "\n"))
+  cat(paste("  ✓ Output includes ALL", nrow(output_data), "stream segments (with zeros for below-threshold streams)\n"))
   
   # Store filter metadata
   filter_metadata <- list(
@@ -334,14 +351,16 @@ run_annual_analysis <- function(year,
   )
   
   return(list(
-    edges = edges, 
+    edges = edges,  # Now includes ALL streams
     basin = basin, 
-    results = output_data, 
+    results = output_data,  # Now includes ALL streams with zero assignments
     natal_data = natal_data,
     filter_metadata = filter_metadata
   ))
 }
 
-cat("✓ Enhanced Assignment.R loaded with filtering functions\n")
+cat("✓ UPDATED Assignment.R loaded - NOW KEEPS ALL STREAM ORDERS\n")
+cat("  - Streams below min_stream_order threshold receive assignment = 0\n")
+cat("  - All streams appear in output CSV and maps\n")
 cat("Available filter types: 'none', 'cpue_percentile', 'date_range', 'both'\n")
 cat("See ?run_annual_analysis for detailed parameter descriptions\n")

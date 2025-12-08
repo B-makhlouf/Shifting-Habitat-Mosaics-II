@@ -51,7 +51,7 @@ for (year in c(2015,2016, 2018,2021)) {
     results <- run_annual_analysis(year, "Yukon", 
                                    filter_type = "date_range",
                                    date_start = 140,    # Start DOY
-                                   date_end = 200)      # End DOY
+                                   date_end = 183)      # End DOY
                                    
     create_annual_map(results, YUKON_OUTPUT, year, "Yukon")
   }, error = function(e) {
