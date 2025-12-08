@@ -6,7 +6,7 @@
 ################################################################################
 
 # Source both files
-source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/Assignment.R")
+source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/Assignment_noCA.R")
 source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/Visualization.R")
 
 # Define output directories
@@ -45,13 +45,13 @@ for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 
 cat("\n=== PROCESSING YUKON WATERSHED ===\n")
 
-for (year in c(2015,2016,2017,2018,2019, 2021)) {
+for (year in c(2015,2016, 2021)) {
   cat("\n--- Yukon", year, "---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Yukon", 
                                    filter_type = "date_range",
-                                   date_start = 145,    # Start DOY
-                                   date_end = 173)      # End DOY
+                                   date_start = 140,    # Start DOY
+                                   date_end = 200)      # End DOY
                                    
     create_annual_map(results, YUKON_OUTPUT, year, "Yukon")
   }, error = function(e) {

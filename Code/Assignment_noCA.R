@@ -14,7 +14,6 @@ PATHS <- list(
   yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
   yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
   yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
-  yukon_uy_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_UYGen.shp",
   natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
   output_kusko = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Kusko",
   output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
@@ -240,16 +239,13 @@ run_annual_analysis <- function(year,
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
     my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
-    uy.gen <- st_read(PATHS$yukon_uy_gen, quiet = TRUE)
-    
+
     edges$GenLMU <- 0
     edges$GenLMU[edges$reachid %in% ly.gen$reachid] <- "lower"
     edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "middle"
-    edges$GenLMU[edges$reachid %in% uy.gen$reachid] <- "upper"
-    
+
     LYsites <- which(edges$GenLMU == "lower")
     MYsites <- which(edges$GenLMU == "middle")
-    UYsites <- which(edges$GenLMU == "upper")
   }
   
   # 6. BAYESIAN ASSIGNMENT
@@ -268,8 +264,7 @@ run_annual_analysis <- function(year,
       gen_prior <- rep(0, length(pid_iso))
       gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
-      gen_prior[UYsites] <- as.numeric(natal_data$Upper[i])
-      
+
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
         pid_prior * StreamOrderPrior * gen_prior
     }

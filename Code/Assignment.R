@@ -22,7 +22,7 @@ PATHS <- list(
 
 PARAMS <- list(
   Kusko = list(min_stream_order = 3, min_error = 0.0006, sensitivity_threshold = 0.6),
-  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.75)
+  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.001)
 )
 
 ################################################################################
