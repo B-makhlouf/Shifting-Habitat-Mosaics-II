@@ -172,12 +172,13 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[is.na(basin_assign_norm)] <- 'gray80'  # For any NA values
   # Stream order less then threshold will be slighly lighter grey 
-  colcode[edges$Str_Order < 5] <- 'gray75'
+  
   
   if (watershed == "Yukon") {
     # YUKON: Assign colors to bins (0 = white, >0 gets colors)
-    
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
+    colcode[edges$Str_Order < 5] <- 'gray75'
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
     colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
     colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
@@ -195,6 +196,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
     
   } else {
     # KUSKO: 0.1 intervals (10 bins)
+    colcode[edges$Str_Order < 3] <- 'gray75'
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
     colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
@@ -225,19 +227,21 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                                                      ifelse(stream_order >= 4, .8, 
                                                             ifelse(stream_order >= 3, 0.4, 0.2)))))))
     
-    production_boost <- 1 + (pmax(basin_assign_norm - 0.7, 0) / 0.3) * 0.3
-    production_boost[basin_assign_norm < 0.7] <- 1  # No boost below 0.7
-    linewidths <- linewidths * production_boost
+    linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.9
+    
     
   } else {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
                          ifelse(stream_order >= 8, 4,
-                                ifelse(stream_order >= 7, 3,
-                                       ifelse(stream_order >= 6, 2,
-                                              ifelse(stream_order >= 5, 1.8,
-                                                     ifelse(stream_order >= 4, 1.5,
-                                                            ifelse(stream_order >= 3, 0.8, 0.5)))))))
+                                ifelse(stream_order >= 7, 3.7,
+                                       ifelse(stream_order >= 6, 3.5,
+                                              ifelse(stream_order >= 5, 2.5,
+                                                     ifelse(stream_order >= 4, 2.0,
+                                                            ifelse(stream_order >= 3, 0.8, 0.2)))))))
+    
+    linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.9
+    
   }
   
   # 5. CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
