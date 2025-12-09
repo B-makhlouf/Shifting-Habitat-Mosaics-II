@@ -1,286 +1,296 @@
 ################################################################################
-# YUKON HUC PRODUCTION - NORMALIZED BY STREAM LENGTH
-# FIXED: Continuous color scale consistent across all years
+# CONSOLIDATED SALMON VISUALIZATION - WITH GENETIC COMPOSITION COLORING
+# UPDATED: Now handles all stream orders (below-threshold streams show as white/gray)
 ################################################################################
 
-library(tidyverse)
-library(sf)
-library(ggplot2)
-library(RColorBrewer)
-library(patchwork)
+library(ggplot2); library(RColorBrewer); library(scales); library(grid); library(sf); library(dplyr); library(tidyr)
 
-# -----------------------
-# Read spatial data
-# -----------------------
-huc <- st_read("/Users/benjaminmakhlouf/Spatial Data/SMH2/YkKkHuc7.shp")
-edges <- st_read("/Users/benjaminmakhlouf/Spatial Data/SMH2/YukonUSGS_noCA.shp")
+#------------------------------------------------------------------------------
+# HISTOGRAM CREATION FUNCTIONS
+#------------------------------------------------------------------------------
 
-# Ensure same CRS
-if (st_crs(edges) != st_crs(huc)) {
-  edges <- st_transform(edges, st_crs(huc))
-}
-
-sf::sf_use_s2(FALSE)
-
-# -----------------------
-# User settings
-# -----------------------
-YUKON_YEARS <- c(2015, 2016, 2018, 2021)
-DATA_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
-output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Yukon_Annual/HUC"
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-
-# -----------------------
-# STEP 1: Compute per-reach lengths and stream length per HUC
-# -----------------------
-cat("=== STEP 1: Calculating stream length by HUC ===\n")
-
-edges <- edges %>%
-  mutate(stream_length_m = as.numeric(st_length(geometry)))
-
-edges_in_huc_temp <- st_join(edges, huc, join = st_intersects)
-
-huc_stream_length <- edges_in_huc_temp %>%
-  st_drop_geometry() %>%
-  group_by(HYBAS_ID) %>%
-  summarize(
-    total_stream_length_m = sum(stream_length_m, na.rm = TRUE),
-    n_reaches = n(),
-    .groups = "drop"
-  ) %>%
-  mutate(total_stream_length_km = total_stream_length_m / 1000)
-
-cat("✓ Calculated stream length for", nrow(huc_stream_length), "HUCs\n\n")
-
-# -----------------------
-# STEP 2: Process each year's production and normalize by stream length
-# -----------------------
-cat("=== STEP 2: Processing annual production data ===\n")
-
-all_huc_data <- list()
-
-for (year in YUKON_YEARS) {
-  cat("\nProcessing", year, "...\n")
-  prod_files <- list.files(DATA_DIR, pattern = paste0(year, "_Yukon_Assignment_Results.*\\.csv$"), full.names = TRUE)
-  if (length(prod_files) == 0) {
-    cat("  ✗ No assignment results file found for", year, "\n")
-    next
+#' Create CPUE histogram with genetic composition coloring (for Yukon)
+#' Matches the QC script approach with filtered data underline
+create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
+  
+  if (watershed != "Yukon") {
+    # For Kusko, use simple tomato-colored histogram (no genetic data)
+    return(create_cpue_histogram_simple(natal_data, year))
   }
-  prod_file <- prod_files[1]
-  cat("  Reading:", basename(prod_file), "\n")
-  prod <- read.csv(prod_file)
   
-  # Join production to reaches
-  edges_prod <- edges %>%
-    left_join(prod %>% select(reachid, assignment_rescale), by = "reachid")
+  # For Yukon: Create data with genetic composition by DOY
+  doy_breaks <- seq(150, 190, by = 10)
   
-  # Replace NA with 0
-  edges_prod$assignment_rescale[is.na(edges_prod$assignment_rescale)] <- 0
-  
-  # Spatial join to HUC polygons
-  edges_in_huc <- st_join(edges_prod, huc, join = st_intersects)
-  
-  # Sum production by HUC
-  huc_prod <- edges_in_huc %>%
-    st_drop_geometry() %>%
-    group_by(HYBAS_ID) %>%
-    summarize(
-      total_prod = sum(assignment_rescale, na.rm = TRUE),
-      n_reaches_year = n(),
-      .groups = "drop"
-    )
-  
-  # Attach to HUC polygons and compute per-km production
-  huc_year <- huc %>%
-    left_join(huc_prod, by = "HYBAS_ID") %>%
-    left_join(huc_stream_length, by = "HYBAS_ID") %>%
-    mutate(
-      year = year,
-      total_prod = replace_na(total_prod, 0),
-      n_reaches_year = replace_na(n_reaches_year, 0),
-      total_stream_length_km = replace_na(total_stream_length_km, 0),
-      prod_per_km = ifelse(total_stream_length_km > 0, total_prod / total_stream_length_km, 0)
+  # Calculate by DOY (matching QC script exactly)
+  daily_genetic <- natal_data %>%
+    group_by(DOY) %>%
+    summarise(
+      cpue = first(dailyCPUEprop),
+      has_genetics = sum(!is.na(Lower) & !is.na(Middle), na.rm = TRUE) > 0,
+      mean_Lower = mean(Lower[!is.na(Lower)], na.rm = TRUE),
+      mean_Middle = mean(Middle[!is.na(Middle)], na.rm = TRUE),
+      mean_Upper = mean(Upper[!is.na(Upper)], na.rm = TRUE),
+      .groups = 'drop'
     ) %>%
     mutate(
-      prod_per_km_normalized = prod_per_km / sum(prod_per_km, na.rm = TRUE),
-      prod_per_km_scaled = prod_per_km_normalized / max(prod_per_km_normalized, na.rm = TRUE)
+      mean_Lower = ifelse(is.na(mean_Lower), 0, mean_Lower),
+      mean_Middle = ifelse(is.na(mean_Middle), 0, mean_Middle),
+      mean_Upper = ifelse(is.na(mean_Upper), 0, mean_Upper)
     )
   
-  all_huc_data[[as.character(year)]] <- huc_year
-  cat("  ✓ Processed:", nrow(huc_year), "HUCs\n")
-}
-
-all_huc_combined <- bind_rows(all_huc_data)
-
-# -----------------------
-# STEP 3: Color palette
-# -----------------------
-cat("\n=== STEP 3: Setting up color scale ===\n")
-
-palette <- brewer.pal(9, "YlOrRd")
-
-cat("✓ Color palette configured.\n\n")
-
-# -----------------------
-# STEP 4: Create maps with continuous color scale
-# -----------------------
-cat("=== STEP 4: Creating maps ===\n")
-
-plots <- list()
-
-for (year in YUKON_YEARS) {
-  huc_year <- all_huc_combined %>% filter(year == !!year)
+  # Create stacked data for ggplot (all three groups: Lower, Middle, Upper)
+  stacked_data <- daily_genetic %>%
+    filter(has_genetics) %>%
+    select(DOY, cpue, mean_Lower, mean_Middle, mean_Upper) %>%
+    pivot_longer(
+      cols = starts_with("mean_"),
+      names_to = "genetic_group",
+      values_to = "proportion",
+      names_prefix = "mean_"
+    ) %>%
+    mutate(
+      genetic_group = factor(genetic_group, levels = c("Lower", "Middle", "Upper")),
+      cpue_segment = cpue * proportion
+    )
   
-  p <- ggplot() +
-    # Base layer: all HUCs light gray
-    geom_sf(data = huc, fill = "#fbfbfb", color = "#dcdcdc", linewidth = 0.35) +
+  # Define genetic group colors
+  genetic_colors <- c("Lower" = "#1b9e77", "Middle" = "#d95f02", "Upper" = "#7570b3")
+  
+  # Get DOY range of actual data to show red underline
+  doy_range <- range(natal_data$DOY, na.rm = TRUE)
+  
+  # Get max y value for scaling
+  max_cpue <- max(daily_genetic$cpue, na.rm = TRUE)
+  
+  # Create histogram with red underline for filtered data range
+  gg_hist <- ggplot(daily_genetic, aes(x = DOY)) +
+    # Gray bars for days WITHOUT genetics
+    geom_col(data = filter(daily_genetic, !has_genetics),
+             aes(y = cpue), fill = "gray70", alpha = 0.8, width = 0.8) +
     
-    # Main data layer with continuous color based on prod_per_km_scaled
-    geom_sf(data = huc_year, 
-            aes(fill = prod_per_km_scaled), 
-            color = "#ffffff", 
-            linewidth = 0.28) +
+    # Stacked colored bars for days WITH genetics
+    geom_col(data = stacked_data,
+             aes(y = cpue_segment, fill = genetic_group), alpha = 0.85, width = 0.8) +
     
-    # Border layer
-    geom_sf(data = huc, fill = NA, color = "#2b2b2b", linewidth = 0.18) +
+
+    # Color scale for genetic groups
+    scale_fill_manual(values = genetic_colors, name = "Genetic Group") +
     
-    # Continuous color scale from 0 to 1
-    scale_fill_distiller(
-      palette = "YlOrRd",
-      direction = 1,
-      limits = c(0, 1),
-      name = "Relative posterior density",
-      na.value = "#ffffff",
-      guide = guide_colorbar(
-        title.position = "top",
-        title.hjust = 0.5,
-        barwidth = 15,
-        barheight = 0.8,
-        label = TRUE
-      )
+    # X-axis fixed from 150 to 190
+    scale_x_continuous(
+      limits = c(150, 190),
+      breaks = doy_breaks,
+      labels = doy_breaks
     ) +
     
-    coord_sf(expand = FALSE) +
+    # Y-axis limits (extended above to show line)
+    scale_y_continuous(limits = c(0, max_cpue * 1.3)) +
     
-    theme_minimal(base_family = "Helvetica", base_size = 10) +
-    theme(
-      # Title and subtitle
-      plot.title = element_text(
-        size = 14, 
-        face = "bold", 
-        hjust = 0.5, 
-        margin = margin(t = 5, b = 3)
-      ),
-      plot.subtitle = element_text(
-        size = 9, 
-        color = "#555555", 
-        hjust = 0.5, 
-        margin = margin(b = 5)
-      ),
-      
-      # Legend
-      legend.position = "bottom",
-      legend.background = element_rect(
-        fill = "white", 
-        color = "#888888", 
-        linewidth = 0.5
-      ),
-      legend.margin = margin(8, 8, 8, 8),
-      legend.title = element_text(
-        size = 10, 
-        face = "bold",
-        margin = margin(b = 6)
-      ),
-      legend.text = element_text(size = 9),
-      
-      # Panel and plot background
-      plot.background = element_rect(fill = "#f6f6f6", color = NA),
-      panel.background = element_rect(fill = "#f6f6f6", color = NA),
-      panel.border = element_rect(color = "#e0e0e0", fill = NA, linewidth = 0.5),
-      panel.grid = element_blank(),
-      
-      # Axes
-      axis.text = element_blank(),
-      axis.ticks = element_blank(),
-      
-      # Margins
-      plot.margin = margin(5, 5, 5, 5)
-    ) +
+    # Coordinates
+    coord_cartesian(xlim = c(150, 190), expand = FALSE) +
     
+    # Labels and theme
     labs(
-      title = paste0("Year: ", year),
-      subtitle = "Yukon HUC Production"
+      title = NULL,
+      x = "Day of Year",
+      y = "Daily CPUE Proportion"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 10, face = "bold"),
+      axis.title = element_text(size = 8),
+      axis.text = element_text(size = 7),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.background = element_rect(fill = "white", color = NA),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "gray95", size = 0.2),
+      plot.margin = margin(2, 2, 2, 2, "mm"),
+      legend.position = "bottom",
+      legend.text = element_text(size = 6),
+      legend.title = element_text(size = 7),
+      legend.margin = margin(0, 0, 0, 0)
     )
   
-  plots[[as.character(year)]] <- p
-  cat("  ✓ Created map for", year, "\n")
+  return(gg_hist)
 }
 
-# -----------------------
-# STEP 5: Save individual maps
-# -----------------------
-cat("\n=== STEP 5: Saving maps ===\n")
-
-for (year in YUKON_YEARS) {
-  out_png <- file.path(output_dir, paste0("Yukon_HUC_Production_", year, ".png"))
-  ggsave(out_png, 
-         plots[[as.character(year)]], 
-         width = 11, 
-         height = 9, 
-         dpi = 300, 
-         bg = "white")
-  cat("✓ Saved:", out_png, "\n")
-}
-
-# -----------------------
-# STEP 6: Multi-year comparison
-# -----------------------
-cat("\n=== STEP 6: Creating multi-year comparison ===\n")
-
-comparison_plot <- wrap_plots(plots, nrow = 1) +
-  plot_annotation(
-    title = "Yukon HUC Production - Normalized by Stream Network Length",
-    subtitle = "Production per km across years (0-1 continuous scale)",
-    theme = theme(
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5, margin = margin(b = 5)),
-      plot.subtitle = element_text(size = 11, color = "#555555", hjust = 0.5, margin = margin(b = 10))
+#' Simple CPUE histogram (for Kusko or when genetic data unavailable)
+create_cpue_histogram_simple <- function(natal_data, year) {
+  
+  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
+  doy_breaks <- seq(140, 210, by = 10)
+  
+  gg_hist <- ggplot(natal_data, aes(x = DOY, y = dailyCPUEprop)) + 
+    geom_line(color = "black", linewidth = 2) +
+    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "tomato", alpha = 0.7) +
+    scale_x_continuous(
+      limits = c(140, 200),
+      breaks = doy_breaks,
+      labels = function(x) paste0(x, "\n", format(doy_to_date(x), "%b %d"))
+    ) +
+    scale_y_continuous(limits = c(0, 0.1)) +
+    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+    labs(
+      title = paste("Annual Distribution", year),
+      x = "Day of Year (Date)",
+      y = "Daily CPUE Proportion"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 10, face = "bold"),
+      axis.title = element_text(size = 9),
+      axis.text = element_text(size = 8),
+      axis.text.x = element_text(angle = 0, hjust = 0.5),
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.margin = margin(0, 0, 0, 0)
     )
-  )
+  
+  return(gg_hist)
+}
 
-comparison_file <- file.path(output_dir, "Yukon_HUC_Production_MultiYear_Comparison.png")
-ggsave(comparison_file, 
-       comparison_plot, 
-       width = 20, 
-       height = 9, 
-       dpi = 300, 
-       bg = "white")
-cat("✓ Saved comparison:", comparison_file, "\n")
+#------------------------------------------------------------------------------
+# MAIN MAPPING FUNCTION - UPDATED
+#------------------------------------------------------------------------------
+create_annual_map <- function(analysis_results, output_dir, year, watershed) {
+  
+  cat(paste("\n=== Creating map for", watershed, year, "===\n"))
+  
+  # 1. EXTRACT DATA FROM ANALYSIS RESULTS
+  edges <- analysis_results$edges
+  basin <- analysis_results$basin
+  natal_data <- analysis_results$natal_data
+  basin_assign_norm <- analysis_results$results$assignment_norm
+  
+  # 2. SETUP COLOR PALETTE
+  palette <- brewer.pal(9, "YlOrRd")
+  palette_expanded <- colorRampPalette(palette)(10)
+  
+  # 3. COLOR CODING (watershed-specific bins)
+  # White for zero assignments, gray for NA/missing data
+  colcode <- rep("gray90", length(basin_assign_norm))
+  colcode[is.na(basin_assign_norm)] <- 'gray80'  # For any NA values
+  # Stream order less then threshold will be slighly lighter grey 
+  
+  
+  if (watershed == "Yukon") {
+    # YUKON: Assign colors to bins (0 = white, >0 gets colors)
+    colcode[edges$Str_Order < 5] <- 'gray75'
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.7] <- 'gray75'
+    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
+    # colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
+    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
+    # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
+    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
+    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[6]
+    #colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
+    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
+    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
+    # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    colcode[basin_assign_norm > 0 & basin_assign_norm <=.4 ] <- palette_expanded[2]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.7 ] <- palette_expanded[9]
+    # LEGEND: Use the EXACT SAME colors that were assigned above
+    legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
+    legend_colors <- c(palette_expanded[1], palette_expanded[4], palette_expanded[5], 
+                       palette_expanded[7], palette_expanded[8], palette_expanded[9], 
+                       palette_expanded[10])
+    
+  } else {
+    # KUSKO: 0.1 intervals (10 bins)
+    colcode[edges$Str_Order < 3] <- 'gray75'
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[6]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    
+    legend_labels <- c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
+                       "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
+    legend_colors <- palette_expanded
+  }
+  
+  # 4. LINE WIDTHS (watershed-specific stream order emphasis)
+  stream_order <- edges$Str_Order
+  stream_order[is.na(stream_order)] <- 1
+  
+  if (watershed == "Yukon") {
+    # Conservative Yukon linewidths
+    linewidths <- ifelse(stream_order >= 9, 3.7,
+                         ifelse(stream_order >= 8, 2.5,
+                                ifelse(stream_order >= 7, 2.3,
+                                       ifelse(stream_order >= 6, 2.0,
+                                              ifelse(stream_order >= 5, 1.8,
+                                                     ifelse(stream_order >= 4, .8, 
+                                                            ifelse(stream_order >= 3, 0.4, 0.2)))))))
+    
+    linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.5
+    
+    
+  } else {
+    # Dramatic Kusko linewidths
+    linewidths <- ifelse(stream_order >= 9, 5,
+                         ifelse(stream_order >= 8, 4,
+                                ifelse(stream_order >= 7, 3.7,
+                                       ifelse(stream_order >= 6, 3.5,
+                                              ifelse(stream_order >= 5, 2.5,
+                                                     ifelse(stream_order >= 4, 2.0,
+                                                            ifelse(stream_order >= 3, 0.8, 0.2)))))))
+    
+    linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.9
+    
+  }
+  
+  # 5. CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
+  gg_hist <- create_cpue_histogram_genetic(natal_data, year, watershed)
+  
+  # 6. CREATE OUTPUT FILE
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  output_file <- file.path(output_dir, paste0("Annual_Production_", year, "_", watershed, ".png"))
+  
+  png(file = output_file, width = 9, height = 8, units = "in", res = 300, bg = "white")
+  
+  # 7. PLOT BASE MAP
+  par(mar = c(8, 4, 4, 2), bg = "white")
+  plot(st_geometry(basin), col = 'gray60', border = 'gray60', 
+       main = paste0("Annual Production\nYear: ", year, " River: ", watershed), bg = "white")
+  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
+  
+  # 8. ADD LEGEND
+  legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5, 
+         title = "Relative posterior density", bty = "n", bg = "white")
+  
+  # 9. OVERLAY HISTOGRAM
+  vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
+  print(gg_hist, vp = vp_hist)
+  
+  dev.off()
+  par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
+  
+  cat(paste("  ✓ Saved:", basename(output_file), "\n"))
+  cat(paste("  ✓ Map includes ALL stream orders (white = zero assignment, colors = assignment values)\n"))
+  
+  return(output_file)
+}
 
-# -----------------------
-# STEP 7: Summary statistics
-# -----------------------
-cat("\n=== SUMMARY STATISTICS ===\n\n")
-cat("Top 10 HUCs by Production (Scaled 0-1):\n")
-top_hucs <- all_huc_combined %>%
-  st_drop_geometry() %>%
-  select(year, HYBAS_ID, total_prod, total_stream_length_km, prod_per_km_scaled) %>%
-  arrange(desc(prod_per_km_scaled)) %>%
-  head(10)
-print(top_hucs)
+#------------------------------------------------------------------------------
+# DOCUMENTATION
+#------------------------------------------------------------------------------
+cat("\n✓ UPDATED Visualization.R loaded with genetic composition coloring\n")
+cat("New features:\n")
+cat("  - For Yukon: CPUE bars colored by genetic composition (Lower=green, Middle=orange)\n")
+cat("  - For Kusko: Simple tomato-colored CPUE histogram (no genetic data)\n")
+cat("  - Gray bars for days without genetic data (Yukon only)\n")
+cat("  - Genetic group legend integrated into histogram\n")
+cat("  - Now handles all stream orders (below-threshold appear as gray)\n\n")
+cat("Usage: create_annual_map(analysis_results, output_dir, year, watershed)\n")
+cat("Example: create_annual_map(results, '/path/to/output', 2017, 'Kusko')\n\n")
 
-cat("\nSummary Statistics by Year:\n")
-summary_stats <- all_huc_combined %>%
-  st_drop_geometry() %>%
-  group_by(year) %>%
-  summarise(
-    mean_production = mean(prod_per_km_scaled, na.rm = TRUE),
-    median_production = median(prod_per_km_scaled, na.rm = TRUE),
-    max_production = max(prod_per_km_scaled, na.rm = TRUE),
-    min_production = min(prod_per_km_scaled, na.rm = TRUE),
-    n_hucs = n(), 
-    .groups = "drop"
-  )
-print(summary_stats)
-
-cat("\n✓ Analysis complete. Maps saved to:\n")
-cat("  ", output_dir, "\n")
+# Uncomment to run:
+# map_file <- create_annual_map(results, "/Users/benjaminmakhlouf/Desktop/Maps", 2017, "Kusko")

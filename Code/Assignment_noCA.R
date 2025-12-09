@@ -22,7 +22,7 @@ PATHS <- list(
 
 PARAMS <- list(
   Kusko = list(min_stream_order = 2, min_error = 0.0006, sensitivity_threshold = 0.7),
-  Yukon = list(min_stream_order = 5, min_error = 0.003, sensitivity_threshold = 0.7)
+  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7)
 )
 
 ################################################################################
@@ -244,7 +244,7 @@ run_annual_analysis <- function(year,
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
   } else {
     pid_prior <- edges$PriorSl2
-    PresencePrior <-  ifelse((edges$Str_Order %in% c(6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <-  ifelse((edges$Str_Order %in% c(8,9)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
