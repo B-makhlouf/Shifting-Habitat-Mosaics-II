@@ -72,7 +72,7 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
     geom_col(data = stacked_data,
              aes(y = cpue_segment, fill = genetic_group), alpha = 0.85, width = 0.8) +
     
-
+    
     # Color scale for genetic groups
     scale_fill_manual(values = genetic_colors, name = "Genetic Group") +
     
@@ -115,36 +115,51 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
   return(gg_hist)
 }
 
-#' Simple CPUE histogram (for Kusko or when genetic data unavailable)
+#' Simple CPUE histogram - BAR CHART style (for Kusko)
+#' Matches the KuskoQC.R figure style with bar chart coloring
 create_cpue_histogram_simple <- function(natal_data, year) {
   
-  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
-  doy_breaks <- seq(140, 210, by = 10)
+  # Aggregate CPUE by DOY (matching KuskoQC.R approach)
+  daily_data <- natal_data %>%
+    group_by(DOY) %>%
+    summarise(
+      cpue = first(dailyCPUEprop),
+      has_otolith = sum(!is.na(natal_iso), na.rm = TRUE) > 0,
+      .groups = 'drop'
+    )
   
-  gg_hist <- ggplot(natal_data, aes(x = DOY, y = dailyCPUEprop)) + 
-    geom_line(color = "black", linewidth = 2) +
-    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "tomato", alpha = 0.7) +
+  # Get max CPUE for scaling
+  max_cpue <- max(daily_data$cpue, na.rm = TRUE)
+  
+  # Create histogram matching KuskoQC style (uniform bar color with otolith markers)
+  gg_hist <- ggplot(daily_data, aes(x = DOY, y = cpue)) + 
+    # Uniform teal/green bars (matching Kusko QC figure)
+    geom_col(fill = "#8DB1AB", alpha = 0.85, width = 0.8) +
+    
+
+    
     scale_x_continuous(
-      limits = c(140, 200),
-      breaks = doy_breaks,
-      labels = function(x) paste0(x, "\n", format(doy_to_date(x), "%b %d"))
+      limits = c(140, 210),
+      breaks = seq(140, 210, by = 10)
     ) +
-    scale_y_continuous(limits = c(0, 0.1)) +
-    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
+    scale_y_continuous(limits = c(0, max_cpue * 1.2)) +
+    coord_cartesian(xlim = c(140, 210), expand = FALSE) +
     labs(
-      title = paste("Annual Distribution", year),
-      x = "Day of Year (Date)",
+      title = NULL,
+      x = "Day of Year",
       y = "Daily CPUE Proportion"
     ) +
     theme_minimal() +
     theme(
       plot.title = element_text(size = 10, face = "bold"),
-      axis.title = element_text(size = 9),
-      axis.text = element_text(size = 8),
+      axis.title = element_text(size = 8),
+      axis.text = element_text(size = 7),
       axis.text.x = element_text(angle = 0, hjust = 0.5),
       plot.background = element_rect(fill = "white", color = NA),
       panel.background = element_rect(fill = "white", color = NA),
-      plot.margin = margin(0, 0, 0, 0)
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "gray95", size = 0.2),
+      plot.margin = margin(2, 2, 2, 2, "mm")
     )
   
   return(gg_hist)
@@ -282,7 +297,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
 cat("\n✓ UPDATED Visualization.R loaded with genetic composition coloring\n")
 cat("New features:\n")
 cat("  - For Yukon: CPUE bars colored by genetic composition (Lower=green, Middle=orange)\n")
-cat("  - For Kusko: Simple tomato-colored CPUE histogram (no genetic data)\n")
+cat("  - For Kusko: Bar chart CPUE with teal bars and red otolith markers\n")
 cat("  - Gray bars for days without genetic data (Yukon only)\n")
 cat("  - Genetic group legend integrated into histogram\n")
 cat("  - Now handles all stream orders (below-threshold appear as gray)\n\n")
