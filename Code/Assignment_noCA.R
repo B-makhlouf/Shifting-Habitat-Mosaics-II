@@ -1,5 +1,6 @@
 ################################################################################
 # CONSOLIDATED SALMON ASSIGNMENT ANALYSIS WITH FLEXIBLE FILTERING
+# UPDATED: Adds Nushagak watershed alongside Kusko and Yukon
 # UPDATED: Keeps all stream orders, assigns 0 to below-threshold streams
 # NEW: Added "cpue_50_cutoff" filter type for 50% cumulative CPUE analysis
 ################################################################################
@@ -10,20 +11,54 @@ library(sf); library(dplyr); library(readr)
 # CONFIGURATION
 #------------------------------------------------------------------------------
 PATHS <- list(
+  # KUSKOKWIM PATHS
   kusko_edges = "/Users/benjaminmakhlouf/Spatial Data/KuskoUSGS_HUC.shp",
   kusko_basin = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp",
+  
+  # YUKON PATHS
   yukon_edges = "/Users/benjaminmakhlouf/Spatial Data/SMH2/YukonUSGS_noCA.shp",
   yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
   yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
   yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
+  
+  # NUSHAGAK PATHS - PLACEHOLDERS (UPDATE THESE WITH ACTUAL PATHS)
+  nushagak_edges = "/Users/benjaminmakhlouf/Spatial Data/NushagakUSGS.shp",  # TODO: UPDATE PATH
+  nushagak_basin = "/Users/benjaminmakhlouf/Spatial Data/Nushagak_basin.shp",  # TODO: UPDATE PATH
+  # NOTE: Add genetic group paths if Nushagak has genetic data similar to Yukon
+  # nushagak_gen_group1 = "PATH_TO_GEN_GROUP_1.shp",  # TODO: If applicable
+  # nushagak_gen_group2 = "PATH_TO_GEN_GROUP_2.shp",  # TODO: If applicable
+  
+  # DATA DIRECTORIES
   natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
+  
+  # OUTPUT DIRECTORIES
   output_kusko = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Kusko",
-  output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
+  output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon",
+  output_nushagak = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Nushagak"  # TODO: CREATE THIS DIR
 )
 
+# Watershed-specific analysis parameters
+# TODO: Update Nushagak parameters based on your analysis requirements
 PARAMS <- list(
-  Kusko = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0000, max_error = NULL),
-  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7, max_error = NULL)
+  Kusko = list(
+    min_stream_order = 3, 
+    min_error = 0.0000, 
+    sensitivity_threshold = 0.0000, 
+    max_error = NULL
+  ),
+  Yukon = list(
+    min_stream_order = 4, 
+    min_error = 0.003, 
+    sensitivity_threshold = 0.7, 
+    max_error = NULL
+  ),
+  Nushagak = list(
+    min_stream_order = 3,        # TODO: Confirm minimum stream order for Nushagak
+    min_error = 0.0000,          # TODO: Confirm minimum isoscape error threshold
+    sensitivity_threshold = 0.0, # TODO: Confirm Bayesian assignment sensitivity threshold
+    max_error = NULL,
+    has_genetic_data = FALSE     # TODO: Set to TRUE if Nushagak has genetic data
+  )
 )
 
 ################################################################################
@@ -38,29 +73,9 @@ PARAMS <- list(
 #' @param cpue_upper Numeric: Upper percentile (0-100) for CPUE filtering (e.g., 100 for full range)
 #' @param date_start Numeric: Starting day of year (1-365)
 #' @param date_end Numeric: Ending day of year (1-365)
-#' @param watershed Character: "Kusko" or "Yukon" (for data validation)
+#' @param watershed Character: "Kusko", "Yukon", or "Nushagak" (for data validation)
 #'
 #' @return Filtered natal data frame with attributes about filtering applied
-#'
-#' @examples
-#' # Full annual analysis (no filtering)
-#' filtered_data <- apply_filters(natal_data, filter_type = "none")
-#'
-#' # Top 50% CPUE (by daily average)
-#' filtered_data <- apply_filters(natal_data, filter_type = "cpue_percentile", 
-#'                                 cpue_lower = 50, cpue_upper = 100)
-#'
-#' # Up to 50% cumulative CPUE
-#' filtered_data <- apply_filters(natal_data, filter_type = "cpue_50_cutoff")
-#'
-#' # Peak season (DOY 160-183)
-#' filtered_data <- apply_filters(natal_data, filter_type = "date_range",
-#'                                 date_start = 160, date_end = 183)
-#'
-#' # Top 50% CPUE during specific dates
-#' filtered_data <- apply_filters(natal_data, filter_type = "both",
-#'                                 cpue_lower = 50, cpue_upper = 100,
-#'                                 date_start = 160, date_end = 183)
 apply_filters <- function(natal_data, 
                           filter_type = "none",
                           cpue_lower = NULL,
@@ -164,14 +179,15 @@ print_filter_summary <- function(filtered_data) {
 }
 
 ################################################################################
-# MAIN FUNCTION (UPDATED - KEEPS ALL STREAM ORDERS)
+# MAIN FUNCTION (UPDATED - KEEPS ALL STREAM ORDERS, SUPPORTS NUSHAGAK)
 ################################################################################
 
-#' Run annual analysis with optional filtering
+#' Run annual analysis with optional filtering for Kusko, Yukon, or Nushagak
 #' UPDATED: Keeps ALL stream orders in output (lower order streams get 0 assignment)
+#' NEW: Supports Nushagak watershed
 #'
 #' @param year Numeric year to analyze
-#' @param watershed Character: "Kusko" or "Yukon"
+#' @param watershed Character: "Kusko", "Yukon", or "Nushagak"
 #' @param filter_type Character: "none", "cpue_percentile", "date_range", "both", or "cpue_50_cutoff"
 #' @param cpue_lower Numeric: Lower percentile for CPUE (0-100)
 #' @param cpue_upper Numeric: Upper percentile for CPUE (0-100)
@@ -182,22 +198,11 @@ print_filter_summary <- function(filtered_data) {
 #' @return List containing edges, basin, results, natal_data, and filter_metadata
 #'
 #' @examples
-#' # Full annual analysis
-#' results <- run_annual_analysis(2017, "Kusko")
+#' # Full annual analysis - Nushagak
+#' results <- run_annual_analysis(2020, "Nushagak")
 #'
-#' # Up to 50% cumulative CPUE
-#' results <- run_annual_analysis(2017, "Kusko", 
-#'                                filter_type = "cpue_50_cutoff")
-#'
-#' # Top 50% of CPUE days
-#' results <- run_annual_analysis(2017, "Kusko", 
-#'                                filter_type = "cpue_percentile",
-#'                                cpue_lower = 50, cpue_upper = 100)
-#'
-#' # Peak season only
-#' results <- run_annual_analysis(2017, "Kusko",
-#'                                filter_type = "date_range",
-#'                                date_start = 160, date_end = 183)
+#' # Up to 50% cumulative CPUE - Nushagak
+#' results <- run_annual_analysis(2020, "Nushagak", filter_type = "cpue_50_cutoff")
 run_annual_analysis <- function(year, 
                                 watershed,
                                 filter_type = "none",
@@ -206,6 +211,10 @@ run_annual_analysis <- function(year,
                                 date_start = NULL,
                                 date_end = NULL,
                                 verbose = TRUE) {
+  
+  if (!(watershed %in% c("Kusko", "Yukon", "Nushagak"))) {
+    stop("Watershed must be 'Kusko', 'Yukon', or 'Nushagak'")
+  }
   
   if (verbose) {
     cat(paste("\n=== Processing", watershed, year, "===\n"))
@@ -217,9 +226,13 @@ run_annual_analysis <- function(year,
   if (watershed == "Kusko") {
     edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
     basin <- st_read(PATHS$kusko_basin, quiet = TRUE)
-  } else {
+  } else if (watershed == "Yukon") {
     edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
     basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
+  } else if (watershed == "Nushagak") {
+    # NUSHAGAK: Load spatial data
+    edges <- st_read(PATHS$nushagak_edges, quiet = TRUE)
+    basin <- st_read(PATHS$nushagak_basin, quiet = TRUE)
   }
   
   # Transform CRS but DO NOT filter by stream order yet
@@ -236,11 +249,16 @@ run_annual_analysis <- function(year,
                                        paste0(year, "_", watershed, "_Natal_Origins_Genetics_CPUE.csv")), 
                              show_col_types = FALSE)
   
-  # Clean data
-  natal_data_clean <- if (watershed == "Yukon") {
-    filter(natal_data_raw, !is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
+  # Clean data - watershed-specific requirements
+  if (watershed == "Yukon") {
+    natal_data_clean <- filter(natal_data_raw, !is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
+  } else if (watershed == "Nushagak" && params$has_genetic_data) {
+    # TODO: Update genetic column names if Nushagak has different genetic structure
+    natal_data_clean <- filter(natal_data_raw, !is.na(natal_iso), !is.na(dailyCPUEprop))
+    # Add genetic column filtering here if applicable
   } else {
-    filter(natal_data_raw, !is.na(natal_iso), !is.na(dailyCPUEprop))
+    # Kusko and Nushagak (if no genetic data) - simple filtering
+    natal_data_clean <- filter(natal_data_raw, !is.na(natal_iso), !is.na(dailyCPUEprop))
   }
   
   # 3. APPLY FILTERING
@@ -277,16 +295,17 @@ run_annual_analysis <- function(year,
   
   error <- sqrt(pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
   
-  # 5. SETUP PRIORS
+  # 5. SETUP PRIORS - WATERSHED SPECIFIC
   StreamOrderPrior <- ifelse(edges$Str_Order >= params$min_stream_order, 1, 0)
   
   if (watershed == "Kusko") {
     pid_prior <- edges$UniPh2oNoE
     PresencePrior <- ifelse((edges$Str_Order %in% c(7)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
-  } else {
+    
+  } else if (watershed == "Yukon") {
     pid_prior <- edges$PriorSl2
-    PresencePrior <-  ifelse((edges$Str_Order %in% c(8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(8,9)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
@@ -298,6 +317,27 @@ run_annual_analysis <- function(year,
     
     LYsites <- which(edges$GenLMU == "lower")
     MYsites <- which(edges$GenLMU == "middle")
+    
+  } else if (watershed == "Nushagak") {
+    # TODO: Define Nushagak-specific priors
+    # Following Kusko pattern as template (update column names as needed)
+    pid_prior <- edges$UniPh2oNoE         # TODO: Confirm correct column name
+    PresencePrior <- ifelse((edges$Str_Order %in% c(6)) & edges$SPAWNING_C == 0, 0, 1)  # TODO: Adjust stream order thresholds
+    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)  # TODO: Confirm column names
+    
+    # TODO: If Nushagak has genetic data, load and setup genetic priors here
+    # Example structure (update paths and column names):
+    # if (params$has_genetic_data) {
+    #   gen_group1 <- st_read(PATHS$nushagak_gen_group1, quiet = TRUE)
+    #   gen_group2 <- st_read(PATHS$nushagak_gen_group2, quiet = TRUE)
+    #   
+    #   edges$GenGroup <- 0
+    #   edges$GenGroup[edges$reachid %in% gen_group1$reachid] <- "group1"
+    #   edges$GenGroup[edges$reachid %in% gen_group2$reachid] <- "group2"
+    #   
+    #   Group1sites <- which(edges$GenGroup == "group1")
+    #   Group2sites <- which(edges$GenGroup == "group2")
+    # }
   }
   
   # 6. BAYESIAN ASSIGNMENT - Initialize with zeros for all streams
@@ -313,13 +353,29 @@ run_annual_analysis <- function(year,
     if (watershed == "Kusko") {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
         pid_prior * StreamOrderPrior * NewHabitatPrior * PresencePrior
-    } else {
+      
+    } else if (watershed == "Yukon") {
       gen_prior <- rep(0, length(pid_iso))
       gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
         pid_prior * StreamOrderPrior * gen_prior * NewHabitatPrior * PresencePrior
+      
+    } else if (watershed == "Nushagak") {
+      # TODO: Implement Nushagak assignment logic
+      # Option 1: If no genetic data (like Kusko):
+      assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
+        pid_prior * StreamOrderPrior * NewHabitatPrior * PresencePrior
+      
+      # Option 2: If genetic data exists (like Yukon):
+      # Uncomment and modify as needed
+      # gen_prior <- rep(0, length(pid_iso))
+      # gen_prior[Group1sites] <- as.numeric(natal_data$GenGroup1[i])  # TODO: Update column name
+      # gen_prior[Group2sites] <- as.numeric(natal_data$GenGroup2[i])  # TODO: Update column name
+      # 
+      # assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
+      #   pid_prior * StreamOrderPrior * gen_prior * NewHabitatPrior * PresencePrior
     }
     
     assign_norm <- assign / sum(assign)
@@ -329,7 +385,7 @@ run_annual_analysis <- function(year,
   }
   
   # 7. PROCESS RESULTS
-  basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE) #Sum across all individuals 
+  basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
   
   # Handle case where sum is 0 (avoid division by zero)
   total_sum <- sum(basin_assign_sum, na.rm = TRUE)
@@ -345,7 +401,14 @@ run_annual_analysis <- function(year,
   cat(paste("  Segments with assignment > 0:", sum(basin_assign_sum > 0), "/", nrow(edges), "\n"))
   
   # 8. EXPORT TO CSV
-  output_dir <- if (watershed == "Kusko") PATHS$output_kusko else PATHS$output_yukon
+  if (watershed == "Kusko") {
+    output_dir <- PATHS$output_kusko
+  } else if (watershed == "Yukon") {
+    output_dir <- PATHS$output_yukon
+  } else {
+    output_dir <- PATHS$output_nushagak
+  }
+  
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
   # Create filename based on filter type
@@ -373,7 +436,12 @@ run_annual_analysis <- function(year,
     assignment_norm = basin_assign_norm
   )
   
-  if (watershed == "Yukon") output_data$GenLMU <- edges_df$GenLMU
+  # Add genetic info if applicable
+  if (watershed == "Yukon" && exists("GenLMU")) {
+    output_data$GenLMU <- edges_df$GenLMU
+  } else if (watershed == "Nushagak" && params$has_genetic_data && exists("GenGroup")) {
+    output_data$GenGroup <- edges_df$GenGroup  # TODO: Verify this column name
+  }
   
   filepath <- file.path(output_dir, paste0(filename_base, ".csv"))
   write_csv(output_data, filepath)
@@ -396,23 +464,25 @@ run_annual_analysis <- function(year,
   )
   
   return(list(
-    edges = edges,  # Now includes ALL streams
+    edges = edges,
     basin = basin, 
-    results = output_data,  # Now includes ALL streams with zero assignments
+    results = output_data,
     natal_data = natal_data,
     filter_metadata = filter_metadata
   ))
 }
 
-cat("✓ UPDATED Assignment.R loaded with 50% CPUE cutoff functionality\n")
+cat("\n✓ UPDATED Assignment.R loaded with Nushagak watershed support\n")
+cat("Supported watersheds: Kusko, Yukon, Nushagak\n")
 cat("Available filter types:\n")
 cat("  - 'none': Full annual analysis\n")
-cat("  - 'cpue_50_cutoff': Up to 50% cumulative CPUE (NEW)\n")
+cat("  - 'cpue_50_cutoff': Up to 50% cumulative CPUE\n")
 cat("  - 'cpue_percentile': By daily CPUE percentile\n")
 cat("  - 'date_range': By day of year range\n")
 cat("  - 'both': Combine percentile and date range\n\n")
 cat("Usage examples:\n")
-cat("  # Full year\n")
-cat("  results <- run_annual_analysis(2017, 'Kusko')\n\n")
-cat("  # Up to 50% cumulative CPUE\n")
-cat("  results <- run_annual_analysis(2017, 'Kusko', filter_type = 'cpue_50_cutoff')\n")
+cat("  # Full year analysis - Nushagak\n")
+cat("  results <- run_annual_analysis(2020, 'Nushagak')\n\n")
+cat("  # 50% CPUE cutoff - Nushagak\n")
+cat("  results <- run_annual_analysis(2020, 'Nushagak', filter_type = 'cpue_50_cutoff')\n\n")
+cat("TODO: Update Nushagak-specific paths and parameters in PATHS and PARAMS lists\n")
