@@ -1,6 +1,7 @@
 ################################################################################
 # CONSOLIDATED SALMON ASSIGNMENT ANALYSIS WITH FLEXIBLE FILTERING
 # UPDATED: Keeps all stream orders, assigns 0 to below-threshold streams
+# NEW: Added "cpue_50_cutoff" filter type for 50% cumulative CPUE analysis
 ################################################################################
 
 library(sf); library(dplyr); library(readr)
@@ -22,7 +23,7 @@ PATHS <- list(
 
 PARAMS <- list(
   Kusko = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0000, max_error = NULL),
-  Yukon = list(min_stream_order = 3, min_error = 0.003, sensitivity_threshold = 0.0, max_error = NULL)
+  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7, max_error = NULL)
 )
 
 ################################################################################
@@ -32,7 +33,7 @@ PARAMS <- list(
 #' Apply flexible filtering to natal data
 #'
 #' @param natal_data Raw natal data frame
-#' @param filter_type Character: "none", "cpue_percentile", "date_range", or "both"
+#' @param filter_type Character: "none", "cpue_percentile", "date_range", "both", or "cpue_50_cutoff"
 #' @param cpue_lower Numeric: Lower percentile (0-100) for CPUE filtering (e.g., 25 for top 75%)
 #' @param cpue_upper Numeric: Upper percentile (0-100) for CPUE filtering (e.g., 100 for full range)
 #' @param date_start Numeric: Starting day of year (1-365)
@@ -48,6 +49,9 @@ PARAMS <- list(
 #' # Top 50% CPUE (by daily average)
 #' filtered_data <- apply_filters(natal_data, filter_type = "cpue_percentile", 
 #'                                 cpue_lower = 50, cpue_upper = 100)
+#'
+#' # Up to 50% cumulative CPUE
+#' filtered_data <- apply_filters(natal_data, filter_type = "cpue_50_cutoff")
 #'
 #' # Peak season (DOY 160-183)
 #' filtered_data <- apply_filters(natal_data, filter_type = "date_range",
@@ -72,8 +76,34 @@ apply_filters <- function(natal_data,
   attr(filtered_data, "original_n") <- nrow(natal_data)
   attr(filtered_data, "original_cpue") <- sum(natal_data$COratio, na.rm = TRUE)
   
+  # 50% CUMULATIVE CPUE CUTOFF (NEW)
+  if (filter_type == "cpue_50_cutoff") {
+    # Sort by DOY
+    sorted_data <- filtered_data %>% arrange(DOY)
+    
+    # Calculate cumulative CPUE by day (summing COratio for each DOY)
+    daily_cpue <- sorted_data %>%
+      group_by(DOY) %>%
+      summarise(daily_total = sum(COratio, na.rm = TRUE), .groups = 'drop') %>%
+      arrange(DOY) %>%
+      mutate(cumsum_cpue = cumsum(daily_total),
+             total_cpue = sum(daily_total),
+             cumsum_proportion = cumsum_cpue / total_cpue)
+    
+    # Find the DOY where 50% cumulative CPUE is reached
+    cutoff_doy <- daily_cpue %>%
+      filter(cumsum_proportion <= 0.5) %>%
+      pull(DOY) %>%
+      max()
+    
+    # Include the day where 50% is reached
+    filtered_data <- filtered_data %>% filter(DOY <= cutoff_doy)
+    
+    filter_description <- paste0("Up to 50% cumulative CPUE (DOY <= ", cutoff_doy, ")")
+  }
+  
   # CPUE PERCENTILE FILTERING
-  if (filter_type %in% c("cpue_percentile", "both")) {
+  else if (filter_type %in% c("cpue_percentile", "both")) {
     if (is.null(cpue_lower)) cpue_lower <- 0
     if (is.null(cpue_upper)) cpue_upper <- 100
     
@@ -134,7 +164,7 @@ print_filter_summary <- function(filtered_data) {
 }
 
 ################################################################################
-# MAIN FUNCTION (UPDATED - KEEPS ALL STREAMS WITH ZERO ASSIGNMENTS)
+# MAIN FUNCTION (UPDATED - KEEPS ALL STREAM ORDERS)
 ################################################################################
 
 #' Run annual analysis with optional filtering
@@ -142,7 +172,7 @@ print_filter_summary <- function(filtered_data) {
 #'
 #' @param year Numeric year to analyze
 #' @param watershed Character: "Kusko" or "Yukon"
-#' @param filter_type Character: "none", "cpue_percentile", "date_range", or "both"
+#' @param filter_type Character: "none", "cpue_percentile", "date_range", "both", or "cpue_50_cutoff"
 #' @param cpue_lower Numeric: Lower percentile for CPUE (0-100)
 #' @param cpue_upper Numeric: Upper percentile for CPUE (0-100)
 #' @param date_start Numeric: Starting DOY (1-365)
@@ -154,6 +184,10 @@ print_filter_summary <- function(filtered_data) {
 #' @examples
 #' # Full annual analysis
 #' results <- run_annual_analysis(2017, "Kusko")
+#'
+#' # Up to 50% cumulative CPUE
+#' results <- run_annual_analysis(2017, "Kusko", 
+#'                                filter_type = "cpue_50_cutoff")
 #'
 #' # Top 50% of CPUE days
 #' results <- run_annual_analysis(2017, "Kusko", 
@@ -314,16 +348,19 @@ run_annual_analysis <- function(year,
   output_dir <- if (watershed == "Kusko") PATHS$output_kusko else PATHS$output_yukon
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
-  # Create filename suffix based on filter
-  filename_suffix <- ""
-  if (filter_type != "none") {
-    if (filter_type == "cpue_percentile") {
-      filename_suffix <- paste0("_CPUE", cpue_lower, "-", cpue_upper)
-    } else if (filter_type == "date_range") {
-      filename_suffix <- paste0("_DOY", date_start, "-", date_end)
-    } else if (filter_type == "both") {
-      filename_suffix <- paste0("_CPUE", cpue_lower, "-", cpue_upper, "_DOY", date_start, "-", date_end)
-    }
+  # Create filename based on filter type
+  filename_base <- ""
+  if (filter_type == "cpue_50_cutoff") {
+    filename_base <- paste0("CPUE50pct_", year, "_", watershed, "_Assignment_Results")
+  } else if (filter_type == "cpue_percentile") {
+    filename_base <- paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_", year, "_", watershed, "_Assignment_Results")
+  } else if (filter_type == "date_range") {
+    filename_base <- paste0("DOY", date_start, "-", date_end, "_", year, "_", watershed, "_Assignment_Results")
+  } else if (filter_type == "both") {
+    filename_base <- paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_DOY", date_start, "-", date_end, "_", year, "_", watershed, "_Assignment_Results")
+  } else {
+    # Default for "none" filter type
+    filename_base <- paste0(year, "_", watershed, "_Assignment_Results")
   }
   
   edges_df <- st_drop_geometry(edges)
@@ -338,7 +375,7 @@ run_annual_analysis <- function(year,
   
   if (watershed == "Yukon") output_data$GenLMU <- edges_df$GenLMU
   
-  filepath <- file.path(output_dir, paste0(year, "_", watershed, "_Assignment_Results", filename_suffix, ".csv"))
+  filepath <- file.path(output_dir, paste0(filename_base, ".csv"))
   write_csv(output_data, filepath)
   
   cat(paste("  ✓ Exported:", filepath, "\n"))
@@ -367,8 +404,15 @@ run_annual_analysis <- function(year,
   ))
 }
 
-cat("✓ UPDATED Assignment.R loaded - NOW KEEPS ALL STREAM ORDERS\n")
-cat("  - Streams below min_stream_order threshold receive assignment = 0\n")
-cat("  - All streams appear in output CSV and maps\n")
-cat("Available filter types: 'none', 'cpue_percentile', 'date_range', 'both'\n")
-cat("See ?run_annual_analysis for detailed parameter descriptions\n")
+cat("✓ UPDATED Assignment.R loaded with 50% CPUE cutoff functionality\n")
+cat("Available filter types:\n")
+cat("  - 'none': Full annual analysis\n")
+cat("  - 'cpue_50_cutoff': Up to 50% cumulative CPUE (NEW)\n")
+cat("  - 'cpue_percentile': By daily CPUE percentile\n")
+cat("  - 'date_range': By day of year range\n")
+cat("  - 'both': Combine percentile and date range\n\n")
+cat("Usage examples:\n")
+cat("  # Full year\n")
+cat("  results <- run_annual_analysis(2017, 'Kusko')\n\n")
+cat("  # Up to 50% cumulative CPUE\n")
+cat("  results <- run_annual_analysis(2017, 'Kusko', filter_type = 'cpue_50_cutoff')\n")

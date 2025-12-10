@@ -1,6 +1,6 @@
 ################################################################################
 # CONSOLIDATED SALMON VISUALIZATION - WITH GENETIC COMPOSITION COLORING
-# UPDATED: Now handles all stream orders (below-threshold streams show as white/gray)
+# UPDATED: Now supports filter type parameter for consistent naming with CSVs
 ################################################################################
 
 library(ggplot2); library(RColorBrewer); library(scales); library(grid); library(sf); library(dplyr); library(tidyr)
@@ -72,15 +72,15 @@ create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
     geom_col(data = stacked_data,
              aes(y = cpue_segment, fill = genetic_group), alpha = 0.85, width = 0.8) +
     
-
+    
     # Color scale for genetic groups
     scale_fill_manual(values = genetic_colors, name = "Genetic Group") +
     
     # X-axis fixed from 150 to 190
     scale_x_continuous(
       limits = c(150, 190),
-      breaks = doy_breaks,
-      labels = doy_breaks
+      breaks = seq(150, 190, by = 10),
+      labels = seq(150, 190, by = 10)
     ) +
     
     # Y-axis limits (extended above to show line)
@@ -151,9 +151,41 @@ create_cpue_histogram_simple <- function(natal_data, year) {
 }
 
 #------------------------------------------------------------------------------
-# MAIN MAPPING FUNCTION - UPDATED
+# MAIN MAPPING FUNCTION - UPDATED WITH FILTER TYPE PARAMETER
 #------------------------------------------------------------------------------
-create_annual_map <- function(analysis_results, output_dir, year, watershed) {
+
+#' Create annual map with filter-type aware filename
+#'
+#' @param analysis_results List output from run_annual_analysis()
+#' @param output_dir Directory to save map
+#' @param year Year of analysis
+#' @param watershed Watershed name ("Kusko" or "Yukon")
+#' @param filter_type Character: "none", "cpue_percentile", "date_range", "both", or "cpue_50_cutoff"
+#' @param cpue_lower Lower CPUE percentile (for cpue_percentile filter)
+#' @param cpue_upper Upper CPUE percentile (for cpue_percentile filter)
+#' @param date_start Start DOY (for date_range filter)
+#' @param date_end End DOY (for date_range filter)
+#'
+#' @return Path to saved map file
+#'
+#' @examples
+#' # Full year map
+#' create_annual_map(results, output_dir, 2017, "Kusko")
+#'
+#' # 50% CPUE cutoff map
+#' create_annual_map(results, output_dir, 2017, "Kusko", 
+#'                   filter_type = "cpue_50_cutoff")
+#'
+#' # CPUE percentile map
+#' create_annual_map(results, output_dir, 2017, "Kusko",
+#'                   filter_type = "cpue_percentile",
+#'                   cpue_lower = 50, cpue_upper = 100)
+create_annual_map <- function(analysis_results, output_dir, year, watershed,
+                              filter_type = "none",
+                              cpue_lower = NULL,
+                              cpue_upper = NULL,
+                              date_start = NULL,
+                              date_end = NULL) {
   
   cat(paste("\n=== Creating map for", watershed, year, "===\n"))
   
@@ -171,8 +203,6 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   # White for zero assignments, gray for NA/missing data
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[is.na(basin_assign_norm)] <- 'gray80'  # For any NA values
-  # Stream order less then threshold will be slighly lighter grey 
-  
   
   if (watershed == "Yukon") {
     # YUKON: Assign colors to bins (0 = white, >0 gets colors)
@@ -188,10 +218,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
     colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
-    # colcode[basin_assign_norm > 0 & basin_assign_norm <=.4 ] <- palette_expanded[2]
-    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
-    # colcode[basin_assign_norm > 0.7 ] <- palette_expanded[9]
-    # LEGEND: Use the EXACT SAME colors that were assigned above
+    
     legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
     legend_colors <- c(palette_expanded[1], palette_expanded[4], palette_expanded[5], 
                        palette_expanded[7], palette_expanded[8], palette_expanded[9], 
@@ -200,24 +227,12 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   } else {
     # KUSKO: 0.1 intervals (10 bins)
     colcode[edges$Str_Order <= 2] <- 'gray70'
-    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
-    # colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
-    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
-    # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
-    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
-    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[6]
-    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
-    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
-    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
-    # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
     
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
     colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[6]
     colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.8] <- palette_expanded[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 1.0] <- palette_expanded[9]
-
-    
     
     legend_labels <- c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", 
                        "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
@@ -240,7 +255,6 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
     
     linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.1
     
-    
   } else {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
@@ -252,17 +266,28 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
                                                             ifelse(stream_order >= 3, 2.0, 1.0)))))))
     
     linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.1
-    
   }
   
   # 5. CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
   gg_hist <- create_cpue_histogram_genetic(natal_data, year, watershed)
   
-  # 6. CREATE OUTPUT FILE
+  # 6. CREATE OUTPUT FILENAME WITH FILTER TYPE
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  output_file <- file.path(output_dir, paste0("Annual_Production_", year, "_", watershed, ".png"))
   
-  png(file = output_file, width = 9, height = 8, units = "in", res = 300, bg = "white")
+  if (filter_type == "cpue_50_cutoff") {
+    map_filename <- file.path(output_dir, paste0("CPUE50pct_", year, "_", watershed, "_Annual_Production.png"))
+  } else if (filter_type == "cpue_percentile") {
+    map_filename <- file.path(output_dir, paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_", year, "_", watershed, "_Annual_Production.png"))
+  } else if (filter_type == "date_range") {
+    map_filename <- file.path(output_dir, paste0("DOY", date_start, "-", date_end, "_", year, "_", watershed, "_Annual_Production.png"))
+  } else if (filter_type == "both") {
+    map_filename <- file.path(output_dir, paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_DOY", date_start, "-", date_end, "_", year, "_", watershed, "_Annual_Production.png"))
+  } else {
+    # Default for "none" filter type
+    map_filename <- file.path(output_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
+  }
+  
+  png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   
   # 7. PLOT BASE MAP
   par(mar = c(8, 4, 4, 2), bg = "white")
@@ -281,24 +306,28 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed) {
   dev.off()
   par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
   
-  cat(paste("  ✓ Saved:", basename(output_file), "\n"))
+  cat(paste("  ✓ Saved:", basename(map_filename), "\n"))
   cat(paste("  ✓ Map includes ALL stream orders (white = zero assignment, colors = assignment values)\n"))
   
-  return(output_file)
+  return(map_filename)
 }
 
 #------------------------------------------------------------------------------
 # DOCUMENTATION
 #------------------------------------------------------------------------------
-cat("\n✓ UPDATED Visualization.R loaded with genetic composition coloring\n")
+cat("\n✓ UPDATED Visualization.R loaded with filter-type aware map naming\n")
 cat("New features:\n")
-cat("  - For Yukon: CPUE bars colored by genetic composition (Lower=green, Middle=orange)\n")
-cat("  - For Kusko: Simple tomato-colored CPUE histogram (no genetic data)\n")
-cat("  - Gray bars for days without genetic data (Yukon only)\n")
-cat("  - Genetic group legend integrated into histogram\n")
-cat("  - Now handles all stream orders (below-threshold appear as gray)\n\n")
-cat("Usage: create_annual_map(analysis_results, output_dir, year, watershed)\n")
-cat("Example: create_annual_map(results, '/path/to/output', 2017, 'Kusko')\n\n")
-
-# Uncomment to run:
-# map_file <- create_annual_map(results, "/Users/benjaminmakhlouf/Desktop/Maps", 2017, "Kusko")
+cat("  - Map filenames now match CSV naming convention\n")
+cat("  - Filter type is included at beginning of filename\n")
+cat("  - For Yukon: CPUE bars colored by genetic composition\n")
+cat("  - For Kusko: Simple tomato-colored CPUE histogram\n\n")
+cat("Map filename examples:\n")
+cat("  - Full year: 2017_Kusko_Annual_Production.png\n")
+cat("  - 50% CPUE: CPUE50pct_2017_Kusko_Annual_Production.png\n")
+cat("  - CPUE %: CPUE50-100pct_2017_Kusko_Annual_Production.png\n")
+cat("  - Date range: DOY160-183_2017_Kusko_Annual_Production.png\n")
+cat("  - Both: CPUE50-100pct_DOY160-183_2017_Kusko_Annual_Production.png\n\n")
+cat("Usage: create_annual_map(analysis_results, output_dir, year, watershed,\n")
+cat("                         filter_type = 'cpue_50_cutoff',\n")
+cat("                         cpue_lower = NULL, cpue_upper = NULL,\n")
+cat("                         date_start = NULL, date_end = NULL)\n\n")
