@@ -27,17 +27,17 @@ cat("  Yukon:    ", YUKON_OUTPUT, "\n\n")
 # KUSKOKWIM ANALYSIS
 ################################################################################
 
-# cat("=== PROCESSING KUSKOKWIM WATERSHED ===\n")
-# 
-# for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
-#   cat("\n--- Kuskokwim", year, "---\n")
-#   tryCatch({
-#     results <- run_annual_analysis(year, "Kusko")
-#     create_annual_map(results, KUSKO_OUTPUT, year, "Kusko")
-#   }, error = function(e) {
-#     cat("ERROR processing Kusko", year, ":", e$message, "\n")
-#   })
-# }
+cat("=== PROCESSING KUSKOKWIM WATERSHED ===\n")
+
+for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
+  cat("\n--- Kuskokwim", year, "---\n")
+  tryCatch({
+    results <- run_annual_analysis(year, "Kusko")
+    create_annual_map(results, KUSKO_OUTPUT, year, "Kusko")
+  }, error = function(e) {
+    cat("ERROR processing Kusko", year, ":", e$message, "\n")
+  })
+}
 
 ################################################################################
 # YUKON ANALYSIS

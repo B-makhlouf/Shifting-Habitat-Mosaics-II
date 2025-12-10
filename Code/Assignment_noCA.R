@@ -21,8 +21,8 @@ PATHS <- list(
 )
 
 PARAMS <- list(
-  Kusko = list(min_stream_order = 2, min_error = 0.0006, sensitivity_threshold = 0.7),
-  Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7)
+  Kusko = list(min_stream_order = 3, min_error = 0.0005, sensitivity_threshold = 0.7, max_error = .0010),
+  Yukon = list(min_stream_order = 3, min_error = 0.003, sensitivity_threshold = 0.7, max_error = NULL)
 )
 
 ################################################################################
@@ -232,7 +232,15 @@ run_annual_analysis <- function(year,
   # 4. CALCULATE ERROR
   pid_iso <- edges$iso_pred
   pid_isose <- edges$isose_pred
+  
+  # Apply lower bound
   pid_isose_mod <- ifelse(pid_isose < params$min_error, params$min_error, pid_isose)
+  
+  # Apply upper bound if specified
+  if (!is.null(params$max_error)) {
+    pid_isose_mod <- ifelse(pid_isose_mod > params$max_error, params$max_error, pid_isose_mod)
+  }
+  
   error <- sqrt(pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
   
   # 5. SETUP PRIORS
@@ -240,7 +248,7 @@ run_annual_analysis <- function(year,
   
   if (watershed == "Kusko") {
     pid_prior <- edges$UniPh2oNoE
-    PresencePrior <- ifelse((edges$Str_Order %in% c(5,6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(7)) & edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
   } else {
     pid_prior <- edges$PriorSl2
