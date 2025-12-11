@@ -101,7 +101,7 @@ for (rb in reachbases) {
   
   dev.off()
 }
-z
+
 # Export data frame
 export_path <- file.path(output_dir, "UpstreamReaches_Relationships.csv")
 write_csv(upstream_relationships, export_path)
