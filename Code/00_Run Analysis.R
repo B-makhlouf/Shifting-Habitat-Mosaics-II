@@ -5,8 +5,8 @@
 ################################################################################
 
 # Source the updated assignment and visualization scripts
-source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/Assignment_noCA.R")  # UPDATE PATH
-source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/Visualization.R")    # UPDATE PATH
+source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/00_Assignment_noCA.R")  # UPDATE PATH
+source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Code/00_Visualization.R")    # UPDATE PATH
 
 # Define output directories for all three watersheds
 BASE_MAPS_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps"
@@ -43,7 +43,7 @@ for (year in c(2017, 2018, 2019)) {
 }
 
 # YUKON FULL YEAR
-for (year in c(2015, 2016, 2017, 2018)) {
+for (year in c(2015, 2016, 2018, 2021)) {
   cat("\n--- Yukon", year, "---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Yukon")

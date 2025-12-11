@@ -382,6 +382,7 @@ run_annual_analysis <- function(year,
     assign_rescaled <- assign_norm / max(assign_norm)
     assign_rescaled[assign_rescaled < params$sensitivity_threshold] <- 0
     assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
+  
   }
   
   # 7. PROCESS RESULTS
@@ -390,11 +391,28 @@ run_annual_analysis <- function(year,
   # Handle case where sum is 0 (avoid division by zero)
   total_sum <- sum(basin_assign_sum, na.rm = TRUE)
   if (total_sum > 0) {
-    basin_assign_rescale <- basin_assign_sum / total_sum
-    basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
+    
+    basin_assign_rescale <- basin_assign_sum / total_sum # Everything needs to sum to 1 
+    basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE) # Normalize to max of 1
+    
+    # Read excel file here 
+    library(readxl)
+    runsizedat <- read_excel("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx")
+    
+    # filter for the correct watershed and year 
+    runsize<- runsizedat %>%
+      filter(River == watershed & Year == year)
+    
+    runsize<- as.numeric(runsize$Total_Run)
+
+    
+    # multiply the basin_assign_rescale by the total run size to get estimated production
+    basin_assign_individuals <- basin_assign_rescale * runsize
+  
   } else {
     basin_assign_rescale <- rep(0, length(basin_assign_sum))
     basin_assign_norm <- rep(0, length(basin_assign_sum))
+    basin_assign_individuals <- rep(0, length(basin_assign_sum))
   }
   
   cat(paste("  Total production:", round(sum(basin_assign_sum), 2), "\n"))
@@ -433,7 +451,8 @@ run_annual_analysis <- function(year,
     iso_pred = edges_df$iso_pred,
     assignment_sum = basin_assign_sum,
     assignment_rescale = basin_assign_rescale,
-    assignment_norm = basin_assign_norm
+    assignment_norm = basin_assign_norm,
+    assignment_individuals = basin_assign_individuals
   )
   
   # Add genetic info if applicable
@@ -472,17 +491,3 @@ run_annual_analysis <- function(year,
   ))
 }
 
-cat("\n✓ UPDATED Assignment.R loaded with Nushagak watershed support\n")
-cat("Supported watersheds: Kusko, Yukon, Nushagak\n")
-cat("Available filter types:\n")
-cat("  - 'none': Full annual analysis\n")
-cat("  - 'cpue_50_cutoff': Up to 50% cumulative CPUE\n")
-cat("  - 'cpue_percentile': By daily CPUE percentile\n")
-cat("  - 'date_range': By day of year range\n")
-cat("  - 'both': Combine percentile and date range\n\n")
-cat("Usage examples:\n")
-cat("  # Full year analysis - Nushagak\n")
-cat("  results <- run_annual_analysis(2020, 'Nushagak')\n\n")
-cat("  # 50% CPUE cutoff - Nushagak\n")
-cat("  results <- run_annual_analysis(2020, 'Nushagak', filter_type = 'cpue_50_cutoff')\n\n")
-cat("TODO: Update Nushagak-specific paths and parameters in PATHS and PARAMS lists\n")
