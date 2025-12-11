@@ -40,7 +40,7 @@ FindUpstreamReachID <- function(ReachID){
 
 # To test to see if it works 
 if(T){
-  TribReachIDs <- FindUpstreamReachID(17644)
+  TribReachIDs <- FindUpstreamReachID(1813)
   
   quartz()
   par(mfrow=c(1,1))
