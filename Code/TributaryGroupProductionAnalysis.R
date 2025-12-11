@@ -415,6 +415,149 @@ for (so in stream_orders) {
 }
 
 #------------------------------------------------------------------------------
+# COEFFICIENT OF VARIATION ANALYSIS
+#------------------------------------------------------------------------------
+
+cat("\nStep 7: Calculating coefficient of variation (CV) for each group...\n\n")
+
+# Calculate CV for each focal reach (group) across years
+# CV = sd / mean, but need to handle zeros
+# Strategy: only use years with positive production to calculate CV
+cv_analysis <- all_results %>%
+  filter(group_production > 0) %>%  # Only use positive production values
+  group_by(focal_reach, stream_order) %>%
+  summarise(
+    n_years_with_production = n(),
+    mean_production = mean(group_production, na.rm = TRUE),
+    sd_production = sd(group_production, na.rm = TRUE),
+    cv = sd_production / mean_production,  # Coefficient of variation
+    .groups = 'drop'
+  ) %>%
+  filter(!is.na(cv))  # Remove any NaN cases
+
+cat("Coefficient of Variation Summary:\n")
+cat("  Total groups with CV:", nrow(cv_analysis), "\n")
+cat("  Stream orders represented:", paste(sort(unique(cv_analysis$stream_order)), collapse = ", "), "\n\n")
+
+# Summary by stream order
+cv_summary <- cv_analysis %>%
+  group_by(stream_order) %>%
+  summarise(
+    n_groups = n(),
+    mean_cv = mean(cv, na.rm = TRUE),
+    median_cv = median(cv, na.rm = TRUE),
+    sd_cv = sd(cv, na.rm = TRUE),
+    min_cv = min(cv, na.rm = TRUE),
+    max_cv = max(cv, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+cat("CV by Stream Order:\n")
+print(cv_summary)
+
+#------------------------------------------------------------------------------
+# STUNNING BOXPLOT VISUALIZATION - CV BY STREAM ORDER
+#------------------------------------------------------------------------------
+
+cat("\nStep 8: Creating coefficient of variation boxplot...\n\n")
+
+# Modern color palette - matching reference image
+bg_color <- "#ffffff"  # white background
+text_color <- "#333333"
+grid_color <- "#e0e0e0"
+box_color <- "#ff5555"  # red/coral boxes
+outlier_color <- "#2c3e50"  # dark navy for outliers/whiskers
+
+# Prepare data for boxplot
+cv_data_for_plot <- cv_analysis %>%
+  mutate(stream_order_char = as.character(stream_order))
+
+# Set up the plot
+par(
+  bg = bg_color,
+  fg = text_color,
+  col.main = text_color,
+  col.lab = text_color,
+  col.axis = text_color,
+  mar = c(5, 5, 4, 2),
+  mgp = c(3, 0.8, 0),
+  family = "sans",
+  lwd = 1.5
+)
+
+# Create boxplot
+bp <- boxplot(
+  cv ~ stream_order,
+  data = cv_data_for_plot,
+  names = paste("Stream Order", c(5, 6, 7)),
+  main = "Coefficient of Variation by Stream Order",
+  xlab = "Stream Order",
+  ylab = "Coefficient of Variation",
+  bty = "l",
+  axes = FALSE,
+  outline = TRUE,
+  lwd = 1.5,
+  medlwd = 3,
+  whisklwd = 1.5,
+  staplelwd = 1.5,
+  cex.main = 1.4,
+  cex.lab = 1.1,
+  ylim = c(0, max(cv_data_for_plot$cv) * 1.1),
+  col = box_color,
+  border = outlier_color
+)
+
+# Add clean axes
+axis(1, lwd = 1.5, col = text_color, col.ticks = text_color, 
+     col.axis = text_color, family = "sans", cex.axis = 1, at = 1:3)
+axis(2, lwd = 1.5, col = text_color, col.ticks = text_color, 
+     col.axis = text_color, las = 1, family = "sans", cex.axis = 1)
+
+# Add horizontal gridlines
+abline(h = axTicks(2), col = grid_color, lwd = 0.8, lty = 1)
+
+# Re-draw median lines in black (much thicker and darker)
+for (i in 1:3) {
+  lines(c(i - 0.3, i + 0.3), c(bp$stats[3, i], bp$stats[3, i]), 
+        col = "#000000", lwd = 4.5)
+}
+
+# Add all individual points as dark navy circles with transparency
+for (i in 1:3) {
+  stream_order_val <- c(5, 6, 7)[i]
+  points_data <- cv_data_for_plot %>% filter(stream_order == stream_order_val)
+  
+  # Jittered points with high transparency
+  points(
+    jitter(rep(i, nrow(points_data)), amount = 0.15),
+    points_data$cv,
+    col = rgb(44, 62, 80, 80, maxColorValue = 255),  # Transparent navy
+    pch = 16,
+    cex = 1.2
+  )
+}
+
+#------------------------------------------------------------------------------
+# EXPORT CV RESULTS
+#------------------------------------------------------------------------------
+
+cat("\nStep 9: Exporting coefficient of variation results...\n\n")
+
+# Export CV analysis
+cv_file <- file.path(OUTPUT_DIR, paste0("TributaryGroups_CoefficientOfVariation", type_label, ".csv"))
+write_csv(cv_analysis, cv_file)
+cat("✓ Coefficient of Variation by group: \n")
+cat("  ", cv_file, "\n")
+cat("  Use for: analyzing production variability within each group\n\n")
+
+# Export CV summary by stream order
+cv_summary_file <- file.path(OUTPUT_DIR, paste0("TributaryGroups_CV_Summary", type_label, ".csv"))
+write_csv(cv_summary, cv_summary_file)
+cat("✓ CV summary by stream order:        \n")
+cat("  ", cv_summary_file, "\n")
+cat("  Use for: comparing CV distributions across stream orders\n\n")
+
+#------------------------------------------------------------------------------
 # SUMMARY AND INSTRUCTIONS
 #------------------------------------------------------------------------------
 
