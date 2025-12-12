@@ -404,8 +404,13 @@ run_annual_analysis <- function(year,
       filter(River == watershed & Year == year)
     
     runsize<- as.numeric(runsize$Total_Run)
-
     
+    # If its a half run, use only half the runsize, if its full use the whole run size 
+    if (filter_type == "cpue_50_cutoff") {
+      runsize <- runsize / 2
+    }
+    
+  
     # multiply the basin_assign_rescale by the total run size to get estimated production
     basin_assign_individuals <- basin_assign_rescale * runsize
   

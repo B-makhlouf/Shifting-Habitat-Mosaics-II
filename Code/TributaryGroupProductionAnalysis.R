@@ -182,7 +182,7 @@ summary_file <- file.path(OUTPUT_DIR, paste0("TributaryGroups_SummaryByStreamOrd
 write_csv(summary_by_order, summary_file)
 
 #------------------------------------------------------------------------------
-# TIMESERIES PLOTS BY STREAM ORDER (Z-NORMALIZED)
+# TIMESERIES PLOTS BY STREAM ORDER (Z-NORMALIZED AND RAW COUNTS)
 #------------------------------------------------------------------------------
 
 plot_data <- timeseries_pivot %>%
@@ -200,18 +200,22 @@ plot_data <- plot_data %>%
   ) %>%
   ungroup()
 
-avg_by_year <- plot_data %>%
+avg_by_year_z <- plot_data %>%
   group_by(year) %>%
   summarise(avg_individuals_z = mean(individuals_z, na.rm = TRUE), .groups = 'drop')
+
+avg_by_year_raw <- plot_data %>%
+  group_by(year) %>%
+  summarise(avg_individuals = mean(individuals, na.rm = TRUE), .groups = 'drop')
 
 bg_color <- "#2d3a42"
 text_color <- "#ffffff"
 grid_color <- "#4a5f67"
-line_color <- "#5eb3d6"
 trend_color <- "#1dd4d4"
 
 stream_orders <- sort(unique(plot_data$stream_order))
 
+# Z-NORMALIZED PLOTS
 for (so in stream_orders) {
   data_subset <- plot_data %>% filter(stream_order == so)
   
@@ -227,7 +231,7 @@ for (so in stream_orders) {
     lwd = 1.5
   )
   
-  y_range <- range(c(data_subset$individuals_z, avg_by_year$avg_individuals_z), na.rm = TRUE)
+  y_range <- range(c(data_subset$individuals_z, avg_by_year_z$avg_individuals_z), na.rm = TRUE)
   
   plot(
     range(data_subset$year),
@@ -258,11 +262,63 @@ for (so in stream_orders) {
           lwd = 0.8, type = "l")
   }
   
-  trend_data <- avg_by_year %>% arrange(year)
+  trend_data <- avg_by_year_z %>% arrange(year)
   lines(trend_data$year, trend_data$avg_individuals_z, 
         type = "l", col = trend_color, lwd = 3.5)
   
   abline(h = 0, lty = 2, col = grid_color, lwd = 1.2)
+}
+
+# RAW COUNT PLOTS
+for (so in stream_orders) {
+  data_subset <- plot_data %>% filter(stream_order == so)
+  
+  par(
+    bg = bg_color,
+    fg = text_color,
+    col.main = text_color,
+    col.lab = text_color,
+    col.axis = text_color,
+    mar = c(5, 5, 4, 2),
+    mgp = c(3, 0.8, 0),
+    family = "sans",
+    lwd = 1.5
+  )
+  
+  y_range <- range(c(data_subset$individuals, avg_by_year_raw$avg_individuals), na.rm = TRUE)
+  
+  plot(
+    range(data_subset$year),
+    y_range,
+    type = "n",
+    main = paste("Stream Order", so),
+    xlab = "Year",
+    ylab = "Number of Individuals",
+    las = 1,
+    bty = "n",
+    axes = FALSE,
+    cex.main = 1.4,
+    cex.lab = 1.1
+  )
+  
+  axis(1, lwd = 1.5, col = grid_color, col.ticks = grid_color, 
+       col.axis = text_color, family = "sans", cex.axis = 1)
+  axis(2, lwd = 1.5, col = grid_color, col.ticks = grid_color, 
+       col.axis = text_color, las = 1, family = "sans", cex.axis = 1)
+  
+  abline(h = axTicks(2), col = grid_color, lwd = 0.5, lty = 1)
+  
+  focal_reaches <- sort(unique(data_subset$focal_reach))
+  for (focal in focal_reaches) {
+    focal_data <- data_subset %>% filter(focal_reach == focal) %>% arrange(year)
+    lines(focal_data$year, focal_data$individuals, 
+          col = rgb(94, 179, 214, 80, maxColorValue = 255),
+          lwd = 0.8, type = "l")
+  }
+  
+  trend_data <- avg_by_year_raw %>% arrange(year)
+  lines(trend_data$year, trend_data$avg_individuals, 
+        type = "l", col = trend_color, lwd = 3.5)
 }
 
 #------------------------------------------------------------------------------
