@@ -68,7 +68,7 @@ KuskoNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-
 
 # Load Kuskokwim Shapefile
 ## Must be this version of the shapefile!
-kuskokwim_shapefile <- st_read('/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase2.shp')
+kuskokwim_shapefile <- st_read('/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase.shp')
 
 # Rename fromnode to child_s and tonode to parent_s
 KuskoNetwork <- KuskoNodes %>% rename(child_s = fromnode, parent_s = tonode)
@@ -126,7 +126,7 @@ FindUpstreamReachID_Kusk <- function(ReachID) {
 
 
 if(T){
-  TribReachIDs <- FindUpstreamReachID_Kusk(16724)
+  TribReachIDs <- FindUpstreamReachID_Kusk(12630)
   
   quartz()
   par(mfrow=c(1,1))
