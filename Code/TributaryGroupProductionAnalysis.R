@@ -4,6 +4,8 @@
 # 1. Yukon HALF-YEAR (2015, 2016, 2017, 2018, 2019, 2021)
 # 2. Yukon FULL-YEAR (2015, 2016, 2018, 2021)
 # 3. Kuskokwim FULL-YEAR (2017, 2018, 2019, 2020, 2021)
+#
+# UPDATED: Flexible plotting and analysis based on actual stream order counts
 ################################################################################
 
 library(readr)
@@ -78,6 +80,7 @@ results_summary <- data.frame(
   status = character(),
   years_processed = character(),
   n_tributary_groups = integer(),
+  n_stream_orders = integer(),
   basin_cv = numeric(),
   stringsAsFactors = FALSE
 )
@@ -116,6 +119,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
       status = "FAILED - upstream relationships file not found",
       years_processed = "",
       n_tributary_groups = 0,
+      n_stream_orders = 0,
       basin_cv = NA
     ))
     next
@@ -230,6 +234,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
       status = "FAILED - no data found",
       years_processed = "",
       n_tributary_groups = 0,
+      n_stream_orders = 0,
       basin_cv = NA
     ))
     next
@@ -324,7 +329,13 @@ for (scenario_idx in seq_along(SCENARIOS)) {
       min_cv = min(cv, na.rm = TRUE),
       max_cv = max(cv, na.rm = TRUE),
       .groups = 'drop'
-    )
+    ) %>%
+    arrange(stream_order)
+  
+  # Get actual unique stream orders (excluding 0 if present)
+  actual_stream_orders <- sort(unique(cv_analysis$stream_order))
+  actual_stream_orders <- actual_stream_orders[actual_stream_orders != 0]
+  n_stream_orders <- length(actual_stream_orders)
   
   # Export CV results
   cv_file <- file.path(config$data_output_dir, 
@@ -341,6 +352,8 @@ for (scenario_idx in seq_along(SCENARIOS)) {
   #============================================================================
   
   cat("\nCreating visualization:\n")
+  cat(sprintf("  Found %d unique stream orders: %s\n", 
+              n_stream_orders, paste(actual_stream_orders, collapse = ", ")))
   
   tryCatch({
     # Prepare data
@@ -365,40 +378,67 @@ for (scenario_idx in seq_along(SCENARIOS)) {
         basin_z = (basin_total_run - mean(basin_total_run, na.rm = TRUE)) / sd(basin_total_run, na.rm = TRUE)
       )
     
-    stream_orders <- sort(unique(plot_data$stream_order))
-    stream_orders_plot <- stream_orders
+    # Use actual stream orders from data
+    stream_orders_plot <- actual_stream_orders
     
     # Prepare CV data for boxplot
     cv_data_for_plot <- cv_analysis %>%
       mutate(stream_order_char = as.character(stream_order))
     
+    # DYNAMIC LAYOUT CALCULATION
+    # Create layout based on actual number of stream orders
+    n_plots <- n_stream_orders
+    
+    # Determine layout dimensions
+    if (n_plots == 1) {
+      n_rows <- 1
+      n_cols <- 2  # Stream order plot + boxplot
+      layout_matrix <- matrix(c(1, 2), nrow = 1, byrow = TRUE)
+      fig_height <- 6
+      fig_width <- 14
+    } else if (n_plots == 2) {
+      n_rows <- 2
+      n_cols <- 2  # 2 stream orders + 1 boxplot
+      layout_matrix <- matrix(c(1, 3, 2, 3), nrow = 2, byrow = TRUE)
+      fig_height <- 10
+      fig_width <- 14
+    } else if (n_plots == 3) {
+      n_rows <- 3
+      n_cols <- 2  # 3 stream orders + 1 boxplot
+      layout_matrix <- matrix(c(1, 4, 2, 4, 3, 4), nrow = 3, byrow = TRUE)
+      fig_height <- 14
+      fig_width <- 16
+    } else {
+      # For 4+ stream orders, create a 2-column layout
+      n_rows <- ceiling(n_plots / 2)
+      n_cols <- 3  # 2 stream order columns + 1 boxplot column
+      
+      # Create matrix with stream order plots on left/center, boxplot on right
+      layout_matrix <- matrix(0, nrow = n_rows, ncol = n_cols)
+      plot_counter <- 1
+      for (row in 1:n_rows) {
+        for (col in 1:2) {
+          if (plot_counter <= n_plots) {
+            layout_matrix[row, col] <- plot_counter
+            plot_counter <- plot_counter + 1
+          }
+        }
+      }
+      # Fill right column with boxplot indicator
+      layout_matrix[, 3] <- n_plots + 1
+      
+      fig_height <- 5 + (n_rows * 4)
+      fig_width <- 18
+    }
+    
     # Create combined figure
     png_file <- file.path(config$figure_output_dir, 
                           paste0("TributaryGroups_", config$name, "_Combined_Analysis", type_label, ".png"))
-    png(png_file, width = 16, height = 12, units = "in", res = 300, bg = "white")
+    png(png_file, width = fig_width, height = fig_height, units = "in", res = 300, bg = "white")
     
-    # Set up layout: Stream Orders in column 1; Boxplot spans all rows in column 2
-    if (length(stream_orders_plot) >= 3) {
-      layout_matrix <- matrix(
-        c(1, 4,
-          2, 4,
-          3, 4),
-        nrow = 3,
-        byrow = TRUE
-      )
-    } else {
-      layout_matrix <- matrix(
-        c(1, 3,
-          2, 3),
-        nrow = 2,
-        byrow = TRUE
-      )
-    }
-    
-    layout(layout_matrix, widths = c(3, 2))
+    layout(layout_matrix, widths = c(rep(1, n_cols - 1), 1.2))
     
     # Create timeseries plots for each stream order
-    n_plots <- min(length(stream_orders_plot), 3)
     for (plot_idx in 1:n_plots) {
       so <- stream_orders_plot[plot_idx]
       data_subset <- plot_data %>% filter(stream_order == so)
@@ -486,7 +526,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
       main = "CV by Stream Order",
       ylab = "Coefficient of Variation",
       xlab = "",
-      ylim = c(0, 1),
+      ylim = c(0, max(cv_data_for_plot$cv, na.rm = TRUE) * 1.15),
       col = "#ff5555",
       border = "#ffffff",
       las = 1,
@@ -504,6 +544,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
     
     dev.off()
     cat(sprintf("  ✓ Figure: %s\n", basename(png_file)))
+    cat(sprintf("  ✓ Figure dimensions: %d x %d inches\n", fig_width, fig_height))
     
   }, error = function(e) {
     cat(sprintf("  ✗ ERROR creating figure: %s\n", e$message))
@@ -517,6 +558,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
   cat(sprintf("  Status: ✓ COMPLETE\n"))
   cat(sprintf("  Years processed: %s\n", paste(years_processed, collapse = ", ")))
   cat(sprintf("  Tributary groups: %d\n", n_distinct(all_results$focal_reach)))
+  cat(sprintf("  Stream orders: %d (%s)\n", n_stream_orders, paste(actual_stream_orders, collapse = ", ")))
   cat(sprintf("  Basin-wide CV: %.4f\n", basin_cv))
   cat(sprintf("  Data directory: %s\n", config$data_output_dir))
   
@@ -528,6 +570,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
     status = "COMPLETE",
     years_processed = paste(years_processed, collapse = ", "),
     n_tributary_groups = n_distinct(all_results$focal_reach),
+    n_stream_orders = n_stream_orders,
     basin_cv = basin_cv
   ))
 }
@@ -544,7 +587,7 @@ cat("Summary of Results:\n")
 cat(paste(rep("-", 80), collapse = ""), "\n")
 
 print(results_summary %>% 
-        select(scenario, watershed, data_type, status, years_processed, n_tributary_groups, basin_cv))
+        select(scenario, watershed, data_type, status, years_processed, n_tributary_groups, n_stream_orders, basin_cv))
 
 cat(paste(rep("-", 80), collapse = ""), "\n\n")
 
