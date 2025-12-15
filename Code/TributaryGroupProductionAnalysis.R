@@ -1,9 +1,9 @@
 ################################################################################
-# TRIBUTARY GROUP PRODUCTION ANALYSIS (ENHANCED - BOTH WATERSHEDS)
-# Analyzes production within tributary groups (focal reach + all upstream tributaries)
-# 
-# ENHANCED: Toggle between full year and half year (50% CPUE cutoff) production data
-# UPDATED: Now processes both Yukon and Kuskokwim watersheds
+# TRIBUTARY GROUP PRODUCTION ANALYSIS - ALL THREE SCENARIOS
+# Master script to systematically run:
+# 1. Yukon HALF-YEAR (2015, 2016, 2017, 2018, 2019, 2021)
+# 2. Yukon FULL-YEAR (2015, 2016, 2018, 2021)
+# 3. Kuskokwim FULL-YEAR (2017, 2018, 2019, 2020, 2021)
 ################################################################################
 
 library(readr)
@@ -11,70 +11,113 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 
+cat("================================================================================\n")
+cat("TRIBUTARY GROUP PRODUCTION ANALYSIS - ALL SCENARIOS\n")
+cat("================================================================================\n\n")
+
 #==============================================================================
 # CONFIGURATION
 #==============================================================================
 
-DATA_TYPE <- "full_year"  # "full_year" or "half_year"
-WATERSHEDS <- c( "Kusko")  # Process both watersheds
-
 # Base paths
 BASE_DATA_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II"
 
-# Watershed-specific configuration
-WATERSHED_CONFIG <- list(
-  Yukon = list(
+# ESA escapement data (shared across all scenarios)
+ESCAPEMENT_FILE <- "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx"
+
+# Define all three scenarios
+SCENARIOS <- list(
+  # Scenario 1: Yukon Half-Year
+  list(
+    name = "Yukon_HalfYear",
+    watershed = "Yukon",
+    data_type = "half_year",
+    years = c(2015, 2016, 2017, 2018, 2019, 2021),
     upstream_relationships = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/UpstreamReaches_Relationships.csv"),
     prod_data_dir = file.path(BASE_DATA_DIR, "AnnualProdData/Yukon"),
-    data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Yukon"),
-    figure_output_dir = file.path(BASE_DATA_DIR, "Figures/UpstreamReachesbyStrOrd/Yukon/ProdByYear"),
-    years = c(2015, 2016, 2017, 2018, 2019, 2021)
+    data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Yukon_HalfYear"),
+    figure_output_dir = file.path(BASE_DATA_DIR, "Figures/CVbyStrOrd"),
+    file_pattern = "CPUE50pct_.*_Yukon_Assignment_Results\\.csv$"
   ),
-  Kusko = list(
+  
+  # Scenario 2: Yukon Full-Year
+  list(
+    name = "Yukon_FullYear",
+    watershed = "Yukon",
+    data_type = "full_year",
+    years = c(2015, 2016, 2018, 2021),
+    upstream_relationships = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/UpstreamReaches_Relationships.csv"),
+    prod_data_dir = file.path(BASE_DATA_DIR, "AnnualProdData/Yukon"),
+    data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Yukon_FullYear"),
+    figure_output_dir = file.path(BASE_DATA_DIR, "Figures/CVbyStrOrd"),
+    file_pattern = "^\\d{4}_Yukon_Assignment_Results\\.csv$"
+  ),
+  
+  # Scenario 3: Kuskokwim Full-Year
+  list(
+    name = "Kusko_FullYear",
+    watershed = "Kusko",
+    data_type = "full_year",
+    years = c(2017, 2018, 2019, 2020, 2021),
     upstream_relationships = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/Kusko_UpstreamReaches_Relationships.csv"),
     prod_data_dir = file.path(BASE_DATA_DIR, "AnnualProdData/Kusko"),
-    data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Kusko"),
-    figure_output_dir = file.path(BASE_DATA_DIR, "Figures/UpstreamReachesbyStrOrd/Kuskokwim/ProdByYear"),
-    years = c(2017, 2018, 2019, 2020, 2021, 2022)
+    data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Kusko_FullYear"),
+    figure_output_dir = file.path(BASE_DATA_DIR, "Figures/CVbyStrOrd"),
+    file_pattern = "^\\d{4}_Kusko_Assignment_Results\\.csv$"
   )
 )
 
-# Validate data type
-if (!(DATA_TYPE %in% c("full_year", "half_year"))) {
-  stop("DATA_TYPE must be 'full_year' or 'half_year'")
-}
-
-type_label <- ifelse(DATA_TYPE == "full_year", "", "_HalfYear")
-file_pattern <- ifelse(DATA_TYPE == "full_year", 
-                       "_Assignment_Results\\.csv$",
-                       "CPUE50pct_.*_Assignment_Results\\.csv$")
-
-# ESA escapement data
-ESCAPEMENT_FILE <- "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx"
-
 #==============================================================================
-# PROCESS EACH WATERSHED
+# PROCESS EACH SCENARIO
 #==============================================================================
 
-for (watershed in WATERSHEDS) {
+results_summary <- data.frame(
+  scenario = character(),
+  watershed = character(),
+  data_type = character(),
+  status = character(),
+  years_processed = character(),
+  n_tributary_groups = integer(),
+  basin_cv = numeric(),
+  stringsAsFactors = FALSE
+)
+
+for (scenario_idx in seq_along(SCENARIOS)) {
+  
+  config <- SCENARIOS[[scenario_idx]]
   
   cat("\n", paste(rep("=", 80), collapse = ""), "\n", sep = "")
-  cat(paste("Processing", watershed, "tributary groups\n"))
+  cat(sprintf("SCENARIO %d: %s\n", scenario_idx, config$name))
+  cat(sprintf("Watershed: %s | Data Type: %s\n", config$watershed, config$data_type))
+  cat(sprintf("Years: %s\n", paste(config$years, collapse = ", ")))
   cat(paste(rep("=", 80), collapse = ""), "\n\n", sep = "")
-  
-  config <- WATERSHED_CONFIG[[watershed]]
   
   # Create output directories
   dir.create(config$data_output_dir, recursive = TRUE, showWarnings = FALSE)
   dir.create(config$figure_output_dir, recursive = TRUE, showWarnings = FALSE)
   
+  cat("Creating output directories...\n")
+  cat(sprintf("  Data: %s\n", config$data_output_dir))
+  cat(sprintf("  Figures: %s\n", config$figure_output_dir))
+  
   #============================================================================
-  # LOAD DATA
+  # LOAD UPSTREAM RELATIONSHIPS
   #============================================================================
   
+  cat("\nLoading upstream relationships...")
+  
   if (!file.exists(config$upstream_relationships)) {
-    cat("WARNING: Upstream relationships file not found for", watershed, "\n")
-    cat("  Path:", config$upstream_relationships, "\n")
+    cat(" ✗ FAILED\n")
+    cat(sprintf("  ERROR: File not found: %s\n", config$upstream_relationships))
+    results_summary <- rbind(results_summary, data.frame(
+      scenario = config$name,
+      watershed = config$watershed,
+      data_type = config$data_type,
+      status = "FAILED - upstream relationships file not found",
+      years_processed = "",
+      n_tributary_groups = 0,
+      basin_cv = NA
+    ))
     next
   }
   
@@ -92,82 +135,103 @@ for (watershed in WATERSHEDS) {
     distinct() %>%
     rename(reach_in_group = tributary_reach)
   
+  cat(" ✓\n")
+  cat(sprintf("  Loaded %d tributary groups\n", n_distinct(groups$focal_reach)))
+  
   #============================================================================
   # PROCESS EACH YEAR
   #============================================================================
   
+  cat("\nProcessing years:\n")
+  
   all_results <- data.frame()
+  years_processed <- vector()
   
   for (year in config$years) {
     
     # Load basin run data
-    basin_data <- read_xlsx(ESCAPEMENT_FILE)
-    basin_total_run <- basin_data %>%
-      filter(River == watershed, Year == year) %>%
-      pull(Total_Run)
-    
-    if (length(basin_total_run) == 0) {
-      cat("  SKIP", year, "- no escapement data\n")
-      next
-    }
-    
-    # Load production data
-    all_files <- list.files(config$prod_data_dir, full.names = TRUE)
-    matching_files <- all_files[grepl(paste0(year), basename(all_files)) & 
-                                  grepl(paste0("_", watershed, "_Assignment_Results"), basename(all_files)) &
-                                  grepl(file_pattern, basename(all_files))]
-    
-    if (length(matching_files) == 0) {
-      cat("  SKIP", year, "- no production data\n")
-      next
-    }
-    
-    prod_data <- read_csv(matching_files[1], show_col_types = FALSE)
-    
-    if (!all(c("reachid", "assignment_individuals") %in% names(prod_data))) {
-      cat("  SKIP", year, "- missing required columns\n")
-      next
-    }
-    
-    cat("  Processing", year, "...\n")
-    
-    # Calculate production for each tributary group
-    unique_focal <- groups %>% distinct(focal_reach, stream_order)
-    
-    for (i in 1:nrow(unique_focal)) {
-      focal_id <- unique_focal$focal_reach[i]
-      so <- unique_focal$stream_order[i]
+    tryCatch({
+      basin_data <- read_xlsx(ESCAPEMENT_FILE)
+      basin_total_run <- basin_data %>%
+        filter(River == config$watershed, Year == year) %>%
+        pull(Total_Run)
       
-      group_reaches <- groups %>%
-        filter(focal_reach == focal_id) %>%
-        pull(reach_in_group)
+      if (length(basin_total_run) == 0) {
+        cat(sprintf("  %d - SKIPPED (no escapement data)\n", year))
+        next
+      }
       
-      group_individuals <- sum(
-        prod_data$assignment_individuals[prod_data$reachid %in% group_reaches],
-        na.rm = TRUE
-      )
+      # Load production data
+      all_files <- list.files(config$prod_data_dir, full.names = TRUE)
+      matching_files <- all_files[grepl(paste0(year), basename(all_files)) & 
+                                    grepl(paste0("_", config$watershed, "_Assignment_Results"), basename(all_files)) &
+                                    grepl(config$file_pattern, basename(all_files))]
       
-      n_reaches_total <- length(group_reaches)
-      n_reaches_with_prod <- sum(
-        prod_data$reachid %in% group_reaches & prod_data$assignment_individuals > 0,
-        na.rm = TRUE
-      )
+      if (length(matching_files) == 0) {
+        cat(sprintf("  %d - SKIPPED (no matching production file)\n", year))
+        next
+      }
       
-      all_results <- rbind(all_results, data.frame(
-        year = year,
-        stream_order = so,
-        focal_reach = focal_id,
-        group_individuals = group_individuals,
-        n_reaches_in_group = n_reaches_total,
-        n_reaches_with_production = n_reaches_with_prod,
-        basin_total_run = basin_total_run,
-        stringsAsFactors = FALSE
-      ))
-    }
+      prod_data <- read_csv(matching_files[1], show_col_types = FALSE)
+      
+      if (!all(c("reachid", "assignment_individuals") %in% names(prod_data))) {
+        cat(sprintf("  %d - SKIPPED (missing required columns)\n", year))
+        next
+      }
+      
+      # Calculate production for each tributary group
+      unique_focal <- groups %>% distinct(focal_reach, stream_order)
+      
+      for (i in 1:nrow(unique_focal)) {
+        focal_id <- unique_focal$focal_reach[i]
+        so <- unique_focal$stream_order[i]
+        
+        group_reaches <- groups %>%
+          filter(focal_reach == focal_id) %>%
+          pull(reach_in_group)
+        
+        group_individuals <- sum(
+          prod_data$assignment_individuals[prod_data$reachid %in% group_reaches],
+          na.rm = TRUE
+        )
+        
+        n_reaches_total <- length(group_reaches)
+        n_reaches_with_prod <- sum(
+          prod_data$reachid %in% group_reaches & prod_data$assignment_individuals > 0,
+          na.rm = TRUE
+        )
+        
+        all_results <- rbind(all_results, data.frame(
+          year = year,
+          stream_order = so,
+          focal_reach = focal_id,
+          group_individuals = group_individuals,
+          n_reaches_in_group = n_reaches_total,
+          n_reaches_with_production = n_reaches_with_prod,
+          basin_total_run = basin_total_run,
+          stringsAsFactors = FALSE
+        ))
+      }
+      
+      years_processed <- c(years_processed, year)
+      cat(sprintf("  %d - ✓ (%d tributary groups)\n", year, nrow(unique_focal)))
+      
+    }, error = function(e) {
+      cat(sprintf("  %d - ERROR: %s\n", year, e$message))
+    })
   }
   
   if (nrow(all_results) == 0) {
-    cat("WARNING: No data found for", watershed, "\n")
+    cat("\n✗ NO DATA FOUND - skipping this scenario\n")
+    results_summary <- rbind(results_summary, data.frame(
+      scenario = config$name,
+      watershed = config$watershed,
+      data_type = config$data_type,
+      status = "FAILED - no data found",
+      years_processed = "",
+      n_tributary_groups = 0,
+      basin_cv = NA
+    ))
     next
   }
   
@@ -175,11 +239,15 @@ for (watershed in WATERSHEDS) {
   # EXPORT RESULTS
   #============================================================================
   
+  cat("\nExporting results:\n")
+  
+  type_label <- ifelse(config$data_type == "full_year", "", "_HalfYear")
+  
   # Long format (detailed)
   detailed_file <- file.path(config$data_output_dir, 
                              paste0("TributaryGroups_Individuals_LongFormat", type_label, ".csv"))
   write_csv(all_results, detailed_file)
-  cat("  ✓ Long format:", basename(detailed_file), "\n")
+  cat(sprintf("  ✓ Long format: %s\n", basename(detailed_file)))
   
   # Timeseries (wide format)
   timeseries_pivot <- all_results %>%
@@ -198,7 +266,7 @@ for (watershed in WATERSHEDS) {
   timeseries_file <- file.path(config$data_output_dir, 
                                paste0("TributaryGroups_Individuals_Timeseries", type_label, ".csv"))
   write_csv(timeseries_pivot, timeseries_file)
-  cat("  ✓ Timeseries:", basename(timeseries_file), "\n")
+  cat(sprintf("  ✓ Timeseries: %s\n", basename(timeseries_file)))
   
   # Summary by stream order
   summary_by_order <- all_results %>%
@@ -215,34 +283,11 @@ for (watershed in WATERSHEDS) {
   summary_file <- file.path(config$data_output_dir, 
                             paste0("TributaryGroups_SummaryByStreamOrder", type_label, ".csv"))
   write_csv(summary_by_order, summary_file)
-  cat("  ✓ Summary:", basename(summary_file), "\n")
+  cat(sprintf("  ✓ Summary: %s\n", basename(summary_file)))
   
   #============================================================================
-  # TIMESERIES DATA PREPARATION & CV ANALYSIS
+  # COEFFICIENT OF VARIATION ANALYSIS
   #============================================================================
-  
-  plot_data <- timeseries_pivot %>%
-    pivot_longer(
-      cols = starts_with("Year_"),
-      names_to = "year",
-      values_to = "individuals"
-    ) %>%
-    mutate(year = as.numeric(gsub("Year_", "", year))) %>%
-    group_by(focal_reach) %>%
-    mutate(
-      individuals_z = (individuals - mean(individuals, na.rm = TRUE)) / sd(individuals, na.rm = TRUE)
-    ) %>%
-    ungroup()
-  
-  # Calculate basin-wide production timeseries (z-normalized)
-  basin_timeseries <- all_results %>%
-    distinct(year, basin_total_run) %>%
-    arrange(year) %>%
-    mutate(
-      basin_z = (basin_total_run - mean(basin_total_run, na.rm = TRUE)) / sd(basin_total_run, na.rm = TRUE)
-    )
-  
-  stream_orders <- sort(unique(plot_data$stream_order))
   
   # CV by tributary group
   cv_analysis <- all_results %>%
@@ -285,146 +330,242 @@ for (watershed in WATERSHEDS) {
   cv_file <- file.path(config$data_output_dir, 
                        paste0("TributaryGroups_CoefficientOfVariation", type_label, ".csv"))
   write_csv(cv_analysis, cv_file)
-  cat("  ✓ CV analysis:", basename(cv_file), "\n")
   
   cv_summary_file <- file.path(config$data_output_dir, 
                                paste0("TributaryGroups_CV_Summary", type_label, ".csv"))
   write_csv(cv_summary, cv_summary_file)
+  cat(sprintf("  ✓ CV analysis: %s\n", basename(cv_file)))
   
   #============================================================================
   # VISUALIZATION
   #============================================================================
   
-  # Prepare CV data for boxplot
-  cv_data_for_plot <- cv_analysis %>%
-    mutate(stream_order_char = as.character(stream_order))
+  cat("\nCreating visualization:\n")
   
-  # Create combined figure
-  png_file <- file.path(config$figure_output_dir, 
-                        paste0("TributaryGroups_Combined_Analysis", type_label, ".png"))
-  png(png_file, width = 16, height = 12, units = "in", res = 300, bg = "white")
-  
-  # Set up layout: Stream Orders in column 1; Boxplot spans all rows in column 2
-  layout_matrix <- matrix(
-    c(1, 4,
-      2, 4,
-      3, 4),
-    nrow = 3,
-    byrow = TRUE
-  )
-  
-  layout(layout_matrix, widths = c(3, 2))
-  
-  # Reorder stream orders for plotting: smallest, largest, middle (for better layout)
-  stream_orders_plot <- sort(stream_orders)
-  if (length(stream_orders_plot) > 3) {
-    stream_orders_plot <- stream_orders_plot[c(1, length(stream_orders_plot), 2)]
-  }
-  
-  # Create timeseries plots for each stream order
-  for (i in seq_along(stream_orders_plot)) {
-    so <- stream_orders_plot[i]
-    data_subset <- plot_data %>% filter(stream_order == so)
+  tryCatch({
+    # Prepare data
+    plot_data <- timeseries_pivot %>%
+      pivot_longer(
+        cols = starts_with("Year_"),
+        names_to = "year",
+        values_to = "individuals"
+      ) %>%
+      mutate(year = as.numeric(gsub("Year_", "", year))) %>%
+      group_by(focal_reach) %>%
+      mutate(
+        individuals_z = (individuals - mean(individuals, na.rm = TRUE)) / sd(individuals, na.rm = TRUE)
+      ) %>%
+      ungroup()
     
+    # Calculate basin-wide production timeseries (z-normalized)
+    basin_timeseries <- all_results %>%
+      distinct(year, basin_total_run) %>%
+      arrange(year) %>%
+      mutate(
+        basin_z = (basin_total_run - mean(basin_total_run, na.rm = TRUE)) / sd(basin_total_run, na.rm = TRUE)
+      )
+    
+    stream_orders <- sort(unique(plot_data$stream_order))
+    stream_orders_plot <- stream_orders
+    
+    # Prepare CV data for boxplot
+    cv_data_for_plot <- cv_analysis %>%
+      mutate(stream_order_char = as.character(stream_order))
+    
+    # Create combined figure
+    png_file <- file.path(config$figure_output_dir, 
+                          paste0("TributaryGroups_", config$name, "_Combined_Analysis", type_label, ".png"))
+    png(png_file, width = 16, height = 12, units = "in", res = 300, bg = "white")
+    
+    # Set up layout: Stream Orders in column 1; Boxplot spans all rows in column 2
+    if (length(stream_orders_plot) >= 3) {
+      layout_matrix <- matrix(
+        c(1, 4,
+          2, 4,
+          3, 4),
+        nrow = 3,
+        byrow = TRUE
+      )
+    } else {
+      layout_matrix <- matrix(
+        c(1, 3,
+          2, 3),
+        nrow = 2,
+        byrow = TRUE
+      )
+    }
+    
+    layout(layout_matrix, widths = c(3, 2))
+    
+    # Create timeseries plots for each stream order
+    n_plots <- min(length(stream_orders_plot), 3)
+    for (plot_idx in 1:n_plots) {
+      so <- stream_orders_plot[plot_idx]
+      data_subset <- plot_data %>% filter(stream_order == so)
+      
+      par(
+        bg = "#2d3a42",
+        fg = "#ffffff",
+        col.main = "#ffffff",
+        col.lab = "#ffffff",
+        col.axis = "#ffffff",
+        mar = c(4, 5, 3, 1),
+        mgp = c(3, 0.8, 0),
+        family = "sans",
+        lwd = 1.5
+      )
+      
+      y_range <- range(c(data_subset$individuals_z, basin_timeseries$basin_z), na.rm = TRUE)
+      
+      plot(
+        range(data_subset$year),
+        y_range,
+        type = "n",
+        main = paste("Stream Order", so),
+        xlab = if(plot_idx == n_plots) "Year" else "",
+        ylab = "Z-normalized Individuals",
+        las = 1,
+        bty = "n",
+        axes = FALSE,
+        cex.main = 1.3,
+        cex.lab = 1.0
+      )
+      
+      axis(1, lwd = 1.5, col = "#4a5f67", col.ticks = "#4a5f67", col.axis = "#ffffff")
+      axis(2, lwd = 1.5, col = "#4a5f67", col.ticks = "#4a5f67", col.axis = "#ffffff", las = 1)
+      
+      abline(h = axTicks(2), col = "#4a5f67", lwd = 0.5, lty = 1)
+      
+      # Plot individual groups
+      focal_reaches <- sort(unique(data_subset$focal_reach))
+      for (focal in focal_reaches) {
+        focal_data <- data_subset %>% filter(focal_reach == focal) %>% arrange(year)
+        lines(focal_data$year, focal_data$individuals_z, 
+              col = rgb(94, 179, 214, 80, maxColorValue = 255),
+              lwd = 0.8)
+      }
+      
+      # Plot basin-wide production trend line
+      lines(basin_timeseries$year, basin_timeseries$basin_z, 
+            type = "l", col = "#1dd4d4", lwd = 3.5)
+      
+      # Add points to the basin trend line
+      points(basin_timeseries$year, basin_timeseries$basin_z,
+             pch = 19, col = "#1dd4d4", cex = 2)
+      
+      # Add text labels showing actual run values next to each point
+      for (i in 1:nrow(basin_timeseries)) {
+        text(basin_timeseries$year[i], 
+             basin_timeseries$basin_z[i],
+             labels = format(round(basin_timeseries$basin_total_run[i]), big.mark = ","),
+             col = "#ffffff",
+             cex = 1.2,
+             pos = 3,  # position above the point
+             offset = 0.5,
+             font = 2)  # bold
+      }
+      
+      abline(h = 0, lty = 2, col = "#4a5f67", lwd = 1.2)
+    }
+    
+    # Create boxplot on the right
     par(
       bg = "#2d3a42",
       fg = "#ffffff",
       col.main = "#ffffff",
       col.lab = "#ffffff",
       col.axis = "#ffffff",
-      mar = c(4, 5, 3, 1),
+      mar = c(4, 4, 3, 2),
       mgp = c(3, 0.8, 0),
-      family = "sans",
-      lwd = 1.5
+      family = "sans"
     )
     
-    y_range <- range(c(data_subset$individuals_z, basin_timeseries$basin_z), na.rm = TRUE)
-    
-    plot(
-      range(data_subset$year),
-      y_range,
-      type = "n",
-      main = paste("Stream Order", so),
-      xlab = if(i == length(stream_orders_plot)) "Year" else "",
-      ylab = "Z-normalized Individuals",
+    boxplot(
+      cv ~ stream_order_char,
+      data = cv_data_for_plot,
+      main = "CV by Stream Order",
+      ylab = "Coefficient of Variation",
+      xlab = "",
+      ylim = c(0, 1),
+      col = "#ff5555",
+      border = "#ffffff",
       las = 1,
-      bty = "n",
-      axes = FALSE,
-      cex.main = 1.3,
-      cex.lab = 1.0
+      cex.main = 1.2,
+      cex.lab = 0.9,
+      cex.axis = 0.85,
+      outline = TRUE,
+      pch = 19
     )
     
-    axis(1, lwd = 1.5, col = "#4a5f67", col.ticks = "#4a5f67", col.axis = "#ffffff", 
-         labels = if(i == 3) TRUE else FALSE)
-    axis(2, lwd = 1.5, col = "#4a5f67", col.ticks = "#4a5f67", col.axis = "#ffffff", las = 1)
+    # Add basin CV reference line
+    abline(h = basin_cv, lty = 2, col = "#1dd4d4", lwd = 4)
+    legend("topright", legend = paste("Basin CV =", round(basin_cv, 3)), 
+           lty = 2, col = "#1dd4d4", bty = "n", cex = 0.8, text.col = "#ffffff")
     
-    abline(h = axTicks(2), col = "#4a5f67", lwd = 0.5, lty = 1)
+    dev.off()
+    cat(sprintf("  ✓ Figure: %s\n", basename(png_file)))
     
-    # Plot individual groups
-    focal_reaches <- sort(unique(data_subset$focal_reach))
-    for (focal in focal_reaches) {
-      focal_data <- data_subset %>% filter(focal_reach == focal) %>% arrange(year)
-      lines(focal_data$year, focal_data$individuals_z, 
-            col = rgb(94, 179, 214, 80, maxColorValue = 255),
-            lwd = 0.8)
-    }
-    
-    # Plot basin-wide production trend line (z-normalized)
-    lines(basin_timeseries$year, basin_timeseries$basin_z, 
-          type = "l", col = "#1dd4d4", lwd = 3.5)
-    
-    abline(h = 0, lty = 2, col = "#4a5f67", lwd = 1.2)
-  }
-  
-  # Create boxplot on the right
-  par(
-    bg = "#2d3a42",
-    fg = "#ffffff",
-    col.main = "#ffffff",
-    col.lab = "#ffffff",
-    col.axis = "#ffffff",
-    mar = c(4, 4, 3, 2),
-    mgp = c(3, 0.8, 0),
-    family = "sans"
-  )
-  
-  boxplot(
-    cv ~ stream_order_char,
-    data = cv_data_for_plot,
-    main = "CV by Stream Order",
-    ylab = "Coefficient of Variation",
-    xlab = "",
-    ylim = c(0, 1), 
-    col = "#ff5555",
-    border = "#ffffff",
-    las = 1,
-    cex.main = 1.2,
-    cex.lab = 0.9,
-    cex.axis = 0.85,
-    outline = TRUE,
-    pch = 19
-  )
-  
-  # Add basin CV reference line
-  abline(h = basin_cv, lty = 2, col = "#1dd4d4", lwd = 4)
-  legend("topright", legend = paste("Basin CV =", round(basin_cv, 3)), 
-         lty = 2, col = "#1dd4d4", bty = "n", cex = 0.8, text.col = "#ffffff")
-  
-  dev.off()
-  cat("  ✓ Figure:", basename(png_file), "\n")
+  }, error = function(e) {
+    cat(sprintf("  ✗ ERROR creating figure: %s\n", e$message))
+  })
   
   #============================================================================
-  # SUMMARY OUTPUT
+  # SUMMARY FOR THIS SCENARIO
   #============================================================================
   
-  cat("\n", watershed, "Summary:\n")
-  cat("  Years analyzed:", paste(sort(unique(all_results$year)), collapse = ", "), "\n")
-  cat("  Stream orders:", paste(sort(unique(all_results$stream_order)), collapse = ", "), "\n")
-  cat("  Tributary groups:", n_distinct(all_results$focal_reach), "\n")
-  cat("  Basin-wide CV:", round(basin_cv, 4), "\n")
-  cat("  Output directory: ", config$data_output_dir, "\n\n")
+  cat("\nScenario Summary:\n")
+  cat(sprintf("  Status: ✓ COMPLETE\n"))
+  cat(sprintf("  Years processed: %s\n", paste(years_processed, collapse = ", ")))
+  cat(sprintf("  Tributary groups: %d\n", n_distinct(all_results$focal_reach)))
+  cat(sprintf("  Basin-wide CV: %.4f\n", basin_cv))
+  cat(sprintf("  Data directory: %s\n", config$data_output_dir))
+  
+  # Add to results summary
+  results_summary <- rbind(results_summary, data.frame(
+    scenario = config$name,
+    watershed = config$watershed,
+    data_type = config$data_type,
+    status = "COMPLETE",
+    years_processed = paste(years_processed, collapse = ", "),
+    n_tributary_groups = n_distinct(all_results$focal_reach),
+    basin_cv = basin_cv
+  ))
 }
 
-cat("\n=== ANALYSIS COMPLETE ===\n")
-cat("Processing:", paste(WATERSHEDS, collapse = " & "), "\n")
-cat("Data type:", DATA_TYPE, "\n")
+#==============================================================================
+# FINAL SUMMARY
+#==============================================================================
+
+cat("\n\n", paste(rep("=", 80), collapse = ""), "\n", sep = "")
+cat("ALL SCENARIOS COMPLETE\n")
+cat(paste(rep("=", 80), collapse = ""), "\n\n", sep = "")
+
+cat("Summary of Results:\n")
+cat(paste(rep("-", 80), collapse = ""), "\n")
+
+print(results_summary %>% 
+        select(scenario, watershed, data_type, status, years_processed, n_tributary_groups, basin_cv))
+
+cat(paste(rep("-", 80), collapse = ""), "\n\n")
+
+cat("Output Directory Structure:\n")
+cat("  Base directory: /Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/\n\n")
+
+cat("Data Output Directories (by scenario):\n")
+for (scenario in SCENARIOS) {
+  cat(sprintf("  %s:\n", scenario$name))
+  cat(sprintf("    %s\n", scenario$data_output_dir))
+}
+
+cat("\nFigure Output Directory (all scenarios):\n")
+cat("  /Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/CVbyStrOrd\n\n")
+
+cat("\nFiles created per scenario:\n")
+cat("  - TributaryGroups_Individuals_LongFormat[_HalfYear].csv\n")
+cat("  - TributaryGroups_Individuals_Timeseries[_HalfYear].csv\n")
+cat("  - TributaryGroups_SummaryByStreamOrder[_HalfYear].csv\n")
+cat("  - TributaryGroups_CoefficientOfVariation[_HalfYear].csv\n")
+cat("  - TributaryGroups_CV_Summary[_HalfYear].csv\n")
+cat("  - TributaryGroups_Combined_Analysis[_HalfYear].png\n")
+
+cat("\n✓ Analysis complete! All scenarios processed successfully.\n\n")
