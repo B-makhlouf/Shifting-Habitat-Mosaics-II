@@ -202,7 +202,7 @@ for (rb in kusko_reachbases) {
 
 # Export data frame
 kusko_export_path <- paste0(
-  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/SameTrib",
+  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/SameTrib/",
   "Kusko_UpstreamReaches_ByStreamOrder.csv"
 )
 
@@ -211,3 +211,63 @@ write_csv(kusko_upstream_by_streamorder, kusko_export_path)
 cat("\nKuskokwim upstream reaches by stream order exported to:", kusko_export_path, "\n")
 cat("Total records:", nrow(kusko_upstream_by_streamorder), "\n")
 cat("Unique tributary groups:", n_distinct(kusko_upstream_by_streamorder$tributary_group_id), "\n")
+
+
+
+
+#------------------------------------------------------------------------------
+# FUNCTION: Map a single tributary group for visual inspection
+#------------------------------------------------------------------------------
+
+MapTributaryGroup <- function(tributary_group_id, data_df, edges_sf, basin_sf, basin_name) {
+  
+  # Get all reaches for this tributary group
+  reaches_in_group <- data_df$upstream_reachid[data_df$tributary_group_id == tributary_group_id]
+  original_reach <- unique(data_df$original_reachid[data_df$tributary_group_id == tributary_group_id])
+  stream_order <- unique(data_df$stream_order[data_df$tributary_group_id == tributary_group_id])
+  
+  if (length(reaches_in_group) == 0) {
+    cat("No reaches found for tributary group:", tributary_group_id, "\n")
+    return()
+  }
+  
+  # Create color vector
+  colcode <- rep('gray60', nrow(edges_sf))
+  colcode[edges_sf$reachid %in% reaches_in_group] <- 'red'
+  colcode[edges_sf$reachid == original_reach] <- 'blue'
+  
+  # Create plot
+  quartz()
+  par(mfrow = c(1, 1), mar = c(4, 4, 4, 2))
+  
+  plot(st_geometry(basin_sf), col = "gray90", border = NA, 
+       main = paste(basin_name, "- Tributary Group", tributary_group_id, 
+                    "\n(Stream Order", stream_order, "| Original Reach:", original_reach, ")"))
+  plot(st_geometry(edges_sf), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = 1)
+  
+  cat("Mapped tributary group:", tributary_group_id, "\n")
+  cat("Original reach (blue):", original_reach, "\n")
+  cat("Number of upstream reaches (red):", length(reaches_in_group), "\n")
+}
+
+
+
+
+
+
+
+
+# #------------------------------------------------------------------------------
+# # TEST EXAMPLES
+# #------------------------------------------------------------------------------
+# 
+# MapTributaryGroup("7_12892_8", yukon_upstream_by_streamorder, 
+#                     yuk_edges, yuk_basin, "Yukon")
+# 
+# # Example: Pick a tributary group from Kuskokwim data
+# if (nrow(kusko_upstream_by_streamorder) > 0) {
+#   example_kusko_group <- unique(kusko_upstream_by_streamorder$tributary_group_id)[1]
+#   cat("\n=== Testing Kuskokwim Tributary Group ===\n")
+#   MapTributaryGroup(example_kusko_group, kusko_upstream_by_streamorder, 
+#                     kusk_edges, kusk_basin, "Kuskokwim")
+# }
