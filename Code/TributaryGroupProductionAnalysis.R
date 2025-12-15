@@ -253,7 +253,7 @@ layout_matrix <- matrix(
 layout(layout_matrix, widths = c(3, 2))
 
 # Reorder stream orders for plotting: 5, 7, 6 (so 6 is in third row)
-stream_orders_plot <- c(5, 7, 6)[c(5, 7, 6) %in% stream_orders]
+stream_orders_plot <- sort(stream_orders[stream_orders %in% c(5, 6, 7)])
 
 # Create timeseries plots for each stream order
 for (i in seq_along(stream_orders_plot)) {
@@ -343,7 +343,7 @@ boxplot(
 )
 
 # Add basin CV reference line
-abline(h = basin_cv, lty = 2, col = "white", lwd = 4)
+abline(h = basin_cv, lty = 2, col = "#ff5555", lwd = 4)
 legend("topright", legend = paste("Basin CV =", round(basin_cv, 3)), 
        lty = 2, col = "#1dd4d4", bty = "n", cex = 0.8, text.col = "#ffffff")
 
