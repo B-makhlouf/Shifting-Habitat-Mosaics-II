@@ -82,7 +82,7 @@ for (year in c(2017, 2018, 2019)) {
 }
 
 # YUKON - UP TO 50% CPUE
-for (year in c(2015, 2016, 2017, 2018)) {
+for (year in c(2015, 2016, 2017, 2018, 2019, 2021)) {
   cat("\n--- Yukon", year, "(50% CPUE cutoff) ---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Yukon", filter_type = "cpue_50_cutoff")

@@ -19,13 +19,13 @@ library(tidyr)
 # CONFIGURATION
 #------------------------------------------------------------------------------
 
-DATA_TYPE <- "full_year"  # "full_year" or "half_year"
+DATA_TYPE <- "half_year"  # "full_year" or "half_year"
 
 UPSTREAM_RELATIONSHIPS <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/UpstreamReaches_Relationships.csv"
 PROD_DATA_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
 OUTPUT_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Analysis_Results"
 
-YEARS <- c(2015, 2016, 2018, 2021)
+YEARS <- c(2015, 2016, 2017, 2018,2019, 2021)
 
 dir.create(OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
@@ -74,6 +74,25 @@ all_results <- data.frame()
 
 for (year in YEARS) {
   
+  #-------------------------------------------------------------------------------
+  # Calculate basin wide CV 
+  #-------------------------------------------------------------------------------
+  library(readxl)
+  
+  # Read in the run data for the entire basin
+  basin_data <- read_xlsx("/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx")
+  
+  # Filter by Yukon and year 
+  basin_year_data <- basin_data %>%
+    filter(River == "Yukon", Year == year)
+  
+  # Extract the total basin run for this year
+  basin_total_run <- basin_year_data %>%
+    pull(Total_Run)    # Adjust column name if needed
+  
+  #-------------------------------------------------------------------------------
+  # Production file handling
+  #-------------------------------------------------------------------------------
   all_files <- list.files(PROD_DATA_DIR, full.names = TRUE)
   
   matching_files <- all_files[grepl(paste0(year), basename(all_files)) & 
@@ -114,6 +133,9 @@ for (year in YEARS) {
       na.rm = TRUE
     )
     
+    #---------------------------------------------------------------------------
+    # ADD basin run value to output (your requested change)
+    #---------------------------------------------------------------------------
     all_results <- rbind(all_results, data.frame(
       year = year,
       stream_order = so,
@@ -121,10 +143,12 @@ for (year in YEARS) {
       group_individuals = group_individuals,
       n_reaches_in_group = n_reaches_total,
       n_reaches_with_production = n_reaches_with_prod,
+      basin_total_run = basin_total_run,   # <-- ADDED
       stringsAsFactors = FALSE
     ))
   }
 }
+
 
 #------------------------------------------------------------------------------
 # CHECK FOR DATA
@@ -337,6 +361,34 @@ cv_analysis <- all_results %>%
   ) %>%
   filter(!is.na(cv))
 
+#------------------------------------------------------------------------------
+# CV ACROSS ALL YEARS (single CV per stream order)
+#------------------------------------------------------------------------------
+
+cv_across_years <- all_results %>%
+  filter(group_individuals > 0) %>%
+  group_by(stream_order) %>%
+  summarise(
+    mean_group_prod = mean(group_individuals, na.rm = TRUE),
+    sd_group_prod = sd(group_individuals, na.rm = TRUE),
+    cv_across_years = sd_group_prod / mean_group_prod,
+    .groups = "drop"
+  )
+
+#------------------------------------------------------------------------------
+# BASIN-WIDE CV (using basin_total_run from the loop)
+#------------------------------------------------------------------------------
+
+basin_cv <- all_results %>%
+  distinct(year, basin_total_run) %>%
+  summarise(
+    mean_basin_run = mean(basin_total_run, na.rm = TRUE),
+    sd_basin_run = sd(basin_total_run, na.rm = TRUE),
+    cv_basin = sd_basin_run / mean_basin_run,
+    .groups = "drop"
+  ) %>%
+  pull(cv_basin)
+
 cv_summary <- cv_analysis %>%
   group_by(stream_order) %>%
   summarise(
@@ -349,9 +401,16 @@ cv_summary <- cv_analysis %>%
     .groups = 'drop'
   )
 
+
+
+
+
 #------------------------------------------------------------------------------
 # BOXPLOT VISUALIZATION - CV BY STREAM ORDER
 #------------------------------------------------------------------------------
+
+library(ggplot2)
+library(dplyr)
 
 bg_color <- "#ffffff"
 text_color <- "#333333"
@@ -362,63 +421,45 @@ outlier_color <- "#2c3e50"
 cv_data_for_plot <- cv_analysis %>%
   mutate(stream_order_char = as.character(stream_order))
 
-par(
-  bg = bg_color,
-  fg = text_color,
-  col.main = text_color,
-  col.lab = text_color,
-  col.axis = text_color,
-  mar = c(5, 5, 4, 2),
-  mgp = c(3, 0.8, 0),
-  family = "sans",
-  lwd = 1.5
-)
-
-bp <- boxplot(
-  cv ~ stream_order,
-  data = cv_data_for_plot,
-  names = paste("Stream Order", c(5, 6, 7)),
-  main = "Coefficient of Variation by Stream Order",
-  xlab = "Stream Order",
-  ylab = "Coefficient of Variation",
-  bty = "l",
-  axes = FALSE,
-  outline = TRUE,
-  lwd = 1.5,
-  medlwd = 3,
-  whisklwd = 1.5,
-  staplelwd = 1.5,
-  cex.main = 1.4,
-  cex.lab = 1.1,
-  ylim = c(0, max(cv_data_for_plot$cv) * 1.1),
-  col = box_color,
-  border = outlier_color
-)
-
-axis(1, lwd = 1.5, col = text_color, col.ticks = text_color, 
-     col.axis = text_color, family = "sans", cex.axis = 1, at = 1:3)
-axis(2, lwd = 1.5, col = text_color, col.ticks = text_color, 
-     col.axis = text_color, las = 1, family = "sans", cex.axis = 1)
-
-abline(h = axTicks(2), col = grid_color, lwd = 0.8, lty = 1)
-
-for (i in 1:3) {
-  lines(c(i - 0.3, i + 0.3), c(bp$stats[3, i], bp$stats[3, i]), 
-        col = "#000000", lwd = 4.5)
-}
-
-for (i in 1:3) {
-  stream_order_val <- c(5, 6, 7)[i]
-  points_data <- cv_data_for_plot %>% filter(stream_order == stream_order_val)
-  
-  points(
-    jitter(rep(i, nrow(points_data)), amount = 0.15),
-    points_data$cv,
-    col = rgb(44, 62, 80, 80, maxColorValue = 255),
-    pch = 16,
-    cex = 1.2
+ggplot(cv_data_for_plot, aes(x = stream_order_char, y = cv)) +
+  geom_hline(
+    yintercept = basin_cv,
+    linetype = "dashed",
+    color = "blue",
+    linewidth = 1
+  ) +
+  geom_jitter(
+    width = 0.15,
+    alpha = 0.5,
+    size = 2,
+    color = outlier_color
+  ) +
+  geom_boxplot(
+    fill = box_color,
+    color = outlier_color,
+    outlier.shape = NA,
+    linewidth = 0.8,
+    alpha = 0.5
+  ) +
+  scale_x_discrete(labels = c("Stream Order 5", "Stream Order 6", "Stream Order 7")) +
+  labs(
+    title = "Coefficient of Variation by Stream Order",
+    x = "Stream Order",
+    y = "Coefficient of Variation"
+  ) +
+  theme_minimal(base_family = "sans") +
+  theme(
+    plot.background = element_rect(fill = bg_color, color = NA),
+    panel.background = element_rect(fill = bg_color, color = NA),
+    panel.grid.major = element_line(color = grid_color, linewidth = 0.4),
+    panel.grid.minor = element_blank(),
+    axis.title = element_text(color = text_color, size = 12),
+    axis.text = element_text(color = text_color, size = 11),
+    plot.title = element_text(color = text_color, size = 16, face = "bold")
   )
-}
+
+
+
 
 #------------------------------------------------------------------------------
 # EXPORT CV RESULTS
