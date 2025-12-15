@@ -32,7 +32,7 @@ cat("  Nushagak:  ", NUSHAGAK_OUTPUT, "\n\n")  # NEW
 cat("\n=== EXAMPLE 1: FULL YEAR ANALYSIS ===\n")
 
 # KUSKOKWIM FULL YEAR
-for (year in c(2017, 2018, 2019)) {
+for (year in c(2017, 2018, 2019, 2020, 2021)) {
   cat("\n--- Kuskokwim", year, "---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Kusko")

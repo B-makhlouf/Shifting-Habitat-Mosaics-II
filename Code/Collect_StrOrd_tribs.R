@@ -107,7 +107,11 @@ for (rb in reachbases) {
 }
 
 # Export data frame
-yukon_export_path <- file.path(output_dir, "Yukon_UpstreamReaches_Relationships.csv")
+yukon_export_path <- paste0(
+  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/",
+  "Yukon_UpstreamReaches_Relationships.csv"
+)
+
 write_csv(upstream_relationships, yukon_export_path)
 
 cat("Yukon maps saved to:", output_dir, "\n")
@@ -153,7 +157,7 @@ FindUpstreamReachID_Kusk <- function(ReachID) {
 #------------------------------------------------------------------------------
 
 # Create output subdirectory for Kuskokwim
-kusko_output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/UpstreamReachesbyStrOrd/Kuskokwim"
+kusko_output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/UpstreamReachesbyStrOrd/"
 dir.create(kusko_output_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Create data frame to store relationships
@@ -219,8 +223,12 @@ for (rb in kusko_reachbases) {
 }
 
 # Export data frame
-kusko_export_path <- file.path(kusko_output_dir, "Kusko_UpstreamReaches_Relationships.csv")
-write_csv(kusko_upstream_relationships, kusko_export_path)
+kusko_export_path <- paste0(
+  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/",
+  "Kusko_UpstreamReaches_Relationships.csv"
+)
+
+write_csv(upstream_relationships, kusko_export_path)
 
 cat("\nKuskokwim maps saved to:", kusko_output_dir, "\n")
 cat("Kuskokwim relationships exported to:", kusko_export_path, "\n")
