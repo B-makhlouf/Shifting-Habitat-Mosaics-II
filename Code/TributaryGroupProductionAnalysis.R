@@ -5,7 +5,8 @@
 # 2. Yukon FULL-YEAR (2015, 2016, 2018, 2021)
 # 3. Kuskokwim FULL-YEAR (2017, 2018, 2019, 2020, 2021)
 #
-# UPDATED: Flexible plotting and analysis based on actual stream order counts
+# ENHANCED: Fully flexible plotting and analysis for ANY number of stream orders
+# Script now dynamically handles 1+ stream orders and adjusts layout automatically
 ################################################################################
 
 library(readr)
@@ -14,7 +15,7 @@ library(tidyr)
 library(readxl)
 
 cat("================================================================================\n")
-cat("TRIBUTARY GROUP PRODUCTION ANALYSIS - ALL SCENARIOS\n")
+cat("TRIBUTARY GROUP PRODUCTION ANALYSIS - ALL SCENARIOS (ENHANCED)\n")
 cat("================================================================================\n\n")
 
 #==============================================================================
@@ -35,7 +36,7 @@ SCENARIOS <- list(
     watershed = "Yukon",
     data_type = "half_year",
     years = c(2015, 2016, 2017, 2018, 2019, 2021),
-    upstream_relationships = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/UpstreamReaches_Relationships.csv"),
+    upstream_relationships = file.path("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/Yukon_UpstreamReaches_Relationships.csv"),
     prod_data_dir = file.path(BASE_DATA_DIR, "AnnualProdData/Yukon"),
     data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Yukon_HalfYear"),
     figure_output_dir = file.path(BASE_DATA_DIR, "Figures/CVbyStrOrd"),
@@ -48,7 +49,7 @@ SCENARIOS <- list(
     watershed = "Yukon",
     data_type = "full_year",
     years = c(2015, 2016, 2018, 2021),
-    upstream_relationships = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/UpstreamReaches_Relationships.csv"),
+    upstream_relationships = file.path("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/Yukon_UpstreamReaches_Relationships.csv"),
     prod_data_dir = file.path(BASE_DATA_DIR, "AnnualProdData/Yukon"),
     data_output_dir = file.path(BASE_DATA_DIR, "Data/UpstreamReaches/TribGroupProdByYear/Yukon_FullYear"),
     figure_output_dir = file.path(BASE_DATA_DIR, "Figures/CVbyStrOrd"),
@@ -348,7 +349,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
   cat(sprintf("  ✓ CV analysis: %s\n", basename(cv_file)))
   
   #============================================================================
-  # VISUALIZATION
+  # VISUALIZATION - FULLY FLEXIBLE LAYOUT
   #============================================================================
   
   cat("\nCreating visualization:\n")
@@ -385,11 +386,12 @@ for (scenario_idx in seq_along(SCENARIOS)) {
     cv_data_for_plot <- cv_analysis %>%
       mutate(stream_order_char = as.character(stream_order))
     
-    # DYNAMIC LAYOUT CALCULATION
-    # Create layout based on actual number of stream orders
+    #==========================================================================
+    # DYNAMIC LAYOUT CALCULATION - Handles ANY number of stream orders
+    #==========================================================================
     n_plots <- n_stream_orders
     
-    # Determine layout dimensions
+    # Determine layout dimensions - flexible for ANY number of stream orders
     if (n_plots == 1) {
       n_rows <- 1
       n_cols <- 2  # Stream order plot + boxplot
@@ -408,12 +410,11 @@ for (scenario_idx in seq_along(SCENARIOS)) {
       layout_matrix <- matrix(c(1, 4, 2, 4, 3, 4), nrow = 3, byrow = TRUE)
       fig_height <- 14
       fig_width <- 16
-    } else {
-      # For 4+ stream orders, create a 2-column layout
+    } else if (n_plots <= 6) {
+      # For 4-6 stream orders: 2 columns + boxplot
       n_rows <- ceiling(n_plots / 2)
       n_cols <- 3  # 2 stream order columns + 1 boxplot column
       
-      # Create matrix with stream order plots on left/center, boxplot on right
       layout_matrix <- matrix(0, nrow = n_rows, ncol = n_cols)
       plot_counter <- 1
       for (row in 1:n_rows) {
@@ -424,11 +425,48 @@ for (scenario_idx in seq_along(SCENARIOS)) {
           }
         }
       }
-      # Fill right column with boxplot indicator
       layout_matrix[, 3] <- n_plots + 1
       
-      fig_height <- 5 + (n_rows * 4)
+      fig_height <- 4 + (n_rows * 4.5)
       fig_width <- 18
+    } else if (n_plots <= 12) {
+      # For 7-12 stream orders: 3 columns + boxplot
+      n_rows <- ceiling(n_plots / 3)
+      n_cols <- 4  # 3 stream order columns + 1 boxplot column
+      
+      layout_matrix <- matrix(0, nrow = n_rows, ncol = n_cols)
+      plot_counter <- 1
+      for (row in 1:n_rows) {
+        for (col in 1:3) {
+          if (plot_counter <= n_plots) {
+            layout_matrix[row, col] <- plot_counter
+            plot_counter <- plot_counter + 1
+          }
+        }
+      }
+      layout_matrix[, 4] <- n_plots + 1
+      
+      fig_height <- 4 + (n_rows * 4)
+      fig_width <- 20
+    } else {
+      # For 13+ stream orders: 4 columns + boxplot
+      n_rows <- ceiling(n_plots / 4)
+      n_cols <- 5  # 4 stream order columns + 1 boxplot column
+      
+      layout_matrix <- matrix(0, nrow = n_rows, ncol = n_cols)
+      plot_counter <- 1
+      for (row in 1:n_rows) {
+        for (col in 1:4) {
+          if (plot_counter <= n_plots) {
+            layout_matrix[row, col] <- plot_counter
+            plot_counter <- plot_counter + 1
+          }
+        }
+      }
+      layout_matrix[, 5] <- n_plots + 1
+      
+      fig_height <- 4 + (n_rows * 3.5)
+      fig_width <- 22
     }
     
     # Create combined figure
@@ -545,6 +583,7 @@ for (scenario_idx in seq_along(SCENARIOS)) {
     dev.off()
     cat(sprintf("  ✓ Figure: %s\n", basename(png_file)))
     cat(sprintf("  ✓ Figure dimensions: %d x %d inches\n", fig_width, fig_height))
+    cat(sprintf("  ✓ Layout: %d rows × %d columns (boxplot spans %d rows)\n", n_rows, n_cols - 1, n_rows))
     
   }, error = function(e) {
     cat(sprintf("  ✗ ERROR creating figure: %s\n", e$message))
@@ -611,4 +650,5 @@ cat("  - TributaryGroups_CoefficientOfVariation[_HalfYear].csv\n")
 cat("  - TributaryGroups_CV_Summary[_HalfYear].csv\n")
 cat("  - TributaryGroups_Combined_Analysis[_HalfYear].png\n")
 
-cat("\n✓ Analysis complete! All scenarios processed successfully.\n\n")
+cat("\n✓ Analysis complete! All scenarios processed successfully.\n")
+cat("✓ Script automatically handled all stream orders found in datasets.\n\n")

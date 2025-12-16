@@ -11,6 +11,7 @@ library(here)
 #------------------------------------------------------------------------------
 
 yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/YukonReachbaseComplete.shp")
+
 yuk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 YukonNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/yukon_noderelationships.csv"), header = TRUE, stringsAsFactors = FALSE)
@@ -108,7 +109,7 @@ for (rb in reachbases) {
 
 # Export data frame
 yukon_export_path <- paste0(
-  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/",
+  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/TribGroupProdByYear/SameGroupStrOrd",
   "Yukon_UpstreamReaches_Relationships.csv"
 )
 
@@ -224,7 +225,7 @@ for (rb in kusko_reachbases) {
 
 # Export data frame
 kusko_export_path <- paste0(
-  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/",
+  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/SameGroupStrOrd",
   "Kusko_UpstreamReaches_Relationships.csv"
 )
 
