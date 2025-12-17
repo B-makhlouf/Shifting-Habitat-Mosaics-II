@@ -109,6 +109,27 @@ for (i in seq_along(prod_files)) {
   trib_production <- trib_production %>%
     filter(!is.na(TribID))
   
+  
+  #### From the shapefile, calculate the length of each reach 
+  edges_lengths <- edges %>%
+    st_transform(st_crs(basin)) %>%
+    mutate(
+      reach_length_m = as.numeric(st_length(geometry))
+    ) %>%
+    st_set_geometry(NULL) %>%
+    select(
+      reachid,
+      reach_length_m
+    )
+  
+  # Add the length to the production data by 
+  prod_with_trib <- prod_with_trib %>%
+    left_join(
+      edges_lengths,
+      by = "reachid"
+    )
+  
+  
   #------------------------------------------------------------------------------
   # Assign tributary-level production totals back to each reach
   #------------------------------------------------------------------------------
@@ -147,6 +168,92 @@ for (i in seq_along(prod_files)) {
       )
     )
   
+  
+  
+  
+  # if there's still NA in either of these , replace with the original values (not trib aggregated)
+  
+  prod_data_trib_level <- prod_data_trib_level %>%
+    mutate(
+      trib_total_assignment_rescale = ifelse(
+        is.na(trib_total_assignment_rescale),
+        assignment_rescale,
+        trib_total_assignment_rescale
+      ),
+      trib_total_assignment_individuals = ifelse(
+        is.na(trib_total_assignment_individuals),
+        assignment_individuals,
+        trib_total_assignment_individuals
+      )
+    )
+  
+  
+  #------------------------------------------------------------------------------
+  # TRIBUTARY-LEVEL LENGTHS
+  #------------------------------------------------------------------------------
+  trib_lengths <- prod_data_trib_level %>%
+    distinct(TribID, reachid, reach_length_m) %>%
+    group_by(TribID) %>%
+    summarise(
+      TribLength_m = sum(reach_length_m, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  #------------------------------------------------------------------------------
+  # TRIBUTARY-LEVEL FISH PER METER
+  #------------------------------------------------------------------------------
+  trib_fpm <- trib_production %>%
+    left_join(trib_lengths, by = "TribID") %>%
+    mutate(
+      fishperMeter = trib_total_assignment_individuals / TribLength_m
+    )
+  
+  #------------------------------------------------------------------------------
+  # BASIN-WIDE RESCALING (length-weighted; sums to 1)
+  #------------------------------------------------------------------------------
+  total_fish <- sum(trib_fpm$fishperMeter * trib_fpm$TribLength_m, na.rm = TRUE)
+  
+  trib_fpm <- trib_fpm %>%
+    mutate(
+      fishperMeter_basin =
+        (fishperMeter * TribLength_m) / total_fish
+    )
+  
+  # Sanity check
+  print(
+    paste0(
+      "Basin sum (fishperMeter_basin): ",
+      sum(trib_fpm$fishperMeter_basin, na.rm = TRUE)
+    )
+  )
+  
+  #------------------------------------------------------------------------------
+  # NORMALIZE TO 0–1 ACROSS TRIBUTARIES
+  #------------------------------------------------------------------------------
+  trib_fpm <- trib_fpm %>%
+    mutate(
+      fishperMeter_norm =
+        (fishperMeter_basin - min(fishperMeter_basin, na.rm = TRUE)) /
+        (max(fishperMeter_basin, na.rm = TRUE) - min(fishperMeter_basin, na.rm = TRUE))
+    )
+  
+  #------------------------------------------------------------------------------
+  # JOIN BACK TO REACH-LEVEL DATA
+  #------------------------------------------------------------------------------
+  prod_data_trib_level <- prod_data_trib_level %>%
+    left_join(
+      trib_fpm %>%
+        select(
+          TribID,
+          fishperMeter,
+          fishperMeter_basin,
+          fishperMeter_norm
+        ),
+      by = "TribID"
+    )
+  
+  
+  
   #------------------------------------------------------------------------------
   # Save annual tributary-level data
   #------------------------------------------------------------------------------
@@ -158,12 +265,7 @@ for (i in seq_along(prod_files)) {
   ################################################################################
   
   # Pull out the assignment values 
-  basin_assign_norm <- prod_data_trib_level$trib_total_assignment_rescale
-  
-  # normalize to range from 0-1
-  basin_assign_norm <- (basin_assign_norm - min(basin_assign_norm, na.rm = TRUE)) / 
-    (max(basin_assign_norm, na.rm = TRUE) - min(basin_assign_norm, na.rm = TRUE))
-  
+  basin_assign_norm <- prod_data_trib_level$fishperMeter_norm
   
   palette <- brewer.pal(9, "YlOrRd")
   palette_expanded <- colorRampPalette(palette)(10)
