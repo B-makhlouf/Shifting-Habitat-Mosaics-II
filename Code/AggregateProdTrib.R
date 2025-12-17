@@ -63,6 +63,8 @@ trib_production_na <- trib_production %>%
 trib_production <- trib_production %>%
   filter(!is.na(tributary_group_id))
 
+
+
 #------------------------------------------------------------------------------
 # Assign tributary-level production totals back to each reach
 #------------------------------------------------------------------------------
@@ -70,6 +72,31 @@ prod_data_trib_level <- prod_with_trib %>%
   left_join(
     trib_production,
     by = "tributary_group_id"
+  )
+
+# Sum all of the 7th order tributary production values 
+
+production<- prod_data_trib_level %>%
+  filter(Str_Order == 7)%>%
+  #sum assignment_rescale
+  summarise(
+    total_trib7_assignment_rescale = sum(assignment_rescale, na.rm = TRUE),
+    total_trib7_assignment_individuals = sum(assignment_individuals, na.rm = TRUE)
+  )
+
+# Assign this value to all 7th order tribs 
+prod_data_trib_level <- prod_data_trib_level %>%
+  mutate(
+    trib7_total_assignment_rescale = ifelse(
+      Str_Order == 7,
+      production$total_trib7_assignment_rescale,
+      trib_total_assignment_rescale
+    ),
+    trib7_total_assignment_individuals = ifelse(
+      Str_Order == 7,
+      production$total_trib7_assignment_individuals,
+      trib_total_assignment_individuals
+    )
   )
 
 # if NA, just use the original production values (assignment rescale) for that row 
@@ -88,16 +115,26 @@ prod_data_trib_level <- prod_data_trib_level %>%
   )
 
 
-#------------------------------------------------------------------------------
-# Normalize production values to range from 0-1
-#------------------------------------------------------------------------------
-prod_data_trib_level <- prod_data_trib_level %>%
-  mutate(
-    norm_trib_total_assignment_rescale = (trib_total_assignment_rescale - min(trib_total_assignment_rescale, na.rm = TRUE)) /
-      (max(trib_total_assignment_rescale, na.rm = TRUE) - min(trib_total_assignment_rescale, na.rm = TRUE)),
-    norm_trib_total_assignment_individuals = (trib_total_assignment_individuals - min(trib_total_assignment_individuals, na.rm = TRUE)) /
-      (max(trib_total_assignment_individuals, na.rm = TRUE) - min(trib_total_assignment_individuals, na.rm = TRUE))
-  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

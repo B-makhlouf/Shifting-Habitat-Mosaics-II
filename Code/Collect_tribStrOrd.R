@@ -168,19 +168,9 @@ FindUpstreamReachID_Kusk <- function(ReachID) {
 # MAIN: Find upstream reaches by stream order (KUSKOKWIM)
 #------------------------------------------------------------------------------
 
-# Create data frame to store relationships
-kusko_upstream_by_streamorder <- data.frame(
-  reachbase = integer(),
-  original_reachid = integer(),
-  stream_order = integer(),
-  upstream_reachid = integer(),
-  tributary_group_id = character(),
-  stringsAsFactors = FALSE
-)
 
 # Get unique reachbase values
 kusko_reachbases <- sort(unique(kusk_edges$Reachbase))
-# Remove 0 
 kusko_reachbases <- kusko_reachbases[kusko_reachbases != 0]
 
 for (rb in kusko_reachbases) {
@@ -204,39 +194,7 @@ for (rb in kusko_reachbases) {
       # Filter upstream reaches to only those with same stream order
       upstream_same_order <- upstream[kusk_edges$Str_Order[match(upstream, kusk_edges$reachid)] == current_stream_order]
       
-      # Remove the original reach itself if it's in the list
-      upstream_same_order <- upstream_same_order[upstream_same_order != reach]
       
-      # Add records for each upstream reach WITH same stream order
-      if (length(upstream_same_order) > 0) {
-        for (up_reach in upstream_same_order) {
-          kusko_upstream_by_streamorder <- rbind(kusko_upstream_by_streamorder, 
-                                                 data.frame(reachbase = rb, 
-                                                            original_reachid = reach, 
-                                                            stream_order = current_stream_order,
-                                                            upstream_reachid = up_reach, 
-                                                            tributary_group_id = tributary_group_id,
-                                                            stringsAsFactors = FALSE))
-        }
-      } else {
-        # NO upstream reaches with same stream order - add a self-referential record
-        kusko_upstream_by_streamorder <- rbind(kusko_upstream_by_streamorder, 
-                                               data.frame(reachbase = rb, 
-                                                          original_reachid = reach, 
-                                                          stream_order = current_stream_order,
-                                                          upstream_reachid = reach,
-                                                          tributary_group_id = tributary_group_id,
-                                                          stringsAsFactors = FALSE))
-      }
-    } else {
-      # No upstream reaches at all - add a self-referential record
-      kusko_upstream_by_streamorder <- rbind(kusko_upstream_by_streamorder, 
-                                             data.frame(reachbase = rb, 
-                                                        original_reachid = reach, 
-                                                        stream_order = current_stream_order,
-                                                        upstream_reachid = reach,
-                                                        tributary_group_id = tributary_group_id,
-                                                        stringsAsFactors = FALSE))
     }
   }
   
