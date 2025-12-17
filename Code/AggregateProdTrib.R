@@ -1,4 +1,3 @@
-# Load libraries
 library(dplyr)
 library(readr)
 library(sf)
@@ -6,6 +5,7 @@ library(RColorBrewer)
 library(glue)
 library(ggplot2)
 library(readxl)
+library(classInt)
 
 #------------------------------------------------------------------------------
 # File paths
@@ -89,6 +89,17 @@ for (i in seq_along(prod_files)) {
       by = c("reachid" = "reachid")
     )
   
+  ## Assign a unique TribID to all 7th order tribs 
+  prod_with_trib <- prod_with_trib %>%
+    mutate(
+      TribID = ifelse(
+        is.na(TribID) & Str_Order == 7,
+        paste0("7thOrderTrib_", reachid),
+        TribID
+      )
+    )
+  
+  
   #------------------------------------------------------------------------------
   # Aggregate production at the tributary level
   #------------------------------------------------------------------------------
@@ -129,7 +140,6 @@ for (i in seq_along(prod_files)) {
       by = "reachid"
     )
   
-  
   #------------------------------------------------------------------------------
   # Assign tributary-level production totals back to each reach
   #------------------------------------------------------------------------------
@@ -138,36 +148,6 @@ for (i in seq_along(prod_files)) {
       trib_production,
       by = "TribID"
     )
-  
-  # Sum all of the 7th order tributary production values 
-  
-  production <- prod_data_trib_level %>%
-    filter(Str_Order == 7) %>%
-    #sum assignment_rescale
-    summarise(
-      total_trib7_assignment_rescale = sum(assignment_rescale, na.rm = TRUE),
-      total_trib7_assignment_individuals = sum(assignment_individuals, na.rm = TRUE)
-    )
-  
-  # Assign this value as trib_assign_Rescale for all 7th order trib columns 
-  
-  seventhorder_rescale <- production$total_trib7_assignment_rescale
-  seventhorder_individuals <- production$total_trib7_assignment_individuals
-  
-  prod_data_trib_level <- prod_data_trib_level %>%
-    mutate(
-      trib_total_assignment_rescale = ifelse(
-        Str_Order == 7,
-        seventhorder_rescale,
-        trib_total_assignment_rescale
-      ),
-      trib_total_assignment_individuals = ifelse(
-        Str_Order == 7,
-        seventhorder_individuals,
-        trib_total_assignment_individuals
-      )
-    )
-  
   
   
   
@@ -258,7 +238,7 @@ for (i in seq_along(prod_files)) {
   # Save annual tributary-level data
   #------------------------------------------------------------------------------
   annual_data_filename <- file.path(data_output_dir, paste0("Kusko_", current_year, "_TribAggregated.csv"))
-  write_csv(trib_production, annual_data_filename)
+  write_csv(prod_data_trib_level, annual_data_filename)
   
   ################################################################################
   # CREATE TRIBUTARY-AGGREGATED MAP FOR THIS YEAR
@@ -290,13 +270,15 @@ for (i in seq_along(prod_files)) {
   stream_order <- edges$Str_Order
   stream_order[is.na(stream_order)] <- 1
   
+  colcode[stream_order < 3] <- "gray60" 
+  
   linewidths <- ifelse(stream_order >= 9, 5,
                        ifelse(stream_order >= 8, 6,
-                              ifelse(stream_order >= 7, 5,
-                                     ifelse(stream_order >= 6, 3,
-                                            ifelse(stream_order >= 5, 2.5,
-                                                   ifelse(stream_order >= 4, 2,
-                                                          ifelse(stream_order >= 3, 1.5, 1.0)))))))
+                              ifelse(stream_order >= 7, 4.7,
+                                     ifelse(stream_order >= 6, 4.2,
+                                            ifelse(stream_order >= 5, 3.5,
+                                                   ifelse(stream_order >= 4, 2.2,
+                                                          ifelse(stream_order >= 3, 1.5, 0)))))))
   
   map_filename <- file.path(maps_output_dir, paste0("Kusko_", current_year, "_tribaggregated.png"))
   png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
@@ -358,6 +340,10 @@ if (exists("prod_data_trib_level") && nrow(trib_cv_summary) > 0) {
     )
 }
 
+# Remove Str_Order 7 from the summary if it exists
+trib_cv_summary <- trib_cv_summary %>%
+  filter(Str_Order != 7 | is.na(Str_Order))
+
 # Save the summary data
 summary_data_filename <- file.path(data_output_dir, "Kusko_AllYears_TribProduction_CV.csv")
 write_csv(trib_cv_summary, summary_data_filename)
@@ -416,7 +402,209 @@ p <- ggplot(trib_cv_summary, aes(x = avg_production,
 ggsave(file.path(figures_output_dir, "Kusko_Tributary_CV_Analysis.png"),
        p, width = 12, height = 8, dpi = 300, bg = "white")
 
-cat("\n=== PROCESSING COMPLETE ===\n")
-cat("Maps saved to:", maps_output_dir, "\n")
-cat("Data saved to:", data_output_dir, "\n")
-cat("Figure saved to:", figures_output_dir, "\n")
+
+
+
+# ################################################################################
+# ################################################################################
+# # SUMMARY MAPS, Production vs variation 
+# ################################################################################
+# 
+# # Read in each production year data seperately 
+Kusk2017<- read_csv("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated/Kusko_2017_TribAggregated.csv")
+Kusk2018<- read_csv("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated/Kusko_2018_TribAggregated.csv")
+Kusk2019<- read_csv("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated/Kusko_2019_TribAggregated.csv")
+Kusk2020<- read_csv("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated/Kusko_2020_TribAggregated.csv")
+Kusk2021<- read_csv("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated/Kusko_2021_TribAggregated.csv")
+
+library(dplyr)
+library(purrr)
+
+kusk_list <- list(
+  "2017" = Kusk2017,
+  "2018" = Kusk2018,
+  "2019" = Kusk2019,
+  "2020" = Kusk2020,
+  "2021" = Kusk2021
+)
+
+trib_assignments <- map_dfc(
+  kusk_list,
+  ~ select(.x, trib_total_assignment_individuals)
+)
+
+colnames(trib_assignments) <- paste0("Kusk", names(kusk_list))
+
+### ok, each column is now a year of Kusko data, each row is a reach
+
+### I want to calculate the average and CV across years for each reach
+
+library(dplyr)
+
+trib_summary <- trib_assignments %>%
+  mutate(
+    mean_production = rowMeans(across(everything()), na.rm = TRUE),
+    sd_production   = apply(across(everything()), 1, sd, na.rm = TRUE),
+    cv_production   = sd_production / mean_production
+  )
+
+
+# some of these are going to have NaN because of 0, just add a 0 
+trib_summary <- trib_summary %>%
+  mutate(
+    cv_production = ifelse(is.nan(cv_production), 0, cv_production)
+  )
+
+########################
+######################## Average production map 
+
+prod <- trib_summary$mean_production
+
+# Rescale to sum to 1 across the basin
+prod_rescaled <- prod / sum(prod, na.rm = TRUE)
+
+# Normalize to 0–1 for relative comparison
+prod_normalized <- (prod_rescaled - min(prod_rescaled, na.rm = TRUE)) /
+  (max(prod_rescaled, na.rm = TRUE) - min(prod_rescaled, na.rm = TRUE))
+
+# Sanity checks
+sum(prod_rescaled, na.rm = TRUE)        # should be 1
+range(prod_normalized, na.rm = TRUE)    # should be 0 to 1
+
+avg_prod_norm <- prod_normalized
+
+# Create color coding for average production
+palette <- brewer.pal(9, "YlOrRd")
+palette_expanded <- colorRampPalette(palette)(10)
+
+colcode_avg <- rep("gray90", length(avg_prod_norm))
+colcode_avg[avg_prod_norm == 0] <- "white"
+colcode_avg[avg_prod_norm > 0.0 & avg_prod_norm <= 0.1] <- palette_expanded[1]
+colcode_avg[avg_prod_norm > 0.1 & avg_prod_norm <= 0.2] <- palette_expanded[2]
+colcode_avg[avg_prod_norm > 0.2 & avg_prod_norm <= 0.3] <- palette_expanded[3]
+colcode_avg[avg_prod_norm > 0.3 & avg_prod_norm <= 0.4] <- palette_expanded[4]
+colcode_avg[avg_prod_norm > 0.4 & avg_prod_norm <= 0.5] <- palette_expanded[5]
+colcode_avg[avg_prod_norm > 0.5 & avg_prod_norm <= 0.6] <- palette_expanded[6]
+colcode_avg[avg_prod_norm > 0.6 & avg_prod_norm <= 0.7] <- palette_expanded[7]
+colcode_avg[avg_prod_norm > 0.7 & avg_prod_norm <= 0.8] <- palette_expanded[8]
+colcode_avg[avg_prod_norm > 0.8 & avg_prod_norm <= 0.9] <- palette_expanded[9]
+colcode_avg[avg_prod_norm > 0.9 & avg_prod_norm <= 1.0] <- palette_expanded[10]
+
+# Stream order linewidths
+stream_order <- edges$Str_Order
+stream_order[is.na(stream_order)] <- 1
+linewidths <- ifelse(stream_order >= 9, 5,
+                     ifelse(stream_order >= 8, 6,
+                            ifelse(stream_order >= 7, 4.7,
+                                   ifelse(stream_order >= 6, 4.2,
+                                          ifelse(stream_order >= 5, 3.5,
+                                                 ifelse(stream_order >= 4, 2.2,
+                                                        ifelse(stream_order >= 3, 1.5, 0)))))))
+
+# Create map in Figures directory
+map_filename_avg <- file.path(figures_output_dir, "Kusko_AvgProduction.png")
+png(file = map_filename_avg, width = 9, height = 8, units = "in", res = 300, bg = "white")
+
+par(mar = c(8, 4, 4, 2), bg = "white")
+plot(st_geometry(basin), col = 'gray60', border = 'gray60',
+     main = paste0("Kusko - Average Production (All Years)\nNormalized 0-1"), bg = "white")
+plot(st_geometry(edges), col = colcode_avg, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
+
+# Add legend
+legend_labels <- c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5",
+                   "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
+legend_colors <- palette_expanded
+
+legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
+       title = "Average Production\n(Normalized)", bty = "n", bg = "white")
+
+dev.off()
+
+
+
+#------------------------------------------------------------------------------
+# MAP 2: COEFFICIENT OF VARIATION (RAW CV, EQUAL BREAKS)
+#------------------------------------------------------------------------------
+
+library(classInt)
+library(RColorBrewer)
+
+# Extract CV values
+cv_values <- trib_summary$cv_production
+
+# Number of classes
+n_classes <- 5
+
+# Create a perceptual color palette
+palette_cv <- rev(colorRampPalette(brewer.pal(9, "Purples"))(n_classes))
+
+# Compute Jenks natural breaks
+jenks <- classIntervals(cv_values, n = n_classes, style = "jenks")
+
+# Assign each CV value to a class
+cv_class <- findCols(jenks)   # returns integer class index 1:n_classes
+
+# Map colors directly
+colcode_cv <- palette_cv[cv_class]
+
+# Optional: generate legend labels
+legend_labels <- paste0(
+  round(jenks$brks[-length(jenks$brks)], 2),
+  " – ",
+  round(jenks$brks[-1], 2)
+)
+
+#------------------------------------------------------------------------------
+# STREAM ORDER LINEWIDTHS (UNCHANGED)
+#------------------------------------------------------------------------------
+stream_order <- edges$Str_Order
+stream_order[is.na(stream_order)] <- 1
+
+linewidths <- ifelse(stream_order >= 9, 5,
+                     ifelse(stream_order >= 8, 6,
+                            ifelse(stream_order >= 7, 4.7,
+                                   ifelse(stream_order >= 6, 4.2,
+                                          ifelse(stream_order >= 5, 3.5,
+                                                 ifelse(stream_order >= 4, 2.2,
+                                                        ifelse(stream_order >= 3, 1.5, 0)))))))
+
+#------------------------------------------------------------------------------
+# CREATE MAP
+#------------------------------------------------------------------------------
+map_filename_cv <- file.path(figures_output_dir,
+                             "Kusko_MultiYear_CoefficientOfVariation_EQUAL.png")
+
+png(file = map_filename_cv,
+    width = 9, height = 8, units = "in", res = 300, bg = "white")
+
+par(mar = c(8, 4, 4, 2), bg = "white")
+
+# Plot basin
+plot(st_geometry(basin),
+     col = "gray60",
+     border = "gray60",
+     main = "Kuskokwim – Coefficient of Variation (Raw, Equal Breaks)",
+     bg = "white")
+
+# Plot reaches with CV colors
+plot(st_geometry(edges),
+     col = colcode_cv,
+     pch = 16,
+     axes = FALSE,
+     add = TRUE,
+     lwd = linewidths)
+
+#------------------------------------------------------------------------------
+# LEGEND
+#------------------------------------------------------------------------------
+legend_labels <- levels(cv_class)
+
+legend("topleft",
+       legend = legend_labels,
+       col = palette_cv,
+       lwd = 5,
+       title = "Coefficient of Variation",
+       bty = "n",
+       bg = "white")
+
+dev.off()
