@@ -455,156 +455,158 @@ trib_summary <- trib_summary %>%
     cv_production = ifelse(is.nan(cv_production), 0, cv_production)
   )
 
-########################
-######################## Average production map 
 
-prod <- trib_summary$mean_production
-
-# Rescale to sum to 1 across the basin
-prod_rescaled <- prod / sum(prod, na.rm = TRUE)
-
-# Normalize to 0–1 for relative comparison
-prod_normalized <- (prod_rescaled - min(prod_rescaled, na.rm = TRUE)) /
-  (max(prod_rescaled, na.rm = TRUE) - min(prod_rescaled, na.rm = TRUE))
-
-# Sanity checks
-sum(prod_rescaled, na.rm = TRUE)        # should be 1
-range(prod_normalized, na.rm = TRUE)    # should be 0 to 1
-
-avg_prod_norm <- prod_normalized
-
-# Create color coding for average production
-palette <- brewer.pal(9, "YlOrRd")
-palette_expanded <- colorRampPalette(palette)(10)
-
-colcode_avg <- rep("gray90", length(avg_prod_norm))
-colcode_avg[avg_prod_norm == 0] <- "white"
-colcode_avg[avg_prod_norm > 0.0 & avg_prod_norm <= 0.1] <- palette_expanded[1]
-colcode_avg[avg_prod_norm > 0.1 & avg_prod_norm <= 0.2] <- palette_expanded[2]
-colcode_avg[avg_prod_norm > 0.2 & avg_prod_norm <= 0.3] <- palette_expanded[3]
-colcode_avg[avg_prod_norm > 0.3 & avg_prod_norm <= 0.4] <- palette_expanded[4]
-colcode_avg[avg_prod_norm > 0.4 & avg_prod_norm <= 0.5] <- palette_expanded[5]
-colcode_avg[avg_prod_norm > 0.5 & avg_prod_norm <= 0.6] <- palette_expanded[6]
-colcode_avg[avg_prod_norm > 0.6 & avg_prod_norm <= 0.7] <- palette_expanded[7]
-colcode_avg[avg_prod_norm > 0.7 & avg_prod_norm <= 0.8] <- palette_expanded[8]
-colcode_avg[avg_prod_norm > 0.8 & avg_prod_norm <= 0.9] <- palette_expanded[9]
-colcode_avg[avg_prod_norm > 0.9 & avg_prod_norm <= 1.0] <- palette_expanded[10]
-
-# Stream order linewidths
-stream_order <- edges$Str_Order
-stream_order[is.na(stream_order)] <- 1
-linewidths <- ifelse(stream_order >= 9, 5,
-                     ifelse(stream_order >= 8, 6,
-                            ifelse(stream_order >= 7, 4.7,
-                                   ifelse(stream_order >= 6, 4.2,
-                                          ifelse(stream_order >= 5, 3.5,
-                                                 ifelse(stream_order >= 4, 2.2,
-                                                        ifelse(stream_order >= 3, 1.5, 0)))))))
-
-# Create map in Figures directory
-map_filename_avg <- file.path(figures_output_dir, "Kusko_AvgProduction.png")
-png(file = map_filename_avg, width = 9, height = 8, units = "in", res = 300, bg = "white")
-
-par(mar = c(8, 4, 4, 2), bg = "white")
-plot(st_geometry(basin), col = 'gray60', border = 'gray60',
-     main = paste0("Kusko - Average Production (All Years)\nNormalized 0-1"), bg = "white")
-plot(st_geometry(edges), col = colcode_avg, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
-
-# Add legend
-legend_labels <- c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5",
-                   "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
-legend_colors <- palette_expanded
-
-legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
-       title = "Average Production\n(Normalized)", bty = "n", bg = "white")
-
-dev.off()
+### Save as KuskoAllYearsProdCV.csv in /Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated
+write_csv(trib_summary, "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/TribAggregated/KuskoAllYearsProdCV.csv")
 
 
-
-#------------------------------------------------------------------------------
-# MAP 2: COEFFICIENT OF VARIATION (RAW CV, EQUAL BREAKS)
-#------------------------------------------------------------------------------
-
-library(classInt)
-library(RColorBrewer)
-
-# Extract CV values
-cv_values <- trib_summary$cv_production
-
-# Number of classes
-n_classes <- 5
-
-# Create a perceptual color palette
-palette_cv <- rev(colorRampPalette(brewer.pal(9, "Purples"))(n_classes))
-
-# Compute Jenks natural breaks
-jenks <- classIntervals(cv_values, n = n_classes, style = "jenks")
-
-# Assign each CV value to a class
-cv_class <- findCols(jenks)   # returns integer class index 1:n_classes
-
-# Map colors directly
-colcode_cv <- palette_cv[cv_class]
-
-# Optional: generate legend labels
-legend_labels <- paste0(
-  round(jenks$brks[-length(jenks$brks)], 2),
-  " – ",
-  round(jenks$brks[-1], 2)
-)
-
-#------------------------------------------------------------------------------
-# STREAM ORDER LINEWIDTHS (UNCHANGED)
-#------------------------------------------------------------------------------
-stream_order <- edges$Str_Order
-stream_order[is.na(stream_order)] <- 1
-
-linewidths <- ifelse(stream_order >= 9, 5,
-                     ifelse(stream_order >= 8, 6,
-                            ifelse(stream_order >= 7, 4.7,
-                                   ifelse(stream_order >= 6, 4.2,
-                                          ifelse(stream_order >= 5, 3.5,
-                                                 ifelse(stream_order >= 4, 2.2,
-                                                        ifelse(stream_order >= 3, 1.5, 0)))))))
-
-#------------------------------------------------------------------------------
-# CREATE MAP
-#------------------------------------------------------------------------------
-map_filename_cv <- file.path(figures_output_dir,
-                             "Kusko_MultiYear_CoefficientOfVariation_EQUAL.png")
-
-png(file = map_filename_cv,
-    width = 9, height = 8, units = "in", res = 300, bg = "white")
-
-par(mar = c(8, 4, 4, 2), bg = "white")
-
-# Plot basin
-plot(st_geometry(basin),
-     col = "gray60",
-     border = "gray60",
-     main = "Kuskokwim – Coefficient of Variation (Raw, Equal Breaks)",
-     bg = "white")
-
-# Plot reaches with CV colors
-plot(st_geometry(edges),
-     col = colcode_cv,
-     pch = 16,
-     axes = FALSE,
-     add = TRUE,
-     lwd = linewidths)
-
-#------------------------------------------------------------------------------
-# LEGEND
-#------------------------------------------------------------------------------
-legend_labels <- levels(cv_class)
-
-legend("topleft",
-       legend = legend_labels,
-       col = palette_cv,
-       lwd = 5,
-       title = "Coefficient of Variation",
-       bty = "n",
-       bg = "white")
-
-dev.off()
+# ########################
+# ######################## Average production map 
+# 
+# prod <- trib_summary$mean_production
+# 
+# # Rescale to sum to 1 across the basin
+# prod_rescaled <- prod / sum(prod, na.rm = TRUE)
+# 
+# # Normalize to 0–1 for relative comparison
+# prod_normalized <- (prod_rescaled - min(prod_rescaled, na.rm = TRUE)) /
+#   (max(prod_rescaled, na.rm = TRUE) - min(prod_rescaled, na.rm = TRUE))
+# 
+# # Sanity checks
+# sum(prod_rescaled, na.rm = TRUE)        # should be 1
+# range(prod_normalized, na.rm = TRUE)    # should be 0 to 1
+# 
+# avg_prod_norm <- prod_normalized
+# 
+# # Create color coding for average production
+# palette <- brewer.pal(9, "YlOrRd")
+# palette_expanded <- colorRampPalette(palette)(10)
+# 
+# colcode_avg <- rep("gray90", length(avg_prod_norm))
+# colcode_avg[avg_prod_norm == 0] <- "white"
+# colcode_avg[avg_prod_norm > 0.0 & avg_prod_norm <= 0.1] <- palette_expanded[1]
+# colcode_avg[avg_prod_norm > 0.1 & avg_prod_norm <= 0.2] <- palette_expanded[2]
+# colcode_avg[avg_prod_norm > 0.2 & avg_prod_norm <= 0.3] <- palette_expanded[3]
+# colcode_avg[avg_prod_norm > 0.3 & avg_prod_norm <= 0.4] <- palette_expanded[4]
+# colcode_avg[avg_prod_norm > 0.4 & avg_prod_norm <= 0.5] <- palette_expanded[5]
+# colcode_avg[avg_prod_norm > 0.5 & avg_prod_norm <= 0.6] <- palette_expanded[6]
+# colcode_avg[avg_prod_norm > 0.6 & avg_prod_norm <= 0.7] <- palette_expanded[7]
+# colcode_avg[avg_prod_norm > 0.7 & avg_prod_norm <= 0.8] <- palette_expanded[8]
+# colcode_avg[avg_prod_norm > 0.8 & avg_prod_norm <= 0.9] <- palette_expanded[9]
+# colcode_avg[avg_prod_norm > 0.9 & avg_prod_norm <= 1.0] <- palette_expanded[10]
+# 
+# # Stream order linewidths
+# stream_order <- edges$Str_Order
+# stream_order[is.na(stream_order)] <- 1
+# linewidths <- ifelse(stream_order >= 9, 5,
+#                      ifelse(stream_order >= 8, 6,
+#                             ifelse(stream_order >= 7, 4.7,
+#                                    ifelse(stream_order >= 6, 4.2,
+#                                           ifelse(stream_order >= 5, 3.5,
+#                                                  ifelse(stream_order >= 4, 2.2,
+#                                                         ifelse(stream_order >= 3, 1.5, 0)))))))
+# 
+# # Create map in Figures directory
+# map_filename_avg <- file.path(figures_output_dir, "Kusko_AvgProduction.png")
+# png(file = map_filename_avg, width = 9, height = 8, units = "in", res = 300, bg = "white")
+# 
+# par(mar = c(8, 4, 4, 2), bg = "white")
+# plot(st_geometry(basin), col = 'gray60', border = 'gray60',
+#      main = paste0("Kusko - Average Production (All Years)\nNormalized 0-1"), bg = "white")
+# plot(st_geometry(edges), col = colcode_avg, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
+# 
+# # Add legend
+# legend_labels <- c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5",
+#                    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
+# legend_colors <- palette_expanded
+# 
+# legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
+#        title = "Average Production\n(Normalized)", bty = "n", bg = "white")
+# 
+# dev.off()
+# 
+# 
+# 
+# #------------------------------------------------------------------------------
+# # MAP 2: COEFFICIENT OF VARIATION (RAW CV, EQUAL BREAKS)
+# #------------------------------------------------------------------------------
+# 
+# library(classInt)
+# library(RColorBrewer)
+# 
+# # Extract CV values
+# cv_values <- trib_summary$cv_production
+# n_classes <- 7
+# palette_cv <- rev(colorRampPalette(brewer.pal(9, "YlGnBu"))(n_classes))
+# 
+# # Compute Jenks natural breaks
+# jenks <- classIntervals(cv_values, n = n_classes, style = "quantile")
+# 
+# # Assign each CV value to a class
+# cv_class <- findCols(jenks)   # returns integer class index 1:n_classes
+# 
+# # Map colors directly
+# colcode_cv <- palette_cv[cv_class]
+# 
+# # Optional: generate legend labels
+# legend_labels <- paste0(
+#   round(jenks$brks[-length(jenks$brks)], 2),
+#   " – ",
+#   round(jenks$brks[-1], 2)
+# )
+# 
+# #------------------------------------------------------------------------------
+# # STREAM ORDER LINEWIDTHS (UNCHANGED)
+# #------------------------------------------------------------------------------
+# stream_order <- edges$Str_Order
+# stream_order[is.na(stream_order)] <- 1
+# 
+# linewidths <- ifelse(stream_order >= 9, 5,
+#                      ifelse(stream_order >= 8, 6,
+#                             ifelse(stream_order >= 7, 4.7,
+#                                    ifelse(stream_order >= 6, 4.2,
+#                                           ifelse(stream_order >= 5, 3.5,
+#                                                  ifelse(stream_order >= 4, 2.2,
+#                                                         ifelse(stream_order >= 3, 1.5, 0)))))))
+# 
+# #------------------------------------------------------------------------------
+# # CREATE MAP
+# #------------------------------------------------------------------------------
+# map_filename_cv <- file.path(figures_output_dir,
+#                              "Kusko_MultiYear_CoefficientOfVariation_EQUAL.png")
+# 
+# png(file = map_filename_cv,
+#     width = 9, height = 8, units = "in", res = 300, bg = "white")
+# 
+# par(mar = c(8, 4, 4, 2), bg = "white")
+# 
+# # Plot basin
+# plot(st_geometry(basin),
+#      col = "gray60",
+#      border = "gray60",
+#      main = "Kuskokwim – Coefficient of Variation (Raw, Equal Breaks)",
+#      bg = "white")
+# 
+# # Plot reaches with CV colors
+# plot(st_geometry(edges),
+#      col = colcode_cv,
+#      pch = 16,
+#      axes = FALSE,
+#      add = TRUE,
+#      lwd = linewidths)
+# 
+# #------------------------------------------------------------------------------
+# # LEGEND
+# #------------------------------------------------------------------------------
+# legend_labels <- levels(cv_class)
+# 
+# # legend("topleft",
+# #        legend = legend_labels,
+# #        col = palette_cv,
+# #        lwd = 5,
+# #        title = "Coefficient of Variation",
+# #        bty = "n",
+# #        bg = "white")
+# 
+# dev.off()
+# 
