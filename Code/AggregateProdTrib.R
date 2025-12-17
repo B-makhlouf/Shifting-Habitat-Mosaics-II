@@ -33,20 +33,17 @@ prod_with_trib <- prod_data %>%
   left_join(
     tribcollect %>%
       select(
-        upstream_reachid,
-        tributary_group_id
+        TribID, reachid
       ),
-    by = c("reachid" = "upstream_reachid")
+    by = c("reachid" = "reachid")
   )
-
-
 
 
 #------------------------------------------------------------------------------
 # Aggregate production at the tributary level
 #------------------------------------------------------------------------------
 trib_production <- prod_with_trib %>%
-  group_by(tributary_group_id) %>%
+  group_by(TribID) %>%
   summarise(
     trib_total_assignment_rescale = sum(assignment_rescale, na.rm = TRUE),
     trib_total_assignment_individuals = sum(assignment_individuals, na.rm = TRUE),
@@ -57,13 +54,11 @@ trib_production <- prod_with_trib %>%
 
 ## is there any with tributary_group_id == NA?
 trib_production_na <- trib_production %>%
-  filter(is.na(tributary_group_id))
+  filter(is.na(TribID))
 
 # Remove the NA 
 trib_production <- trib_production %>%
-  filter(!is.na(tributary_group_id))
-
-
+  filter(!is.na(TribID))
 
 #------------------------------------------------------------------------------
 # Assign tributary-level production totals back to each reach
@@ -71,7 +66,7 @@ trib_production <- trib_production %>%
 prod_data_trib_level <- prod_with_trib %>%
   left_join(
     trib_production,
-    by = "tributary_group_id"
+    by = "TribID"
   )
 
 # Sum all of the 7th order tributary production values 
@@ -84,53 +79,24 @@ production<- prod_data_trib_level %>%
     total_trib7_assignment_individuals = sum(assignment_individuals, na.rm = TRUE)
   )
 
-# Assign this value to all 7th order tribs 
-prod_data_trib_level <- prod_data_trib_level %>%
-  mutate(
-    trib7_total_assignment_rescale = ifelse(
-      Str_Order == 7,
-      production$total_trib7_assignment_rescale,
-      trib_total_assignment_rescale
-    ),
-    trib7_total_assignment_individuals = ifelse(
-      Str_Order == 7,
-      production$total_trib7_assignment_individuals,
-      trib_total_assignment_individuals
-    )
-  )
+# Assign this value as trib_assign_Rescale for all 7th order trib columns 
 
-# if NA, just use the original production values (assignment rescale) for that row 
+seventhorder_rescale<- production$total_trib7_assignment_rescale
+seventhorder_individuals<- production$total_trib7_assignment_individuals
+
 prod_data_trib_level <- prod_data_trib_level %>%
   mutate(
     trib_total_assignment_rescale = ifelse(
-      is.na(trib_total_assignment_rescale),
-      assignment_rescale,
+      Str_Order == 7,
+      seventhorder_rescale,
       trib_total_assignment_rescale
     ),
     trib_total_assignment_individuals = ifelse(
-      is.na(trib_total_assignment_individuals),
-      assignment_individuals,
+      Str_Order == 7,
+      seventhorder_individuals,
       trib_total_assignment_individuals
     )
   )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -146,7 +112,11 @@ prod_data_trib_level <- prod_data_trib_level %>%
 
 edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete2.shp")
 basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
-basin_assign_norm <- prod_data_trib_level$assignment_norm
+basin_assign_norm <- prod_data_trib_level$trib_total_assignment_rescale
+
+# normalize to range from 0-1
+basin_assign_norm <- (basin_assign_norm - min(basin_assign_norm, na.rm = TRUE)) / 
+  (max(basin_assign_norm, na.rm = TRUE) - min(basin_assign_norm, na.rm = TRUE))
 
 
 palette <- brewer.pal(9, "YlOrRd")
