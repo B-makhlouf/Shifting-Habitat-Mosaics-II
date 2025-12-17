@@ -12,7 +12,7 @@ library(sf); library(dplyr); library(readr)
 #------------------------------------------------------------------------------
 PATHS <- list(
   # KUSKOKWIM PATHS
-  kusko_edges = "/Users/benjaminmakhlouf/Spatial Data/KuskoUSGS_HUC.shp",
+  kusko_edges = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete2.shp",
   kusko_basin = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp",
   
   # YUKON PATHS

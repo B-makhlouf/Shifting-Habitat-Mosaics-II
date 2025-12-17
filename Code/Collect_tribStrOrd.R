@@ -10,7 +10,7 @@ library(here)
 # LOAD DATA
 #------------------------------------------------------------------------------
 
-yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/YukonUSGS_noCA_reachbase.shp")
+yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/YukonReachbaseComplete.shp")
 yuk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
 
 YukonNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/yukon_noderelationships.csv"), header = TRUE, stringsAsFactors = FALSE)
@@ -53,6 +53,7 @@ yukon_upstream_by_streamorder <- data.frame(
 
 # Get unique reachbase values
 reachbases <- sort(unique(yuk_edges$Reachbase))
+
 # Remove 0 
 reachbases <- reachbases[reachbases != 0]
 
@@ -67,6 +68,9 @@ for (rb in reachbases) {
     # Get stream order of current reach
     current_stream_order <- yuk_edges$Str_Order[yuk_edges$reachid == reach]
     
+    # Create tributary group ID (same for all records from this reach)
+    tributary_group_id <- paste(rb, reach, current_stream_order, sep = "_")
+    
     # Find all upstream reaches
     upstream <- FindUpstreamReachID(reach)
     
@@ -74,10 +78,10 @@ for (rb in reachbases) {
       # Filter upstream reaches to only those with same stream order
       upstream_same_order <- upstream[yuk_edges$Str_Order[match(upstream, yuk_edges$reachid)] == current_stream_order]
       
-      # Create tributary group ID
-      tributary_group_id <- paste(rb, reach, current_stream_order, sep = "_")
+      # Remove the original reach itself if it's in the list
+      upstream_same_order <- upstream_same_order[upstream_same_order != reach]
       
-      # Add to data frame
+      # Add records for each upstream reach WITH same stream order
       if (length(upstream_same_order) > 0) {
         for (up_reach in upstream_same_order) {
           yukon_upstream_by_streamorder <- rbind(yukon_upstream_by_streamorder, 
@@ -88,7 +92,25 @@ for (rb in reachbases) {
                                                             tributary_group_id = tributary_group_id,
                                                             stringsAsFactors = FALSE))
         }
+      } else {
+        # NO upstream reaches with same stream order - add a self-referential record
+        yukon_upstream_by_streamorder <- rbind(yukon_upstream_by_streamorder, 
+                                               data.frame(reachbase = rb, 
+                                                          original_reachid = reach, 
+                                                          stream_order = current_stream_order,
+                                                          upstream_reachid = reach,
+                                                          tributary_group_id = tributary_group_id,
+                                                          stringsAsFactors = FALSE))
       }
+    } else {
+      # No upstream reaches at all - add a self-referential record
+      yukon_upstream_by_streamorder <- rbind(yukon_upstream_by_streamorder, 
+                                             data.frame(reachbase = rb, 
+                                                        original_reachid = reach, 
+                                                        stream_order = current_stream_order,
+                                                        upstream_reachid = reach,
+                                                        tributary_group_id = tributary_group_id,
+                                                        stringsAsFactors = FALSE))
     }
   }
   
@@ -115,7 +137,7 @@ cat("Unique tributary groups:", n_distinct(yukon_upstream_by_streamorder$tributa
 # LOAD DATA
 #------------------------------------------------------------------------------
 
-kusk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase.shp")
+kusk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete2.shp")
 kusk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
 
 KuskoNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/kusko_noderelationships.csv"), header = TRUE, stringsAsFactors = FALSE)
@@ -170,19 +192,22 @@ for (rb in kusko_reachbases) {
   for (reach in reaches_of_reachbase) {
     
     # Get stream order of current reach (note: Kuskokwim uses 'Strahler' instead of 'Str_Order')
-    current_stream_order <- kusk_edges$Strahler[kusk_edges$reachid == reach]
+    current_stream_order <- kusk_edges$Str_Order[kusk_edges$reachid == reach]
+    
+    # Create tributary group ID (same for all records from this reach)
+    tributary_group_id <- paste(rb, reach, current_stream_order, sep = "_")
     
     # Find all upstream reaches
     upstream <- FindUpstreamReachID_Kusk(reach)
     
     if (length(upstream) > 0) {
       # Filter upstream reaches to only those with same stream order
-      upstream_same_order <- upstream[kusk_edges$Strahler[match(upstream, kusk_edges$reachid)] == current_stream_order]
+      upstream_same_order <- upstream[kusk_edges$Str_Order[match(upstream, kusk_edges$reachid)] == current_stream_order]
       
-      # Create tributary group ID
-      tributary_group_id <- paste(rb, reach, current_stream_order, sep = "_")
+      # Remove the original reach itself if it's in the list
+      upstream_same_order <- upstream_same_order[upstream_same_order != reach]
       
-      # Add to data frame
+      # Add records for each upstream reach WITH same stream order
       if (length(upstream_same_order) > 0) {
         for (up_reach in upstream_same_order) {
           kusko_upstream_by_streamorder <- rbind(kusko_upstream_by_streamorder, 
@@ -193,7 +218,25 @@ for (rb in kusko_reachbases) {
                                                             tributary_group_id = tributary_group_id,
                                                             stringsAsFactors = FALSE))
         }
+      } else {
+        # NO upstream reaches with same stream order - add a self-referential record
+        kusko_upstream_by_streamorder <- rbind(kusko_upstream_by_streamorder, 
+                                               data.frame(reachbase = rb, 
+                                                          original_reachid = reach, 
+                                                          stream_order = current_stream_order,
+                                                          upstream_reachid = reach,
+                                                          tributary_group_id = tributary_group_id,
+                                                          stringsAsFactors = FALSE))
       }
+    } else {
+      # No upstream reaches at all - add a self-referential record
+      kusko_upstream_by_streamorder <- rbind(kusko_upstream_by_streamorder, 
+                                             data.frame(reachbase = rb, 
+                                                        original_reachid = reach, 
+                                                        stream_order = current_stream_order,
+                                                        upstream_reachid = reach,
+                                                        tributary_group_id = tributary_group_id,
+                                                        stringsAsFactors = FALSE))
     }
   }
   
@@ -212,8 +255,23 @@ cat("\nKuskokwim upstream reaches by stream order exported to:", kusko_export_pa
 cat("Total records:", nrow(kusko_upstream_by_streamorder), "\n")
 cat("Unique tributary groups:", n_distinct(kusko_upstream_by_streamorder$tributary_group_id), "\n")
 
+################################################################################
+# VALIDATION SUMMARY
+################################################################################
 
+cat("\n=== VALIDATION SUMMARY ===\n\n")
 
+cat("YUKON:\n")
+cat("  Total tributary groups:", n_distinct(yukon_upstream_by_streamorder$tributary_group_id), "\n")
+cat("  Total records:", nrow(yukon_upstream_by_streamorder), "\n")
+cat("  Records with upstream reaches:", sum(yukon_upstream_by_streamorder$original_reachid != yukon_upstream_by_streamorder$upstream_reachid), "\n")
+cat("  Records self-referential (isolated):", sum(yukon_upstream_by_streamorder$original_reachid == yukon_upstream_by_streamorder$upstream_reachid), "\n\n")
+
+cat("KUSKOKWIM:\n")
+cat("  Total tributary groups:", n_distinct(kusko_upstream_by_streamorder$tributary_group_id), "\n")
+cat("  Total records:", nrow(kusko_upstream_by_streamorder), "\n")
+cat("  Records with upstream reaches:", sum(kusko_upstream_by_streamorder$original_reachid != kusko_upstream_by_streamorder$upstream_reachid), "\n")
+cat("  Records self-referential (isolated):", sum(kusko_upstream_by_streamorder$original_reachid == kusko_upstream_by_streamorder$upstream_reachid), "\n\n")
 
 #------------------------------------------------------------------------------
 # FUNCTION: Map a single tributary group for visual inspection
@@ -250,24 +308,4 @@ MapTributaryGroup <- function(tributary_group_id, data_df, edges_sf, basin_sf, b
   cat("Number of upstream reaches (red):", length(reaches_in_group), "\n")
 }
 
-
-
-
-
-
-
-
-# #------------------------------------------------------------------------------
-# # TEST EXAMPLES
-# #------------------------------------------------------------------------------
-# 
-# MapTributaryGroup("7_12892_8", yukon_upstream_by_streamorder, 
-#                     yuk_edges, yuk_basin, "Yukon")
-# 
-# # Example: Pick a tributary group from Kuskokwim data
-# if (nrow(kusko_upstream_by_streamorder) > 0) {
-#   example_kusko_group <- unique(kusko_upstream_by_streamorder$tributary_group_id)[1]
-#   cat("\n=== Testing Kuskokwim Tributary Group ===\n")
-#   MapTributaryGroup(example_kusko_group, kusko_upstream_by_streamorder, 
-#                     kusk_edges, kusk_basin, "Kuskokwim")
-# }
+cat("Script complete! Both Yukon and Kuskokwim now include isolated reaches with self-referential IDs.\n")

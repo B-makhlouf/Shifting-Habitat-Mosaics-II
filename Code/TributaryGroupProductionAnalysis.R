@@ -633,6 +633,26 @@ cat(paste(rep("-", 80), collapse = ""), "\n\n")
 cat("Output Directory Structure:\n")
 cat("  Base directory: /Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/\n\n")
 
+
+#==============================================================================
+# FINAL SUMMARY
+#==============================================================================
+
+cat("\n\n", paste(rep("=", 80), collapse = ""), "\n", sep = "")
+cat("ALL SCENARIOS COMPLETE\n")
+cat(paste(rep("=", 80), collapse = ""), "\n\n", sep = "")
+
+cat("Summary of Results:\n")
+cat(paste(rep("-", 80), collapse = ""), "\n")
+
+print(results_summary %>% 
+        select(scenario, watershed, data_type, status, years_processed, n_tributary_groups, n_stream_orders, basin_cv))
+
+cat(paste(rep("-", 80), collapse = ""), "\n\n")
+
+cat("Output Directory Structure:\n")
+cat("  Base directory: /Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/\n\n")
+
 cat("Data Output Directories (by scenario):\n")
 for (scenario in SCENARIOS) {
   cat(sprintf("  %s:\n", scenario$name))
@@ -652,3 +672,138 @@ cat("  - TributaryGroups_Combined_Analysis[_HalfYear].png\n")
 
 cat("\n✓ Analysis complete! All scenarios processed successfully.\n")
 cat("✓ Script automatically handled all stream orders found in datasets.\n\n")
+
+#==============================================================================
+# ADDITIONAL ANALYSIS: PRODUCTION VS CV SCATTERPLOTS (SIMPLE)
+#==============================================================================
+
+cat("\n", paste(rep("=", 80), collapse = ""), "\n", sep = "")
+cat("ADDITIONAL ANALYSIS: PRODUCTION VS CV RELATIONSHIP\n")
+cat(paste(rep("=", 80), collapse = ""), "\n\n", sep = "")
+
+library(ggplot2)
+
+for (scenario_idx in seq_along(SCENARIOS)) {
+  
+  config <- SCENARIOS[[scenario_idx]]
+  
+  cat(sprintf("\nProcessing: %s\n", config$name))
+  
+  # Load the CV analysis file created earlier
+  type_label <- ifelse(config$data_type == "full_year", "", "_HalfYear")
+  cv_file <- file.path(config$data_output_dir, 
+                       paste0("TributaryGroups_CoefficientOfVariation", type_label, ".csv"))
+  
+  if (!file.exists(cv_file)) {
+    cat(sprintf("  ✗ CV file not found: %s\n", cv_file))
+    next
+  }
+  
+  cv_data <- read_csv(cv_file, show_col_types = FALSE)
+  
+  # Load the long-format data to get average production per focal reach
+  long_file <- file.path(config$data_output_dir, 
+                         paste0("TributaryGroups_Individuals_LongFormat", type_label, ".csv"))
+  
+  if (!file.exists(long_file)) {
+    cat(sprintf("  ✗ Long format file not found: %s\n", long_file))
+    next
+  }
+  
+  long_data <- read_csv(long_file, show_col_types = FALSE)
+  
+  # Calculate average production per tributary group across all years
+  avg_production <- long_data %>%
+    filter(group_individuals > 0) %>%
+    group_by(focal_reach, stream_order) %>%
+    summarise(
+      avg_individuals = mean(group_individuals, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Merge with CV data
+  scatter_data <- cv_data %>%
+    left_join(avg_production, by = c("focal_reach", "stream_order")) %>%
+    filter(!is.na(cv) & !is.na(avg_individuals)) %>%
+    mutate(
+      stream_order = as.factor(stream_order)
+    )
+  
+  if (nrow(scatter_data) == 0) {
+    cat(sprintf("  ✗ No data available for scatterplot\n"))
+    next
+  }
+  
+  # Filter out bottom 10% of production
+  production_10th_percentile <- quantile(scatter_data$avg_individuals, probs = 0.10, na.rm = TRUE)
+  scatter_data_filtered <- scatter_data %>%
+    filter(avg_individuals >= production_10th_percentile)
+  
+  cat(sprintf("  Filtering: Removed %d groups (bottom 10%% production threshold: %.1f individuals)\n", 
+              nrow(scatter_data) - nrow(scatter_data_filtered), production_10th_percentile))
+  
+  # Get unique stream orders for faceting
+  unique_stream_orders <- sort(unique(scatter_data_filtered$stream_order))
+  n_stream_orders_plot <- length(unique_stream_orders)
+  
+  # Calculate facet layout
+  if (n_stream_orders_plot <= 3) {
+    facet_ncol <- n_stream_orders_plot
+    fig_width <- 5 * n_stream_orders_plot
+    fig_height <- 5
+  } else if (n_stream_orders_plot <= 6) {
+    facet_ncol <- 3
+    fig_height <- 10
+    fig_width <- 15
+  } else if (n_stream_orders_plot <= 12) {
+    facet_ncol <- 3
+    fig_height <- 4 + (ceiling(n_stream_orders_plot / 3) * 4.5)
+    fig_width <- 15
+  } else {
+    facet_ncol <- 4
+    fig_height <- 4 + (ceiling(n_stream_orders_plot / 4) * 4)
+    fig_width <- 18
+  }
+  
+  # Create faceted scatterplot - FiveThirtyEight style
+  p <- ggplot(scatter_data_filtered, aes(x = avg_individuals, y = cv)) +
+    geom_point(color = "#92B9BD", size = 3, alpha = 0.6) +
+    geom_hline(aes(yintercept = basin_cv), linetype = "dashed", color = "#88292F", size = 1) +
+    facet_wrap(~ paste("Stream Order", stream_order), scales = "free", ncol = facet_ncol) +
+    theme_minimal() +
+    theme(
+      plot.background = element_rect(fill = "white", color = NA),
+      panel.background = element_rect(fill = "white", color = NA),
+      panel.grid.major = element_line(color = "#EBEBEB", size = 0.3),
+      panel.grid.minor = element_blank(),
+      text = element_text(color = "#333333", family = "sans", size = 11),
+      plot.title = element_text(size = 14, face = "bold", color = "#333333", margin = margin(b = 5)),
+      plot.subtitle = element_text(size = 12, color = "#666666", margin = margin(b = 15)),
+      axis.title = element_text(size = 11, color = "#333333"),
+      axis.text = element_text(size = 10, color = "#666666"),
+      axis.line = element_line(color = "#CCCCCC", size = 0.3),
+      strip.text = element_text(size = 10, face = "bold", color = "#333333"),
+      strip.background = element_rect(fill = "#F0F0F0", color = "#CCCCCC", size = 0.5)
+    ) +
+    labs(
+      title = sprintf("Production vs Coefficient of Variation: %s (Bottom 10%% Filtered)", config$name),
+      subtitle = "Each point represents one tributary group; average production (all years) vs variability",
+      x = "Average Production (Individuals)",
+      y = "Coefficient of Variation"
+    )
+  
+  # Save the plot
+  scatter_plot_file <- file.path(config$figure_output_dir, 
+                                 paste0("ScatterPlot_Production_vs_CV_", config$name, type_label, ".png"))
+  
+  ggsave(scatter_plot_file, plot = p, width = fig_width, height = fig_height, units = "in", dpi = 300, bg = "white")
+  cat(sprintf("  ✓ Scatterplot: %s\n", basename(scatter_plot_file)))
+  cat(sprintf("    Data points: %d tributary groups (after filtering)\n", nrow(scatter_data_filtered)))
+  cat(sprintf("    Stream orders: %d\n", n_stream_orders_plot))
+  cat(sprintf("    Figure dimensions: %d x %d inches\n", fig_width, fig_height))
+}
+
+cat("\n", paste(rep("=", 80), collapse = ""), "\n", sep = "")
+cat("✓ Production vs CV analysis complete!\n")
+cat("✓ Generated faceted scatterplots for all scenarios (bottom 10%% filtered).\n")
+cat("✓ All analysis complete!\n\n")
