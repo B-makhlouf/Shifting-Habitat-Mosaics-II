@@ -1,14 +1,22 @@
 ################################################################################
-# CONSOLIDATED SALMON VISUALIZATION - WITH GENETIC COMPOSITION COLORING
-# UPDATED: Now supports Kusko, Yukon, and Nushagak watersheds
-# UPDATED: Now supports filter type parameter for consistent naming with CSVs
+# 00_VISUALIZATION_COMPLETE.R - VISUALIZATION MODULE WITH ALL FUNCTIONS
+# Complete standalone module - source this file to get all visualization functions
 ################################################################################
 
-library(ggplot2); library(RColorBrewer); library(scales); library(grid); library(sf); library(dplyr); library(tidyr)
+# Load required libraries
+suppressPackageStartupMessages({
+  library(ggplot2)
+  library(RColorBrewer)
+  library(scales)
+  library(grid)
+  library(sf)
+  library(dplyr)
+  library(tidyr)
+})
 
-#------------------------------------------------------------------------------
+################################################################################
 # HISTOGRAM CREATION FUNCTIONS
-#------------------------------------------------------------------------------
+################################################################################
 
 #' Create CPUE histogram with genetic composition coloring (for Yukon)
 #' Matches the QC script approach with filtered data underline
@@ -151,14 +159,14 @@ create_cpue_histogram_simple <- function(natal_data, year) {
   return(gg_hist)
 }
 
-#------------------------------------------------------------------------------
-# MAIN MAPPING FUNCTION - UPDATED WITH FILTER TYPE PARAMETER & NUSHAGAK SUPPORT
-#------------------------------------------------------------------------------
+################################################################################
+# MAIN MAPPING FUNCTION
+################################################################################
 
-#' Create annual map with filter-type aware filename for Kusko, Yukon, or Nushagak
+#' Create annual map with scenario-based directory structure
 #'
 #' @param analysis_results List output from run_annual_analysis()
-#' @param output_dir Directory to save map
+#' @param base_output_dir Base directory for maps (e.g., /path/to/Yukon_Annual)
 #' @param year Year of analysis
 #' @param watershed Watershed name ("Kusko", "Yukon", or "Nushagak")
 #' @param filter_type Character: "none", "cpue_percentile", "date_range", "both", or "cpue_50_cutoff"
@@ -168,15 +176,7 @@ create_cpue_histogram_simple <- function(natal_data, year) {
 #' @param date_end End DOY (for date_range filter)
 #'
 #' @return Path to saved map file
-#'
-#' @examples
-#' # Full year map - Nushagak
-#' create_annual_map(results, output_dir, 2020, "Nushagak")
-#'
-#' # 50% CPUE cutoff map - Nushagak
-#' create_annual_map(results, output_dir, 2020, "Nushagak", 
-#'                   filter_type = "cpue_50_cutoff")
-create_annual_map <- function(analysis_results, output_dir, year, watershed,
+create_annual_map <- function(analysis_results, base_output_dir, year, watershed,
                               filter_type = "none",
                               cpue_lower = NULL,
                               cpue_upper = NULL,
@@ -232,8 +232,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed,
                        palette_expanded[8], palette_expanded[9])
     
   } else if (watershed == "Nushagak") {
-    # TODO: Define Nushagak-specific color bins
-    # Using Kusko pattern as template - adjust as needed
+    # Nushagak: Using Kusko pattern as template
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
     colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[6]
@@ -268,8 +267,7 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed,
                                                      ifelse(stream_order >= 4, 2.7,
                                                             ifelse(stream_order >= 3, 2.0, 1.0)))))))
   } else if (watershed == "Nushagak") {
-    # TODO: Define Nushagak-specific linewidths
-    # Using Kusko pattern as template - adjust stream order thresholds as needed
+    # Nushagak linewidths
     linewidths <- ifelse(stream_order >= 9, 4,
                          ifelse(stream_order >= 8, 3.5,
                                 ifelse(stream_order >= 7, 3,
@@ -285,35 +283,44 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed,
   # 5. CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
   gg_hist <- create_cpue_histogram_genetic(natal_data, year, watershed)
   
-  # 6. CREATE OUTPUT FILENAME WITH FILTER TYPE
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  # 6. DETERMINE SCENARIO SUBDIRECTORY AND CREATE OUTPUT FILENAME
   
-  if (filter_type == "cpue_50_cutoff") {
-    map_filename <- file.path(output_dir, paste0("CPUE50pct_", year, "_", watershed, "_Annual_Production.png"))
+  # Determine which scenario this represents and create appropriate directory
+  if (filter_type == "none") {
+    scenario_dir <- "Full_Year"
+    map_filename <- file.path(base_output_dir, "Production", scenario_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
+  } else if (filter_type == "cpue_50_cutoff") {
+    scenario_dir <- "Half_Year"
+    map_filename <- file.path(base_output_dir, "Production", scenario_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
   } else if (filter_type == "cpue_percentile") {
-    map_filename <- file.path(output_dir, paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_", year, "_", watershed, "_Annual_Production.png"))
+    scenario_dir <- paste0("CPUE_", cpue_lower, "-", cpue_upper, "pct")
+    map_filename <- file.path(base_output_dir, "Production", scenario_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
   } else if (filter_type == "date_range") {
-    map_filename <- file.path(output_dir, paste0("DOY", date_start, "-", date_end, "_", year, "_", watershed, "_Annual_Production.png"))
+    scenario_dir <- paste0("DOY_", date_start, "-", date_end)
+    map_filename <- file.path(base_output_dir, "Production", scenario_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
   } else if (filter_type == "both") {
-    map_filename <- file.path(output_dir, paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_DOY", date_start, "-", date_end, "_", year, "_", watershed, "_Annual_Production.png"))
-  } else {
-    # Default for "none" filter type
-    map_filename <- file.path(output_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
+    scenario_dir <- paste0("CPUE_", cpue_lower, "-", cpue_upper, "pct_DOY_", date_start, "-", date_end)
+    map_filename <- file.path(base_output_dir, "Production", scenario_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
   }
   
+  # Create output directory
+  output_dir <- dirname(map_filename)
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # 7. CREATE PNG FILE
   png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   
-  # 7. PLOT BASE MAP
+  # 8. PLOT BASE MAP
   par(mar = c(8, 4, 4, 2), bg = "white")
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', 
        main = paste0("Annual Production\nYear: ", year, " River: ", watershed), bg = "white")
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
-  # 8. ADD LEGEND
+  # 9. ADD LEGEND
   legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5, 
          title = "Relative posterior density", bty = "n", bg = "white")
   
-  # 9. OVERLAY HISTOGRAM
+  # 10. OVERLAY HISTOGRAM
   vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
   print(gg_hist, vp = vp_hist)
   
@@ -321,11 +328,19 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed,
   par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
   
   cat(paste("  ✓ Saved:", basename(map_filename), "\n"))
+  cat(paste("  ✓ Location:", output_dir, "\n"))
+  cat(paste("  ✓ Scenario:", scenario_dir, "\n"))
   cat(paste("  ✓ Map includes ALL stream orders (white = zero assignment, colors = assignment values)\n"))
   
   return(map_filename)
 }
 
+################################################################################
+# VERIFICATION
+################################################################################
 
-
-
+cat("✓ Visualization module loaded successfully\n")
+cat("✓ Functions available:\n")
+cat("  - create_annual_map()\n")
+cat("  - create_cpue_histogram_genetic()\n")
+cat("  - create_cpue_histogram_simple()\n")
