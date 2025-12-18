@@ -270,6 +270,20 @@ run_annual_analysis <- function(year,
                               date_end = date_end,
                               watershed = watershed)
   
+  ##############################################################################
+  ### ADD FW Growth Calculation 
+  ### Growth dataset 
+  
+  GrowthDat<- read.csv("/Users/benjaminmakhlouf/Research_repos/03_Western_Ak_otolith_stock_discrimination/data/LA_Data/Preprocessed_ts_matrices/NatalToMarine_Processed_Combined.csv")
+  
+  # because its a huge dataset, lets filter to the first 6 columns 
+  GrowthDat<- GrowthDat[,c(1,2,3,4,5,6)]
+  
+  
+  
+  
+  
+  
   if (verbose) {
     cat(paste("  Initial observations: ", nrow(natal_data_clean), "\n", sep = ""))
     print_filter_summary(natal_data)

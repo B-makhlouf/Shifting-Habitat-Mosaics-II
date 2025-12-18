@@ -326,24 +326,6 @@ create_annual_map <- function(analysis_results, output_dir, year, watershed,
   return(map_filename)
 }
 
-#------------------------------------------------------------------------------
-# DOCUMENTATION
-#------------------------------------------------------------------------------
-cat("\n✓ UPDATED Visualization.R loaded with Nushagak watershed support\n")
-cat("Supported watersheds: Kusko, Yukon, Nushagak\n\n")
-cat("New features:\n")
-cat("  - Map filenames now match CSV naming convention\n")
-cat("  - Filter type is included at beginning of filename\n")
-cat("  - For Yukon: CPUE bars colored by genetic composition\n")
-cat("  - For Kusko & Nushagak: Simple tomato-colored CPUE histogram\n")
-cat("  - Nushagak uses template linewidths - adjust in code as needed\n\n")
-cat("Map filename examples:\n")
-cat("  - Full year: 2020_Nushagak_Annual_Production.png\n")
-cat("  - 50% CPUE: CPUE50pct_2020_Nushagak_Annual_Production.png\n")
-cat("  - CPUE %: CPUE50-100pct_2020_Nushagak_Annual_Production.png\n")
-cat("  - Date range: DOY160-183_2020_Nushagak_Annual_Production.png\n")
-cat("  - Both: CPUE50-100pct_DOY160-183_2020_Nushagak_Annual_Production.png\n\n")
-cat("TODO: Review and adjust Nushagak-specific parameters:\n")
-cat("  - Color bin definitions (currently using Kusko template)\n")
-cat("  - Linewidth thresholds for stream orders\n")
-cat("  - Genetic data handling (if applicable)\n")
+
+
+
