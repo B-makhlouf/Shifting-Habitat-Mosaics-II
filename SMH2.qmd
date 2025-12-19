@@ -5,7 +5,33 @@ self-contained: true
 editor: visual
 ---
 
+# Data Completedness 
+
+::: panel-tabset
+
+### Yukon
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/Yukon_Data_Availability_With_Genetics.png")
+```
+
+
+### Kusko
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/Kusko_Data_Availability_Overview.png")
+```
+:::
+
+# Reach level assignments
+
+#### The way we've been doing it 
+
 ## Yukon - Full Years
+
+Minimum Stream Order: 3
+
+Assignment Threshold: .7
+
+Priors: USGS IP, USGS presence only on mainstem
 
 ::: panel-tabset
 ### 2015
@@ -57,6 +83,12 @@ knitr::include_graphics("./Maps/Yukon_Annual/Production/Half_Year/2021_Yukon_Ann
 
 ## Kuskokwim - Full Years
 
+Minimum Stream Order: 3
+
+X
+
+Y
+
 ::: panel-tabset
 ### 2017
 
@@ -88,3 +120,117 @@ knitr::include_graphics("./Maps/Kusko_Annual/Production/Full_Year/2020_Kusko_Ann
 knitr::include_graphics("./Maps/Kusko_Annual/Production/Full_Year/2021_Kusko_Annual_Production.png")
 ```
 :::
+
+# Production aggregated to the Tributary 
+
+All production from within the same stream order connected trib
+
+#### Here , show the full year Yukon aggregated maps 
+
+#### Here, show the full year Kuskokwim trib aggregated maps 
+
+
+::: panel-tabset
+
+### 2017
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Maps/Kusko_Annual/TribAggregated/Kusko_2017_tribaggregated.png")
+```
+
+### 2018
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Maps/Kusko_Annual/TribAggregated/Kusko_2018_tribaggregated.png")
+```
+
+### 2019
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Maps/Kusko_Annual/TribAggregated/Kusko_2019_tribaggregated.png")
+```
+
+### 2020
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Maps/Kusko_Annual/TribAggregated/Kusko_2020_tribaggregated.png")
+```
+
+### 2021
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Maps/Kusko_Annual/TribAggregated/Kusko_2021_tribaggregated.png")
+```
+:::
+
+
+## Production vs Variability 
+
+##### Here, show a three panel figure with the prod map, CV map, and CV vs prod scatterplot. 
+
+## Variability at several river-relevant spatial scales. 
+
+### Group all of the upstream reaches from a given stream order. All upstream reaches of all 5th order tribs, 4th order, etc. 
+
+#### Here, show an example of the maps of the upstream groups grabbed 
+
+#### among these groups , what does the variability in production look like (estimated \# of fish) 
+
+::: panel-tabset
+### Full year Yukon (2015,2016,2021)
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/CVbyStrOrd/TributaryGroups_Yukon_FullYear_Combined_Analysis.png")
+```
+
+### Half year Yukon (all years)
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/CVbyStrOrd/TributaryGroups_Yukon_HalfYear_Combined_Analysis_HalfYear.png")
+```
+
+### Kuskokwim
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/CVbyStrOrd/TributaryGroups_Kusko_FullYear_Combined_Analysis.png")
+```
+:::
+
+### Within these groups is there a relationship between production and variability? 
+
+::: panel-tabset
+### Full year Yukon (2015,2016,2021)
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/CVbyStrOrd/ScatterPlot_Production_vs_CV_Yukon_FullYear.png")
+```
+
+### Half year Yukon (all years)
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/CVbyStrOrd/ScatterPlot_Production_vs_CV_Yukon_HalfYear_HalfYear.png")
+```
+
+### Kuskokwim
+
+```{r, echo=FALSE, out.width="100%"}
+knitr::include_graphics("./Figures/CVbyStrOrd/ScatterPlot_Production_vs_CV_Kusko_FullYear.png")
+```
+:::
+
+
+## SHM results in  
+
+Growth calculated as the # of microns between the beginning of the natal origin and the onset of the marine 
+
+Age recorded by ADFG for genetic samples 
+
+### here, i'll have a panel tabset of 4 panel figures for each of the 3 Yukon years 
+
+
+
+
+
+
+
+
