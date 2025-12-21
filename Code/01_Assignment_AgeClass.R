@@ -282,17 +282,21 @@ run_yukon_analysis <- function(year, age_class) {
   # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
   # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
   
-  colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
-    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
-    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
-    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+  # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
+  #   colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+  #   colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+  #   colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+  #   colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+  #   colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+  #   colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+  #   colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+  #   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+  #   colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
+  
     colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
     colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
-  
   
   # Setup linewidths by stream order
   stream_order <- edges$Str_Order

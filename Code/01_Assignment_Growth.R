@@ -36,7 +36,7 @@ analyze_yukon_salmon_production <- function(year) {
     min_stream_order = 4,
     min_error = 0.003,
     sensitivity_threshold = 0.7,
-    growth_percentile = 0.8
+    growth_percentile = 0.9
   )
   
   # Mapping parameters
@@ -291,17 +291,21 @@ analyze_yukon_salmon_production <- function(year) {
   # Color coding based on normalized assignment (10 bins)
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'grey95'
-  colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
-  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
-  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
-  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
-  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+  # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
+  # colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+  # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+  # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+  # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+  # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+  # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+  # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+  # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+  # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
+ 
   colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
   colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
   colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
- 
   
   # Apply stream order filters and linewidths
   stream_order <- edges$Str_Order

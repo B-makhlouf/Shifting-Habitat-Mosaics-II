@@ -249,7 +249,7 @@ run_annual_analysis <- function(year,
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        pid_prior * StreamOrderPrior * gen_prior *PresencePrior * NewHabitatPrior 
+        pid_prior * StreamOrderPrior * gen_prior *PresencePrior #* NewHabitatPrior 
       
     } else {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
