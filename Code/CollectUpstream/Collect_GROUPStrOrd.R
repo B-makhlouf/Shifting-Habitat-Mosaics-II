@@ -3,7 +3,7 @@ library(tidyverse)
 library(here)
 
 ################################################################################
-# YUKON - EXISTING CODE (NO CHANGES)
+# YUKON - WITH VALIDATION
 ################################################################################
 
 #------------------------------------------------------------------------------
@@ -16,6 +16,7 @@ yuk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yuk
 
 YukonNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/yukon_noderelationships.csv"), header = TRUE, stringsAsFactors = FALSE)
 YukonNetwork <- YukonNodes %>% rename(child_s = fromnode, parent_s = tonode)
+
 
 #------------------------------------------------------------------------------
 # FUNCTION: Find all upstream reaches for a given reach ID
@@ -56,6 +57,17 @@ upstream_relationships <- data.frame(
 reachbases <- sort(unique(yuk_edges$Reachbase))
 # Remove 0 
 reachbases <- reachbases[reachbases != 0]
+#Remove 3 
+reachbases <- reachbases[reachbases != 3]
+
+# Initialize validation summary
+validation_summary <- data.frame(
+  reachbase = integer(),
+  n_unique_reachid = integer(),
+  n_unique_groups = integer(),
+  validation_passed = logical(),
+  stringsAsFactors = FALSE
+)
 
 for (rb in reachbases) {
   
@@ -64,6 +76,8 @@ for (rb in reachbases) {
   
   # Find all upstream reaches for each reach of this reachbase
   all_upstream <- c()
+  groups_created <- c()  # Track groups created for this reachbase
+  
   for (reach in reaches_of_reachbase) {
     upstream <- FindUpstreamReachID(reach)
     all_upstream <- c(all_upstream, upstream)
@@ -77,6 +91,33 @@ for (rb in reachbases) {
                                                    reachbase = rb))
       }
     }
+    
+    # Track unique groups for this reachbase
+    groups_created <- c(groups_created, reach)
+  }
+  
+  # Count unique values
+  n_unique_reachid <- n_distinct(reaches_of_reachbase)
+  n_unique_groups <- n_distinct(groups_created)
+  
+  # Validation check
+  validation_passed <- (n_unique_reachid == n_unique_groups)
+  
+  # Add to validation summary
+  validation_summary <- rbind(validation_summary,
+                              data.frame(reachbase = rb,
+                                         n_unique_reachid = n_unique_reachid,
+                                         n_unique_groups = n_unique_groups,
+                                         validation_passed = validation_passed))
+  
+  # Print validation result
+  cat("Reachbase", rb, ":\n")
+  cat("  Unique reachid values: ", n_unique_reachid, "\n")
+  cat("  Unique groups created: ", n_unique_groups, "\n")
+  if (validation_passed) {
+    cat("  ✓ VALIDATION PASSED\n\n")
+  } else {
+    cat("  ✗ VALIDATION FAILED - Mismatch detected!\n\n")
   }
   
   # Remove duplicates for mapping
@@ -116,10 +157,15 @@ yukon_export_path <- paste0(
 write_csv(upstream_relationships, yukon_export_path)
 
 cat("Yukon maps saved to:", output_dir, "\n")
-cat("Yukon relationships exported to:", yukon_export_path, "\n")
+cat("Yukon relationships exported to:", yukon_export_path, "\n\n")
+
+# Print validation summary
+cat("=== YUKON VALIDATION SUMMARY ===\n")
+print(validation_summary)
+cat("\nOverall validation: ", all(validation_summary$validation_passed), "\n\n")
 
 ################################################################################
-# KUSKOKWIM - NEW CODE
+# KUSKOKWIM - WITH VALIDATION
 ################################################################################
 
 #------------------------------------------------------------------------------
@@ -172,6 +218,17 @@ kusko_upstream_relationships <- data.frame(
 kusko_reachbases <- sort(unique(kusk_edges$Reachbase))
 # Remove 0 
 kusko_reachbases <- kusko_reachbases[kusko_reachbases != 0]
+#remmove 3 
+kusko_reachbases <- kusko_reachbases[kusko_reachbases != 3]
+
+# Initialize validation summary
+kusko_validation_summary <- data.frame(
+  reachbase = integer(),
+  n_unique_reachid = integer(),
+  n_unique_groups = integer(),
+  validation_passed = logical(),
+  stringsAsFactors = FALSE
+)
 
 for (rb in kusko_reachbases) {
   
@@ -180,6 +237,8 @@ for (rb in kusko_reachbases) {
   
   # Find all upstream reaches for each reach of this reachbase
   all_upstream <- c()
+  groups_created <- c()  # Track groups created for this reachbase
+  
   for (reach in reaches_of_reachbase) {
     upstream <- FindUpstreamReachID_Kusk(reach)
     all_upstream <- c(all_upstream, upstream)
@@ -193,6 +252,33 @@ for (rb in kusko_reachbases) {
                                                          reachbase = rb))
       }
     }
+    
+    # Track unique groups for this reachbase
+    groups_created <- c(groups_created, reach)
+  }
+  
+  # Count unique values
+  n_unique_reachid <- n_distinct(reaches_of_reachbase)
+  n_unique_groups <- n_distinct(groups_created)
+  
+  # Validation check
+  validation_passed <- (n_unique_reachid == n_unique_groups)
+  
+  # Add to validation summary
+  kusko_validation_summary <- rbind(kusko_validation_summary,
+                                    data.frame(reachbase = rb,
+                                               n_unique_reachid = n_unique_reachid,
+                                               n_unique_groups = n_unique_groups,
+                                               validation_passed = validation_passed))
+  
+  # Print validation result
+  cat("Reachbase", rb, ":\n")
+  cat("  Unique reachid values: ", n_unique_reachid, "\n")
+  cat("  Unique groups created: ", n_unique_groups, "\n")
+  if (validation_passed) {
+    cat("  ✓ VALIDATION PASSED\n\n")
+  } else {
+    cat("  ✗ VALIDATION FAILED - Mismatch detected!\n\n")
   }
   
   # Remove duplicates for mapping
@@ -229,8 +315,41 @@ kusko_export_path <- paste0(
   "Kusko_UpstreamReaches_Relationships.csv"
 )
 
-write_csv(upstream_relationships, kusko_export_path)
+write_csv(kusko_upstream_relationships, kusko_export_path)
 
-cat("\nKuskokwim maps saved to:", kusko_output_dir, "\n")
-cat("Kuskokwim relationships exported to:", kusko_export_path, "\n")
+cat("Kuskokwim maps saved to:", kusko_output_dir, "\n")
+cat("Kuskokwim relationships exported to:", kusko_export_path, "\n\n")
 
+# Print validation summary
+cat("=== KUSKOKWIM VALIDATION SUMMARY ===\n")
+print(kusko_validation_summary)
+cat("\nOverall validation: ", all(kusko_validation_summary$validation_passed), "\n\n")
+
+################################################################################
+# COMBINED VALIDATION REPORT
+################################################################################
+
+cat("=== COMBINED VALIDATION REPORT ===\n")
+cat("YUKON:\n")
+if (all(validation_summary$validation_passed)) {
+  cat("  ✓ All reachbases passed validation\n")
+} else {
+  cat("  ✗ Some reachbases failed validation:\n")
+  failed_rb <- validation_summary$reachbase[!validation_summary$validation_passed]
+  for (rb in failed_rb) {
+    row <- validation_summary[validation_summary$reachbase == rb, ]
+    cat("    Reachbase", rb, ": Expected", row$n_unique_reachid, "groups, got", row$n_unique_groups, "\n")
+  }
+}
+
+cat("\nKUSKOKWIM:\n")
+if (all(kusko_validation_summary$validation_passed)) {
+  cat("  ✓ All reachbases passed validation\n")
+} else {
+  cat("  ✗ Some reachbases failed validation:\n")
+  failed_rb <- kusko_validation_summary$reachbase[!kusko_validation_summary$validation_passed]
+  for (rb in failed_rb) {
+    row <- kusko_validation_summary[kusko_validation_summary$reachbase == rb, ]
+    cat("    Reachbase", rb, ": Expected", row$n_unique_reachid, "groups, got", row$n_unique_groups, "\n")
+  }
+}

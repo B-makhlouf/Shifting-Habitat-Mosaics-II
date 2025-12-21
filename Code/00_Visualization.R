@@ -206,9 +206,30 @@ create_annual_map <- function(analysis_results, base_output_dir, year, watershed
   # Define watershed-specific color bins and legend
   if (watershed == "Yukon") {
     # YUKON: 0.2 intervals
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[5]
+    # colcode[basin_assign_norm > 0 & basin_assign_norm <= 0.2] <- palette_expanded[1]
+    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.5] <- palette_expanded[1]
+    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[3]
+    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[4]
+    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[6]
+    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.85] <- palette_expanded[7]
+    # colcode[basin_assign_norm > 0.85 & basin_assign_norm <= 0.9] <- palette_expanded[8]
+    # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= .95] <- palette_expanded[9]
+    # colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    # 
+    
+    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[1]
+    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[3]
+    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[5]
+    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.8] <- palette_expanded[7]
+    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.10] <- palette_expanded[9]
+
+
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[6]
     colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
@@ -221,11 +242,35 @@ create_annual_map <- function(analysis_results, base_output_dir, year, watershed
     
   } else if (watershed == "Kusko") {
     # KUSKO: 0.1-0.2 intervals (more granular)
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[6]
-    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.8] <- palette_expanded[8]
-    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 1.0] <- palette_expanded[9]
+    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.5] <- palette_expanded[1]
+    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[3]
+    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[4]
+    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[6]
+    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.85] <- palette_expanded[7]
+    # colcode[basin_assign_norm > 0.85 & basin_assign_norm <= 0.9] <- palette_expanded[8]
+    # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= .95] <- palette_expanded[9]
+    # colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette_expanded[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette_expanded[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette_expanded[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette_expanded[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette_expanded[6]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    
+    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[1]
+    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[3]
+    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[5]
+    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.8] <- palette_expanded[7]
+    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[8]
+    # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette_expanded[9]
+    # colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    # 
+    # 
     
     legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.8", "0.8-1.0")
     legend_colors <- c(palette_expanded[2], palette_expanded[4], palette_expanded[6], 
@@ -253,10 +298,10 @@ create_annual_map <- function(analysis_results, base_output_dir, year, watershed
     linewidths <- ifelse(stream_order >= 9, 3.7,
                          ifelse(stream_order >= 8, 2.5,
                                 ifelse(stream_order >= 7, 2.3,
-                                       ifelse(stream_order >= 6, 2.0,
-                                              ifelse(stream_order >= 5, 1.8,
-                                                     ifelse(stream_order >= 4, 0.8, 
-                                                            ifelse(stream_order >= 3, 0.7, 0.2)))))))
+                                       ifelse(stream_order >= 6, 1.5,
+                                              ifelse(stream_order >= 5, 1.5,
+                                                     ifelse(stream_order >= 4, 1.5, 
+                                                            ifelse(stream_order >= 3, 0, 0)))))))
   } else if (watershed == "Kusko") {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
@@ -265,7 +310,7 @@ create_annual_map <- function(analysis_results, base_output_dir, year, watershed
                                        ifelse(stream_order >= 6, 3.5,
                                               ifelse(stream_order >= 5, 3.0,
                                                      ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 3, 2.0, 1.0)))))))
+                                                            ifelse(stream_order >= 3, 2.0, 0)))))))
   } else if (watershed == "Nushagak") {
     # Nushagak linewidths
     linewidths <- ifelse(stream_order >= 9, 4,
