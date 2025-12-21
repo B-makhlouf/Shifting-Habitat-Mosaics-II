@@ -33,10 +33,10 @@ analyze_yukon_salmon_production <- function(year) {
   
   # Analysis parameters
   params <- list(
-    min_stream_order = 3,
+    min_stream_order = 4,
     min_error = 0.003,
     sensitivity_threshold = 0.7,
-    growth_percentile = 0.95
+    growth_percentile = 0.8
   )
   
   # Mapping parameters
@@ -221,7 +221,7 @@ analyze_yukon_salmon_production <- function(year) {
   stream_order_prior <- ifelse(edges$Str_Order >= params$min_stream_order, 1, 0)
   pid_prior <- edges$PriorSl2
   presence_prior <- ifelse((edges$Str_Order %in% c(8, 9)) & edges$SPAWNING_C == 0, 0, 1)
-  habitat_prior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
+  #habitat_prior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
   
   # Get genetic group site indices
   ly_sites <- which(edges$GenLMU == "lower")
@@ -243,7 +243,7 @@ analyze_yukon_salmon_production <- function(year) {
     
     # Calculate assignment probability using Bayesian framework
     assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-      pid_prior * stream_order_prior * gen_prior * habitat_prior * presence_prior
+      pid_prior * stream_order_prior * gen_prior *  presence_prior #habitat_prior *
     
     # Normalize and apply sensitivity threshold
     assign_norm <- assign / sum(assign)
@@ -300,6 +300,7 @@ analyze_yukon_salmon_production <- function(year) {
   colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
   colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
  
   
   # Apply stream order filters and linewidths
@@ -313,7 +314,7 @@ analyze_yukon_salmon_production <- function(year) {
   linewidths[stream_order == 6] <- mapping_params$linewidth_order_6
   linewidths[stream_order == 5] <- mapping_params$linewidth_order_5
   linewidths[stream_order == 4] <- mapping_params$linewidth_order_4
-  linewidths[stream_order == 3] <- mapping_params$linewidth_order_3
+  linewidths[stream_order == 3] <- 0
   linewidths[stream_order <= 2] <- 0
   
   # Create output filename
