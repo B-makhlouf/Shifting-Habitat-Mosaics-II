@@ -1,56 +1,61 @@
 ################################################################################
-# YUKON AGE CLASS MAPPING ANALYSIS
-# Maps salmon production distribution for different age classes (e.g., 1.3 vs 1.4)
-# Filters data by age, applies flexible time/CPUE filters, and creates maps
+# YUKON AGE CLASS MAPPING ANALYSIS - CONSOLIDATED
+# Single function version for easy step-by-step walkthrough
 ################################################################################
 
 library(sf); library(dplyr); library(readr); library(readxl)
 library(RColorBrewer); library(grid)
 
 #==============================================================================
-# 1. CONFIGURATION
+# CONSOLIDATED MAIN FUNCTION
 #==============================================================================
 
-PATHS <- list(
-  yukon_edges = "/Users/benjaminmakhlouf/Spatial Data/SMH2/YukonUSGS_noCA.shp",
-  yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
-  yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
-  yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
+run_yukon_analysis <- function(year, age_class) {
   
-  natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
-  master_genetics = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Genetic Data/01_Raw/LYTF_2015-2022_Otoliths_Genetics_data.csv",
-  escapement_data = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
+  # ============================================================================
+  # SECTION 1: CONFIGURATION
+  # ============================================================================
   
-  output_dir = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Yukon_Annual/AgeClass"
-)
-
-# Yukon-specific analysis parameters
-PARAMS <- list(
-  min_stream_order = 3, 
-  min_error = 0.003, 
-  sensitivity_threshold = 0.7
-)
-
-# Map color and styling parameters
-MAPPING_PARAMS <- list(
-  color_bins = c(0.0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.9, 1.0),
-  linewidth_order_9 = 3.7,
-  linewidth_order_8 = 3.0,
-  linewidth_order_7 = 3.2,
-  linewidth_order_6 = 2.2,
-  linewidth_order_5 = 1.5,
-  linewidth_order_4 = 1.2,
-  linewidth_order_3 = 0.5
-)
-
-dir.create(PATHS$output_dir, recursive = TRUE, showWarnings = FALSE)
-
-#==============================================================================
-# 2. DATA LOADING FUNCTIONS
-#==============================================================================
-
-#' Load and prepare Yukon spatial data
-load_yukon_spatial_data <- function() {
+  PATHS <- list(
+    yukon_edges = "/Users/benjaminmakhlouf/Spatial Data/SMH2/YukonUSGS_noCA.shp",
+    yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
+    yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
+    yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
+    
+    natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
+    master_genetics = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Genetic Data/01_Raw/LYTF_2015-2022_Otoliths_Genetics_data.csv",
+    escapement_data = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
+    
+    output_dir = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Yukon_Annual/AgeClass"
+  )
+  
+  PARAMS <- list(
+    min_stream_order = 4, 
+    min_error = 0.003, 
+    sensitivity_threshold = 0.7
+  )
+  
+  MAPPING_PARAMS <- list(
+    color_bins = c(0.0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.9, 1.0),
+    linewidth_order_9 = 3.7,
+    linewidth_order_8 = 3.0,
+    linewidth_order_7 = 3.2,
+    linewidth_order_6 = 2.2,
+    linewidth_order_5 = 1.5,
+    linewidth_order_4 = 1.2,
+    linewidth_order_3 = 0.5
+  )
+  
+  dir.create(PATHS$output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  cat(paste("\n=== Year", year, "- Age", age_class, "===\n"))
+  
+  # ============================================================================
+  # SECTION 2: LOAD YUKON SPATIAL DATA
+  # ============================================================================
+  
+  cat("Loading spatial data...\n")
+  
   edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
   basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
   
@@ -66,11 +71,12 @@ load_yukon_spatial_data <- function() {
   edges$GenLMU[edges$reachid %in% ly_gen$reachid] <- "lower"
   edges$GenLMU[edges$reachid %in% my_gen$reachid] <- "middle"
   
-  return(list(edges = edges, basin = basin))
-}
-
-#' Load natal origin data for a specific year
-load_natal_data <- function(year) {
+  # ============================================================================
+  # SECTION 3: LOAD NATAL ORIGIN DATA
+  # ============================================================================
+  
+  cat("Loading natal origin data...\n")
+  
   file_path <- file.path(PATHS$natal_data_dir, 
                          paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv"))
   
@@ -78,30 +84,29 @@ load_natal_data <- function(year) {
     stop("Natal data file not found: ", file_path)
   }
   
-  # Load and filter for valid genetic and isotope data
-  natal_data <- read_csv(file_path, show_col_types = FALSE) %>%
+  natal_data_raw <- read_csv(file_path, show_col_types = FALSE) %>%
     filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
   
-  return(natal_data)
-}
-
-#' Load age data and add to natal data
-add_age_data <- function(natal_data, year) {
-  # Load master genetics file with age information
+  # ============================================================================
+  # SECTION 4: ADD AGE DATA
+  # ============================================================================
+  
+  cat("Loading age data...\n")
+  
   master_gen <- read.csv(PATHS$master_genetics) %>%
     filter(sampleYear == year, Genotyped. == "Yes") %>%
     select(Otolith.Number, totalAge) %>%
     distinct(Otolith.Number, .keep_all = TRUE)
   
-  # Join age data to natal data
-  natal_data <- natal_data %>%
+  natal_data <- natal_data_raw %>%
     left_join(master_gen, by = c("OtoNum" = "Otolith.Number"))
   
-  return(natal_data)
-}
-
-#' Get escapement data for a specific year
-get_escapement <- function(year) {
+  # ============================================================================
+  # SECTION 5: GET ESCAPEMENT DATA
+  # ============================================================================
+  
+  cat("Loading escapement data...\n")
+  
   escapement <- read_excel(PATHS$escapement_data) %>%
     filter(River == "Yukon", Year == year) %>%
     pull(Total_Run)
@@ -110,37 +115,32 @@ get_escapement <- function(year) {
     stop("Escapement data not found for Yukon, year ", year)
   }
   
-  return(as.numeric(escapement))
-}
-
-#==============================================================================
-# 3. FILTERING FUNCTIONS
-#==============================================================================
-
-#' Filter by age class only
-filter_by_age <- function(natal_data, age_class) {
+  escapement <- as.numeric(escapement)
+  
+  # ============================================================================
+  # SECTION 6: FILTER BY AGE CLASS
+  # ============================================================================
+  
+  cat("Filtering by age class...\n")
+  
   if (!("totalAge" %in% names(natal_data))) {
-    stop("Age data not found in natal_data. Run add_age_data() first.")
+    stop("Age data not found in natal_data.")
   }
   
-  filtered <- natal_data %>% filter(totalAge == age_class)
+  natal_data <- natal_data %>% filter(totalAge == age_class)
   
-  if (nrow(filtered) == 0) {
+  if (nrow(natal_data) == 0) {
     stop("No data found for age class: ", age_class)
   }
   
-  return(filtered)
-}
-
-
-
-#==============================================================================
-# 4. STRATUM WEIGHTING (CPUE adjustment by season)
-#==============================================================================
-
-#' Calculate adjustment weights by season (5 strata)
-#' Accounts for uneven otolith sampling across season
-calculate_stratum_weights <- function(natal_data_raw) {
+  cat(paste("  Age", age_class, ":", nrow(natal_data), "fish\n"))
+  
+  # ============================================================================
+  # SECTION 7: CALCULATE STRATUM WEIGHTS (CPUE adjustment by season)
+  # ============================================================================
+  
+  cat("Calculating stratum weights...\n")
+  
   # Create 5 equal time strata
   unique_days <- sort(unique(natal_data_raw$Date))
   ndays <- length(unique_days)
@@ -173,18 +173,19 @@ calculate_stratum_weights <- function(natal_data_raw) {
   natal_data_raw <- natal_data_raw %>%
     left_join(day_strata_with_weights %>% select(Date, strata, weight), by = "Date")
   
-  return(list(
-    data = natal_data_raw,
-    strata_summary = strata_summary
-  ))
-}
-
-#==============================================================================
-# 5. BAYESIAN ASSIGNMENT FUNCTION
-#==============================================================================
-
-#' Perform Bayesian assignment for natal origin
-perform_bayesian_assignment <- function(edges, natal_data, spatial_data) {
+  # Extract unique weight values per OtoNum
+  weight_data <- natal_data_raw %>%
+    select(OtoNum, weight) %>%
+    distinct(OtoNum, .keep_all = TRUE)
+  
+  natal_data <- natal_data %>%
+    left_join(weight_data, by = "OtoNum")
+  
+  # ============================================================================
+  # SECTION 8: PERFORM BAYESIAN ASSIGNMENT
+  # ============================================================================
+  
+  cat("Performing Bayesian assignment...\n")
   
   # Extract isoscape and genetic data
   pid_iso <- edges$iso_pred
@@ -220,7 +221,7 @@ perform_bayesian_assignment <- function(edges, natal_data, spatial_data) {
     
     # Calculate assignment probability
     assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-      pid_prior * stream_order_prior * gen_prior * habitat_prior * presence_prior
+      pid_prior * stream_order_prior * gen_prior * presence_prior #* habitat_prior 
     
     # Normalize and apply threshold
     assign_norm <- assign / sum(assign)
@@ -234,15 +235,11 @@ perform_bayesian_assignment <- function(edges, natal_data, spatial_data) {
   # Sum across all fish to get reach-level production
   basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
   
-  return(basin_assign_sum)
-}
-
-#==============================================================================
-# 6. RESULT PROCESSING
-#==============================================================================
-
-#' Convert raw assignments to normalized and individual counts
-process_assignments <- function(basin_assign_sum, escapement) {
+  # ============================================================================
+  # SECTION 9: PROCESS ASSIGNMENTS TO NORMALIZED AND INDIVIDUAL COUNTS
+  # ============================================================================
+  
+  cat("Processing assignment results...\n")
   
   total_sum <- sum(basin_assign_sum, na.rm = TRUE)
   
@@ -250,58 +247,51 @@ process_assignments <- function(basin_assign_sum, escapement) {
     basin_assign_rescale <- basin_assign_sum / total_sum
     basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
     basin_assign_individuals <- basin_assign_rescale * escapement
-    
   } else {
     basin_assign_rescale <- rep(0, length(basin_assign_sum))
     basin_assign_norm <- rep(0, length(basin_assign_sum))
     basin_assign_individuals <- rep(0, length(basin_assign_sum))
   }
   
-  return(list(
-    sum = basin_assign_sum,
-    rescale = basin_assign_rescale,
-    norm = basin_assign_norm,
-    individuals = basin_assign_individuals
-  ))
-}
-
-#==============================================================================
-# 7. MAPPING FUNCTION
-#==============================================================================
-
-#' Create annual production map for age class
-create_age_class_map <- function(edges, basin, assignments, year, age_class, 
-                                 output_filename) {
+  cat(paste("  Total production:", round(sum(basin_assign_sum), 2), "\n"))
   
-  basin_assign_norm <- assignments$norm
+  # ============================================================================
+  # SECTION 10: CREATE MAP
+  # ============================================================================
+  
+  cat("Creating map...\n")
   
   # Setup color palette
   palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
   
+
   # Color coding based on normalized assignment
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'grey95'
-  # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette[2]
-  # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette[4]
-  # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette[5]
+  
+  # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
+  # colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+  # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+  # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+  # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+  # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
   # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+  # 
+  # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.7] <- 'grey95'
   # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
   # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
   # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
-  # 
+  
   colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
-  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
-  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
-  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
-  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
-  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
-  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
-  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
-  
-  
-  
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
   
   
   # Setup linewidths by stream order
@@ -315,11 +305,14 @@ create_age_class_map <- function(edges, basin, assignments, year, age_class,
   linewidths[stream_order == 6] <- MAPPING_PARAMS$linewidth_order_6
   linewidths[stream_order == 5] <- MAPPING_PARAMS$linewidth_order_5
   linewidths[stream_order == 4] <- MAPPING_PARAMS$linewidth_order_4
-  linewidths[stream_order == 3] <- MAPPING_PARAMS$linewidth_order_3
+  linewidths[stream_order == 3] <- 0
   linewidths[stream_order <= 2] <- 0
   
   # Create map
-  png(file = output_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
+  map_filename <- file.path(PATHS$output_dir, 
+                            paste0(year, "_", age_class, "_AgeClass_Yukon.png"))
+  
+  png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   
   par(mar = c(8, 4, 4, 2), bg = "white")
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', 
@@ -328,8 +321,9 @@ create_age_class_map <- function(edges, basin, assignments, year, age_class,
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
   # Add legend
-  legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
-  legend_colors <- c(palette[2], palette[4], palette[5], palette[7], palette[8], palette[9], palette[10])
+  legend_labels <- c("0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-0.6", 
+                     "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
+  legend_colors <- palette
   
   legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
          title = "Relative posterior density", bty = "n", bg = "white")
@@ -337,70 +331,41 @@ create_age_class_map <- function(edges, basin, assignments, year, age_class,
   dev.off()
   par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
   
-  cat(paste("✓ Saved map:", basename(output_filename), "\n"))
+  cat(paste("✓ Saved map:", basename(map_filename), "\n"))
+  
+  # ============================================================================
+  # SECTION 11: RETURN SUMMARY
+  # ============================================================================
+  
+  cat("\n=== ANALYSIS COMPLETE ===\n")
+  
+  return(list(
+    year = year,
+    age_class = age_class,
+    n_fish = n_fish,
+    escapement = escapement,
+    total_production = sum(basin_assign_sum),
+    basin_assign_sum = basin_assign_sum,
+    basin_assign_norm = basin_assign_norm,
+    basin_assign_individuals = basin_assign_individuals,
+    map_filename = map_filename
+  ))
 }
 
 #==============================================================================
-# 8. MAIN ANALYSIS FUNCTION
+# EXECUTION
 #==============================================================================
 
-#' Run complete analysis for one year and age class
-run_age_class_analysis <- function(year, age_class) {
-  
-  cat(paste("\n=== Year", year, "- Age", age_class, "===\n"))
-  
-  # Load data
-  cat("Loading data...\n")
-  spatial_data <- load_yukon_spatial_data()
-  natal_data_raw <- load_natal_data(year)
-  natal_data <- add_age_data(natal_data_raw, year)
-  escapement <- get_escapement(year)
-  
-  # Filter by age class
-  natal_data <- filter_by_age(natal_data, age_class)
-  cat(paste("  Age", age_class, ":", nrow(natal_data), "fish\n"))
-  
-  # Calculate stratum weights
-  strata_result <- calculate_stratum_weights(natal_data_raw)
-  
-  # Extract unique weight values per OtoNum (removes duplicates from many-to-many)
-  weight_data <- strata_result$data %>%
-    select(OtoNum, weight) %>%
-    distinct(OtoNum, .keep_all = TRUE)
-  
-  natal_data <- natal_data %>%
-    left_join(weight_data, by = "OtoNum")
-  
-  # Perform assignment
-  cat("Performing Bayesian assignment...\n")
-  basin_assign_sum <- perform_bayesian_assignment(spatial_data$edges, natal_data, spatial_data)
-  
-  # Process results
-  assignments <- process_assignments(basin_assign_sum, escapement)
-  cat(paste("  Total production:", round(sum(basin_assign_sum), 2), "\n"))
-  
-  # Create map
-  cat("Creating map...\n")
-  map_filename <- file.path(PATHS$output_dir, 
-                            paste0( year,"_",age_class, "_AgeClass_", "_Yukon.png"))
-  create_age_class_map(spatial_data$edges, spatial_data$basin, assignments, 
-                       year, age_class, map_filename)
-}
+# Run single analysis
+# result <- run_yukon_analysis(2015, 1.3)
 
-#==============================================================================
-# 9. EXECUTION EXAMPLES
-#==============================================================================
-
-# Run full year analysis for both age classes, multiple years
-for (year in c(2015, 2016, 2018, 2021)) {
+# Or run loop
+for (year in c(2015, 2016, 2021)) {
   for (age in c(1.3, 1.4)) {
     tryCatch({
-      run_age_class_analysis(year, age)
+      run_yukon_analysis(year, age)
     }, error = function(e) {
       cat("ERROR - Year", year, "Age", age, ":", e$message, "\n")
     })
   }
 }
-
-cat("\n=== ANALYSIS COMPLETE ===\n")
-cat("Output directory:", PATHS$output_dir, "\n")

@@ -35,7 +35,7 @@ run_annual_analysis <- function(year,
   
   PARAMS <- list(
     Kusko = list(min_stream_order = 3, min_error = 0.00003, sensitivity_threshold = 0.00, max_error = NULL),
-    Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.000, max_error = NULL),
+    Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7, max_error = NULL),
     Nushagak = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0, max_error = NULL, has_genetic_data = FALSE)
   )
   
@@ -206,7 +206,9 @@ run_annual_analysis <- function(year,
   } else if (watershed == "Yukon") {
     pid_prior <- edges$PriorSl2
     PresencePrior <- ifelse((edges$Str_Order %in% c(8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
+    #NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
+    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1) #Alternative version
+    
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
     my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
@@ -247,7 +249,7 @@ run_annual_analysis <- function(year,
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        pid_prior * StreamOrderPrior * gen_prior *PresencePrior #NewHabitatPrior *
+        pid_prior * StreamOrderPrior * gen_prior *PresencePrior * NewHabitatPrior 
       
     } else {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 

@@ -33,16 +33,16 @@ BASE_NUSHAGAK_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat
 # EXAMPLE 1: FULL YEAR ANALYSIS
 ################################################################################
 
-# KUSKOKWIM FULL YEAR
-for (year in c(2017, 2018, 2019, 2020, 2021)) {
-  cat("\n--- Kuskokwim", year, "---\n")
-  tryCatch({
-    results <- run_annual_analysis(year, "Kusko")
-    create_annual_map(results, BASE_KUSKO_DIR, year, "Kusko", filter_type = "none")
-  }, error = function(e) {
-    cat("ERROR processing Kusko", year, ":", e$message, "\n")
-  })
-}
+# # KUSKOKWIM FULL YEAR
+# for (year in c(2017, 2018, 2019, 2020, 2021)) {
+#   cat("\n--- Kuskokwim", year, "---\n")
+#   tryCatch({
+#     results <- run_annual_analysis(year, "Kusko")
+#     create_annual_map(results, BASE_KUSKO_DIR, year, "Kusko", filter_type = "none")
+#   }, error = function(e) {
+#     cat("ERROR processing Kusko", year, ":", e$message, "\n")
+#   })
+# }
 
 # YUKON FULL YEAR
 for (year in c(2015, 2016, 2018, 2021)) {
