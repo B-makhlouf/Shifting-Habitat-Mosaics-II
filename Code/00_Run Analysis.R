@@ -61,15 +61,15 @@ for (year in c(2015, 2016, 2018, 2021)) {
 ################################################################################
 
 # YUKON - UP TO 50% CPUE
-for (year in c(2015, 2016, 2018, 2021)) {
-  cat("\n--- Yukon", year, "(50% CPUE cutoff) ---\n")
-  tryCatch({
-    results <- run_annual_analysis(year, "Yukon", filter_type = "cpue_50_cutoff")
-    create_annual_map(results, BASE_YUKON_DIR, year, "Yukon", filter_type = "cpue_50_cutoff")
-  }, error = function(e) {
-    cat("ERROR processing Yukon", year, ":", e$message, "\n")
-  })
-}
+# for (year in c(2015, 2016, 2018, 2021)) {
+#   cat("\n--- Yukon", year, "(50% CPUE cutoff) ---\n")
+#   tryCatch({
+#     results <- run_annual_analysis(year, "Yukon", filter_type = "cpue_50_cutoff")
+#     create_annual_map(results, BASE_YUKON_DIR, year, "Yukon", filter_type = "cpue_50_cutoff")
+#   }, error = function(e) {
+#     cat("ERROR processing Yukon", year, ":", e$message, "\n")
+#   })
+# }
 
 
 

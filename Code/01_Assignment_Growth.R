@@ -36,7 +36,7 @@ analyze_yukon_salmon_production <- function(year) {
     min_stream_order = 4,
     min_error = 0.003,
     sensitivity_threshold = 0.7,
-    growth_percentile = 0.9
+    growth_percentile = 0.75
   )
   
   # Mapping parameters
@@ -302,8 +302,8 @@ analyze_yukon_salmon_production <- function(year) {
   # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
   # colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
  
-  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
+  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
   colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
   
@@ -328,7 +328,7 @@ analyze_yukon_salmon_production <- function(year) {
   # Generate map
   png(file = output_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   
-  par(mar = c(8, 4, 4, 2), bg = "white")
+  par(mar = c(3, 4, 4, 2), bg = "white")
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', 
        main = paste0("Salmon Production - Year ", year, 
                      "\nYukon River (Top 20% Growth)"),
@@ -344,7 +344,7 @@ analyze_yukon_salmon_production <- function(year) {
          title = "Relative posterior density", bty = "n", bg = "white")
   
   dev.off()
-  par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
+  par(mar = c(1, 1, 1, 1), bg = "white")
   
   cat(paste("✓ Saved map:", basename(output_filename), "\n"))
   

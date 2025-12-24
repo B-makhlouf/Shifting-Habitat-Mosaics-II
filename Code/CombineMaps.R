@@ -40,16 +40,15 @@ for (year in YEARS) {
     next
   }
   
-  img1 <- ggdraw() + draw_image(maps$production)
   img2 <- ggdraw() + draw_image(maps$growth)
   img3 <- ggdraw() + draw_image(maps$age1)
   img4 <- ggdraw() + draw_image(maps$age2)
   
   p <- plot_grid(
-    img1, img2, img3, img4,
+    img2, img3, img4,
     labels = c("A", "B", "C", "D"),
     label_size = 20,
-    ncol = 1, nrow = 4
+    ncol = , nrow = 1
   )
   
   output_file <- file.path(
@@ -59,7 +58,7 @@ for (year in YEARS) {
   
   ggsave(
     output_file, p,
-    width = 5, height = 20,
+    width = 20, height = 5,
     dpi = 300, bg = "white"
   )
   

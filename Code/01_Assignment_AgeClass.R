@@ -293,10 +293,10 @@ run_yukon_analysis <- function(year, age_class) {
   #   colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
   #   colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
   
-    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
-    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
-    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
-    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
+  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
+  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
+  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
   
   # Setup linewidths by stream order
   stream_order <- edges$Str_Order
