@@ -1,64 +1,121 @@
+################################################################################
+# UPSTREAM REACHES MAPPING AND VALIDATION
+# Separate FindUpstreamReachID functions for Yukon and Kusko
+# Sequential code for both watersheds - easy line-by-line walkthrough
+################################################################################
+
 library(sf)
 library(tidyverse)
 library(here)
 
 ################################################################################
-# YUKON - WITH VALIDATION
+# YUKON - FindUpstreamReachID FUNCTION
 ################################################################################
 
-#------------------------------------------------------------------------------
-# LOAD DATA
-#------------------------------------------------------------------------------
-
-yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/YukonReachbaseComplete.shp")
-
-yuk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp")
-
-YukonNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/yukon_noderelationships.csv"), header = TRUE, stringsAsFactors = FALSE)
-YukonNetwork <- YukonNodes %>% rename(child_s = fromnode, parent_s = tonode)
-
-
-#------------------------------------------------------------------------------
-# FUNCTION: Find all upstream reaches for a given reach ID
-#------------------------------------------------------------------------------
-
-FindUpstreamReachID <- function(ReachID) {
+#' Find all upstream reaches for a focal reach (YUKON)
+#'
+#' Traverses the Yukon network from a focal reach ID and returns all upstream reaches.
+#' Uses network relationships (parent-child node structure) to walk upstream.
+#'
+#' @param ReachID Numeric ID of focal reach
+#' @param yuk_edges sf object with Yukon reach geometries and attributes
+#' @param YukonNetwork Data frame with parent-child node relationships (child_s, parent_s, rid)
+#'
+#' @return Vector of upstream reach IDs
+FindUpstreamReachID <- function(ReachID, yuk_edges, YukonNetwork) {
+  
+  # Find the reach ID to network ID (rid) conversion for focal reach
   TribStartRID <- yuk_edges$rid[which(yuk_edges$reachid == ReachID)]
   
+  # Start traversal: find children of focal reach
   TRIBindex <- c()
   StartChild <- YukonNetwork$child_s[which(YukonNetwork$rid == TribStartRID)]
   TRIBindex <- c(TRIBindex, StartChild)
   
+  # Keep walking upstream by finding children of current nodes
   ChildList <- YukonNetwork$child_s[which(YukonNetwork$parent_s == StartChild)]
   while (length(ChildList) > 0) {
     TRIBindex <- c(TRIBindex, ChildList)
     ChildList <- YukonNetwork$child_s[which(YukonNetwork$parent_s %in% ChildList)]
   }
   
-  TribSegments <- yuk_edges$reachid[match(YukonNetwork$rid[match(TRIBindex, YukonNetwork$child_s)], yuk_edges$rid)]
+  # Convert back from network nodes to reach IDs
+  TribSegments <- yuk_edges$reachid[match(
+    YukonNetwork$rid[match(TRIBindex, YukonNetwork$child_s)], 
+    yuk_edges$rid
+  )]
+  
   return(TribSegments)
 }
 
-#------------------------------------------------------------------------------
-# MAIN: Map upstream reaches by reachbase (YUKON)
-#------------------------------------------------------------------------------
+################################################################################
+# KUSKOKWIM - FindUpstreamReachID_Kusk FUNCTION
+################################################################################
 
-output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/UpstreamReachesbyStrOrd/Yukon"
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+#' Find all upstream reaches for a focal reach (KUSKOKWIM)
+#'
+#' Traverses the Kuskokwim network from a focal reach ID and returns all upstream reaches.
+#' Uses network relationships (parent-child node structure) to walk upstream.
+#' Note: Kuskokwim uses different shapefile column names than Yukon.
+#'
+#' @param ReachID Numeric ID of focal reach
+#' @param kusk_edges sf object with Kuskokwim reach geometries and attributes
+#' @param KuskoNetwork Data frame with parent-child node relationships (child_s, parent_s, rid)
+#'
+#' @return Vector of upstream reach IDs
+FindUpstreamReachID_Kusk <- function(ReachID, kusk_edges, KuskoNetwork) {
+  
+  # Find the reach ID to network ID (rid) conversion for focal reach
+  TribStartRID <- kusk_edges$rid[which(kusk_edges$reachid == ReachID)]
+  
+  # Start traversal: find children of focal reach
+  TRIBindex <- c()
+  StartChild <- KuskoNetwork$child_s[which(KuskoNetwork$rid == TribStartRID)]
+  TRIBindex <- c(TRIBindex, StartChild)
+  
+  # Keep walking upstream by finding children of current nodes
+  ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s == StartChild)]
+  while (length(ChildList) > 0) {
+    TRIBindex <- c(TRIBindex, ChildList)
+    ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s %in% ChildList)]
+  }
+  
+  # Convert back from network nodes to reach IDs
+  TribSegments <- kusk_edges$reachid[match(
+    KuskoNetwork$rid[match(TRIBindex, KuskoNetwork$child_s)], 
+    kusk_edges$rid
+  )]
+  
+  return(TribSegments)
+}
 
-# Create data frame to store relationships
+################################################################################
+# YUKON ANALYSIS
+################################################################################
+
+cat("\n=== PROCESSING YUKON ===\n")
+
+# Load spatial data
+yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/YukonReachbaseComplete.shp", quiet = TRUE)
+yuk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp", quiet = TRUE)
+
+# Load network relationships and rename columns
+YukonNodes <- read.csv(
+  here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/yukon_noderelationships.csv"),
+  header = TRUE, stringsAsFactors = FALSE
+)
+YukonNetwork <- YukonNodes %>% rename(child_s = fromnode, parent_s = tonode)
+
+# Create output directories
+yukon_output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/UpstreamReachesbyStrOrd/Yukon"
+dir.create(yukon_output_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Initialize data frame to store all upstream reach relationships
 upstream_relationships <- data.frame(
   original_reachid = integer(),
   upstream_reachid = integer(),
   reachbase = integer()
 )
-
-# Get unique reachbase values
-reachbases <- sort(unique(yuk_edges$Reachbase))
-# Remove 0 
-reachbases <- reachbases[reachbases != 0]
-#Remove 3 
-reachbases <- reachbases[reachbases != 3]
 
 # Initialize validation summary
 validation_summary <- data.frame(
@@ -69,160 +126,127 @@ validation_summary <- data.frame(
   stringsAsFactors = FALSE
 )
 
+# Get valid reachbases (exclude 0 and 3)
+reachbases <- sort(unique(yuk_edges$Reachbase))
+reachbases <- reachbases[!(reachbases %in% c(0, 3))]
+
+# Loop through each reachbase
 for (rb in reachbases) {
+  
+  cat("Processing Yukon Reachbase", rb, "\n")
   
   # Get all reaches with this reachbase value
   reaches_of_reachbase <- yuk_edges$reachid[yuk_edges$Reachbase == rb]
   
-  # Find all upstream reaches for each reach of this reachbase
+  # Find all upstream reaches for visualization
   all_upstream <- c()
-  groups_created <- c()  # Track groups created for this reachbase
+  groups_created <- c()
   
+  # For each focal reach, find its upstream reaches
   for (reach in reaches_of_reachbase) {
-    upstream <- FindUpstreamReachID(reach)
-    all_upstream <- c(all_upstream, upstream)
-    
-    # Add to data frame
+    upstream <- FindUpstreamReachID(reach, yuk_edges, YukonNetwork)
     if (length(upstream) > 0) {
+      all_upstream <- c(all_upstream, upstream)
+      # Add each upstream reach relationship to the data frame
       for (up_reach in upstream) {
-        upstream_relationships <- rbind(upstream_relationships, 
-                                        data.frame(original_reachid = reach, 
-                                                   upstream_reachid = up_reach, 
+        upstream_relationships <- rbind(upstream_relationships,
+                                        data.frame(original_reachid = reach,
+                                                   upstream_reachid = up_reach,
                                                    reachbase = rb))
       }
     }
-    
-    # Track unique groups for this reachbase
+    # Track groups created for this reachbase
     groups_created <- c(groups_created, reach)
-  }
-  
-  # Count unique values
-  n_unique_reachid <- n_distinct(reaches_of_reachbase)
-  n_unique_groups <- n_distinct(groups_created)
-  
-  # Validation check
-  validation_passed <- (n_unique_reachid == n_unique_groups)
-  
-  # Add to validation summary
-  validation_summary <- rbind(validation_summary,
-                              data.frame(reachbase = rb,
-                                         n_unique_reachid = n_unique_reachid,
-                                         n_unique_groups = n_unique_groups,
-                                         validation_passed = validation_passed))
-  
-  # Print validation result
-  cat("Reachbase", rb, ":\n")
-  cat("  Unique reachid values: ", n_unique_reachid, "\n")
-  cat("  Unique groups created: ", n_unique_groups, "\n")
-  if (validation_passed) {
-    cat("  ✓ VALIDATION PASSED\n\n")
-  } else {
-    cat("  ✗ VALIDATION FAILED - Mismatch detected!\n\n")
   }
   
   # Remove duplicates for mapping
   all_upstream <- unique(all_upstream)
   
-  # Create color vector
+  # Validation: count unique reachid values and groups
+  n_unique_reachid <- n_distinct(reaches_of_reachbase)
+  n_unique_groups <- n_distinct(groups_created)
+  validation_passed <- (n_unique_reachid == n_unique_groups)
+  
+  # Create validation summary record
+  validation_summary <- rbind(validation_summary,
+                              data.frame(
+                                reachbase = rb,
+                                n_unique_reachid = n_unique_reachid,
+                                n_unique_groups = n_unique_groups,
+                                validation_passed = validation_passed
+                              ))
+  
+  # Create map showing upstream reaches (red) for this reachbase
   colcode <- rep('gray60', nrow(yuk_edges))
   colcode[yuk_edges$reachid %in% all_upstream] <- 'red'
   
-  # Create linewidth vector by stream order
+  # Set line widths based on stream order (Yukon - uses Str_Order column)
   stream_order <- yuk_edges$Str_Order
   linewidths <- ifelse(stream_order >= 9, 3.7,
                        ifelse(stream_order >= 8, 2.5,
                               ifelse(stream_order >= 7, 2.3,
                                      ifelse(stream_order >= 6, 2.0,
                                             ifelse(stream_order >= 5, 1.8,
-                                                   ifelse(stream_order >= 4, 0.8, 
+                                                   ifelse(stream_order >= 4, 0.8,
                                                           ifelse(stream_order >= 3, 0.7, 0.2)))))))
   
   # Save map
-  filename <- file.path(output_dir, paste0("Yukon_UpstreamReaches_Reachbase_", rb, ".png"))
+  filename <- file.path(yukon_output_dir, 
+                        paste0("Yukon_UpstreamReaches_Reachbase_", rb, ".png"))
   png(filename, width = 10, height = 8, units = "in", res = 300)
   
   par(mar = c(4, 4, 4, 2), bg = "white")
-  plot(st_geometry(yuk_basin), col = "gray90", border = NA, main = paste("Yukon Reachbase", rb, "- Upstream Reaches"))
+  plot(st_geometry(yuk_basin), col = "gray90", border = NA,
+       main = paste("Yukon Reachbase", rb, "- Upstream Reaches"))
   plot(st_geometry(yuk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
-  
   dev.off()
 }
 
-# Export data frame
-yukon_export_path <- paste0(
-  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/TribGroupProdByYear/SameGroupStrOrd",
-  "Yukon_UpstreamReaches_Relationships.csv"
-)
-
-write_csv(upstream_relationships, yukon_export_path)
-
-cat("Yukon maps saved to:", output_dir, "\n")
-cat("Yukon relationships exported to:", yukon_export_path, "\n\n")
-
-# Print validation summary
-cat("=== YUKON VALIDATION SUMMARY ===\n")
+# Print Yukon validation summary
+cat("\n=== YUKON VALIDATION SUMMARY ===\n")
 print(validation_summary)
-cat("\nOverall validation: ", all(validation_summary$validation_passed), "\n\n")
 
-################################################################################
-# KUSKOKWIM - WITH VALIDATION
-################################################################################
-
-#------------------------------------------------------------------------------
-# LOAD DATA
-#------------------------------------------------------------------------------
-
-kusk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete.shp")
-kusk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp")
-
-KuskoNodes <- read.csv(here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/kusko_noderelationships.csv"), header = TRUE, stringsAsFactors = FALSE)
-KuskoNetwork <- KuskoNodes %>% rename(child_s = fromnode, parent_s = tonode)
-
-#------------------------------------------------------------------------------
-# FUNCTION: Find all upstream reaches for a given reach ID (KUSKOKWIM)
-#------------------------------------------------------------------------------
-
-FindUpstreamReachID_Kusk <- function(ReachID) {
-  TribStartRID <- kusk_edges$rid[which(kusk_edges$reachid == ReachID)]
-  
-  TRIBindex <- c()
-  StartChild <- KuskoNetwork$child_s[which(KuskoNetwork$rid == TribStartRID)]
-  TRIBindex <- c(TRIBindex, StartChild)
-  
-  ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s == StartChild)]
-  while (length(ChildList) > 0) {
-    TRIBindex <- c(TRIBindex, ChildList)
-    ChildList <- KuskoNetwork$child_s[which(KuskoNetwork$parent_s %in% ChildList)]
-  }
-  
-  TribSegments <- kusk_edges$reachid[match(KuskoNetwork$rid[match(TRIBindex, KuskoNetwork$child_s)], kusk_edges$rid)]
-  return(TribSegments)
+if (all(validation_summary$validation_passed)) {
+  cat("✓ All reachbases passed validation\n\n")
+} else {
+  cat("✗ Some reachbases failed validation\n\n")
 }
 
-#------------------------------------------------------------------------------
-# MAIN: Map upstream reaches by reachbase (KUSKOKWIM)
-#------------------------------------------------------------------------------
+# Export Yukon upstream relationships to CSV
+yukon_csv_path <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/TribGroupProdByYear/SameGroupStrOrdYukon_UpstreamReaches_Relationships.csv"
+write_csv(upstream_relationships, yukon_csv_path)
+cat("Yukon relationships exported to:", yukon_csv_path, "\n")
 
-# Create output subdirectory for Kuskokwim
-kusko_output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/UpstreamReachesbyStrOrd/"
+################################################################################
+# KUSKOKWIM ANALYSIS
+################################################################################
+
+cat("\n=== PROCESSING KUSKOKWIM ===\n")
+
+# Load spatial data
+kusk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete.shp", quiet = TRUE)
+kusk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp", quiet = TRUE)
+
+# Load network relationships and rename columns
+KuskoNodes <- read.csv(
+  here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/kusko_noderelationships.csv"),
+  header = TRUE, stringsAsFactors = FALSE
+)
+KuskoNetwork <- KuskoNodes %>% rename(child_s = fromnode, parent_s = tonode)
+
+# Create output directories
+kusko_output_dir <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/UpstreamReachesbyStrOrd/Kusko"
 dir.create(kusko_output_dir, recursive = TRUE, showWarnings = FALSE)
 
-# Create data frame to store relationships
-kusko_upstream_relationships <- data.frame(
+# Initialize data frame to store all upstream reach relationships
+upstream_relationships <- data.frame(
   original_reachid = integer(),
   upstream_reachid = integer(),
   reachbase = integer()
 )
 
-# Get unique reachbase values
-kusko_reachbases <- sort(unique(kusk_edges$Reachbase))
-# Remove 0 
-kusko_reachbases <- kusko_reachbases[kusko_reachbases != 0]
-#remmove 3 
-kusko_reachbases <- kusko_reachbases[kusko_reachbases != 3]
-
 # Initialize validation summary
-kusko_validation_summary <- data.frame(
+validation_summary <- data.frame(
   reachbase = integer(),
   n_unique_reachid = integer(),
   n_unique_groups = integer(),
@@ -230,126 +254,97 @@ kusko_validation_summary <- data.frame(
   stringsAsFactors = FALSE
 )
 
-for (rb in kusko_reachbases) {
+# Get valid reachbases (exclude 0 and 3)
+reachbases <- sort(unique(kusk_edges$Reachbase))
+reachbases <- reachbases[!(reachbases %in% c(0, 3))]
+
+# Loop through each reachbase
+for (rb in reachbases) {
+  
+  cat("Processing Kusko Reachbase", rb, "\n")
   
   # Get all reaches with this reachbase value
   reaches_of_reachbase <- kusk_edges$reachid[kusk_edges$Reachbase == rb]
   
-  # Find all upstream reaches for each reach of this reachbase
+  # Find all upstream reaches for visualization
   all_upstream <- c()
-  groups_created <- c()  # Track groups created for this reachbase
+  groups_created <- c()
   
+  # For each focal reach, find its upstream reaches
   for (reach in reaches_of_reachbase) {
-    upstream <- FindUpstreamReachID_Kusk(reach)
-    all_upstream <- c(all_upstream, upstream)
-    
-    # Add to data frame
+    upstream <- FindUpstreamReachID_Kusk(reach, kusk_edges, KuskoNetwork)
     if (length(upstream) > 0) {
+      all_upstream <- c(all_upstream, upstream)
+      # Add each upstream reach relationship to the data frame
       for (up_reach in upstream) {
-        kusko_upstream_relationships <- rbind(kusko_upstream_relationships, 
-                                              data.frame(original_reachid = reach, 
-                                                         upstream_reachid = up_reach, 
-                                                         reachbase = rb))
+        upstream_relationships <- rbind(upstream_relationships,
+                                        data.frame(original_reachid = reach,
+                                                   upstream_reachid = up_reach,
+                                                   reachbase = rb))
       }
     }
-    
-    # Track unique groups for this reachbase
+    # Track groups created for this reachbase
     groups_created <- c(groups_created, reach)
-  }
-  
-  # Count unique values
-  n_unique_reachid <- n_distinct(reaches_of_reachbase)
-  n_unique_groups <- n_distinct(groups_created)
-  
-  # Validation check
-  validation_passed <- (n_unique_reachid == n_unique_groups)
-  
-  # Add to validation summary
-  kusko_validation_summary <- rbind(kusko_validation_summary,
-                                    data.frame(reachbase = rb,
-                                               n_unique_reachid = n_unique_reachid,
-                                               n_unique_groups = n_unique_groups,
-                                               validation_passed = validation_passed))
-  
-  # Print validation result
-  cat("Reachbase", rb, ":\n")
-  cat("  Unique reachid values: ", n_unique_reachid, "\n")
-  cat("  Unique groups created: ", n_unique_groups, "\n")
-  if (validation_passed) {
-    cat("  ✓ VALIDATION PASSED\n\n")
-  } else {
-    cat("  ✗ VALIDATION FAILED - Mismatch detected!\n\n")
   }
   
   # Remove duplicates for mapping
   all_upstream <- unique(all_upstream)
   
-  # Create color vector
+  # Validation: count unique reachid values and groups
+  n_unique_reachid <- n_distinct(reaches_of_reachbase)
+  n_unique_groups <- n_distinct(groups_created)
+  validation_passed <- (n_unique_reachid == n_unique_groups)
+  
+  # Create validation summary record
+  validation_summary <- rbind(validation_summary,
+                              data.frame(
+                                reachbase = rb,
+                                n_unique_reachid = n_unique_reachid,
+                                n_unique_groups = n_unique_groups,
+                                validation_passed = validation_passed
+                              ))
+  
+  # Create map showing upstream reaches (red) for this reachbase
   colcode <- rep('gray60', nrow(kusk_edges))
   colcode[kusk_edges$reachid %in% all_upstream] <- 'red'
   
-  # Create linewidth vector by stream order
+  # Set line widths based on stream order (Kuskokwim - uses Strahler column)
   stream_order <- kusk_edges$Strahler
   linewidths <- ifelse(stream_order >= 9, 5,
                        ifelse(stream_order >= 8, 4,
                               ifelse(stream_order >= 7, 3,
                                      ifelse(stream_order >= 6, 2,
                                             ifelse(stream_order >= 5, 1.8,
-                                                   ifelse(stream_order >= 4, 1.5, 
+                                                   ifelse(stream_order >= 4, 1.5,
                                                           ifelse(stream_order >= 3, 1, 0.5)))))))
   
   # Save map
-  filename <- file.path(kusko_output_dir, paste0("Kusko_UpstreamReaches_Reachbase_", rb, ".png"))
+  filename <- file.path(kusko_output_dir, 
+                        paste0("Kusko_UpstreamReaches_Reachbase_", rb, ".png"))
   png(filename, width = 10, height = 8, units = "in", res = 300)
   
   par(mar = c(4, 4, 4, 2), bg = "white")
-  plot(st_geometry(kusk_basin), col = "gray90", border = NA, main = paste("Kuskokwim Reachbase", rb, "- Upstream Reaches"))
+  plot(st_geometry(kusk_basin), col = "gray90", border = NA,
+       main = paste("Kuskokwim Reachbase", rb, "- Upstream Reaches"))
   plot(st_geometry(kusk_edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
-  
   dev.off()
 }
 
-# Export data frame
-kusko_export_path <- paste0(
-  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/SameGroupStrOrd",
-  "Kusko_UpstreamReaches_Relationships.csv"
-)
+# Print Kuskokwim validation summary
+cat("\n=== KUSKOKWIM VALIDATION SUMMARY ===\n")
+print(validation_summary)
 
-write_csv(kusko_upstream_relationships, kusko_export_path)
-
-cat("Kuskokwim maps saved to:", kusko_output_dir, "\n")
-cat("Kuskokwim relationships exported to:", kusko_export_path, "\n\n")
-
-# Print validation summary
-cat("=== KUSKOKWIM VALIDATION SUMMARY ===\n")
-print(kusko_validation_summary)
-cat("\nOverall validation: ", all(kusko_validation_summary$validation_passed), "\n\n")
-
-################################################################################
-# COMBINED VALIDATION REPORT
-################################################################################
-
-cat("=== COMBINED VALIDATION REPORT ===\n")
-cat("YUKON:\n")
 if (all(validation_summary$validation_passed)) {
-  cat("  ✓ All reachbases passed validation\n")
+  cat("✓ All reachbases passed validation\n\n")
 } else {
-  cat("  ✗ Some reachbases failed validation:\n")
-  failed_rb <- validation_summary$reachbase[!validation_summary$validation_passed]
-  for (rb in failed_rb) {
-    row <- validation_summary[validation_summary$reachbase == rb, ]
-    cat("    Reachbase", rb, ": Expected", row$n_unique_reachid, "groups, got", row$n_unique_groups, "\n")
-  }
+  cat("✗ Some reachbases failed validation\n\n")
 }
 
-cat("\nKUSKOKWIM:\n")
-if (all(kusko_validation_summary$validation_passed)) {
-  cat("  ✓ All reachbases passed validation\n")
-} else {
-  cat("  ✗ Some reachbases failed validation:\n")
-  failed_rb <- kusko_validation_summary$reachbase[!kusko_validation_summary$validation_passed]
-  for (rb in failed_rb) {
-    row <- kusko_validation_summary[kusko_validation_summary$reachbase == rb, ]
-    cat("    Reachbase", rb, ": Expected", row$n_unique_reachid, "groups, got", row$n_unique_groups, "\n")
-  }
-}
+# Export Kuskokwim upstream relationships to CSV
+kusko_csv_path <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/SameGroupStrOrdKusko_UpstreamReaches_Relationships.csv"
+write_csv(upstream_relationships, kusko_csv_path)
+cat("Kusko relationships exported to:", kusko_csv_path, "\n")
+
+cat("\n=== COMPLETE ===\n")
+cat("Yukon maps saved to:", yukon_output_dir, "\n")
+cat("Kusko maps saved to:", kusko_output_dir, "\n")
