@@ -96,7 +96,7 @@ FindUpstreamReachID_Kusk <- function(ReachID, kusk_edges, KuskoNetwork) {
 cat("\n=== PROCESSING YUKON ===\n")
 
 # Load spatial data
-yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/YukonReachbaseComplete.shp", quiet = TRUE)
+yuk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/KuskoReachbaseCompleteRedone.shp", quiet = TRUE)
 yuk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/Yuk_Mrg_final_alb.shp", quiet = TRUE)
 
 # Load network relationships and rename columns
@@ -224,7 +224,7 @@ cat("Yukon relationships exported to:", yukon_csv_path, "\n")
 cat("\n=== PROCESSING KUSKOKWIM ===\n")
 
 # Load spatial data
-kusk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete.shp", quiet = TRUE)
+kusk_edges <- st_read("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/KuskoReachbaseCompleteRedone.shp", quiet = TRUE)
 kusk_basin <- st_read("/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp", quiet = TRUE)
 
 # Load network relationships and rename columns
