@@ -140,7 +140,7 @@ p_ts_pub <- ggplot(plot_data, aes(x = Year, y = individuals_z, group = GroupID))
             inherit.aes = FALSE, color = "#D78521", linewidth = 1.5) +
   geom_point(data = basin_ts, mapping = aes(x = Year, y = basin_z),
              inherit.aes = FALSE, color = "#D78521", size = 3)+
-
+  
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   facet_wrap(~Reachbase, ncol = 1, scales = "free_y") +
   labs(
@@ -167,12 +167,30 @@ ggsave(
 library(ggplot2)
 library(RColorBrewer)
 
+# Prepare data for CV plot
+cv_for_plot <- group_summary %>%
+  filter(!is.na(cv_production))
+
+# Calculate basin-level CV
+basin_cv <- all_group_production %>%
+  summarise(
+    basin_total = sum(group_individuals),
+    .by = Year
+  ) %>%
+  summarise(
+    basin_cv = sd(basin_total) / mean(basin_total)
+  ) %>%
+  pull(basin_cv)
+
 # Clip extreme CVs for better visualization
 cv_for_plot_clipped <- cv_for_plot %>%
   mutate(cv_plot = pmin(cv_production, .7))
 
-# Use nicer colors
-pal <- brewer.pal(n = length(unique(cv_for_plot$Reachbase)), name = "Set2")
+# Convert Reachbase to factor and use nicer colors
+cv_for_plot_clipped <- cv_for_plot_clipped %>%
+  mutate(Reachbase = factor(Reachbase))
+
+pal <- brewer.pal(n = length(unique(cv_for_plot_clipped$Reachbase)), name = "Set2")
 
 p_cv_pub <- ggplot(cv_for_plot_clipped, aes(x = Reachbase, y = cv_plot, fill = Reachbase)) +
   geom_boxplot(alpha = 0.7, color = "gray30", width = 0.6, outlier.shape = NA) +
@@ -199,4 +217,36 @@ p_cv_pub <- ggplot(cv_for_plot_clipped, aes(x = Reachbase, y = cv_plot, fill = R
 ggsave(
   file.path(figure_output_dir, "Yukon_CV_Boxplot.png"),
   p_cv_pub, width = 10, height = 7, dpi = 300, bg = "white"
+)
+
+#---------------------------------------
+# Mean production vs mean CV by group
+#---------------------------------------
+
+p_prod_cv <- ggplot(group_summary %>% mutate(Reachbase = factor(Reachbase)), 
+                    aes(x = mean_production, y = cv_production, 
+                        color = Reachbase, size = n_years)) +
+  geom_point(alpha = 0.6) +
+  geom_hline(yintercept = basin_cv, linetype = "dashed", color = "#D78521", linewidth = 1.2) +
+  scale_size_continuous(name = "N years", range = c(2, 6)) +
+  scale_color_brewer(palette = "Set2", name = "Reachbase") +
+  facet_wrap(~Reachbase, scales = "free") +
+  labs(
+    title = "Mean Production vs Coefficient of Variation by Group",
+    x = "Mean Production (individuals)",
+    y = "Coefficient of Variation",
+    subtitle = "Point size indicates number of years sampled"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0, size = 16),
+    plot.subtitle = element_text(size = 11, color = "gray30", hjust = 0),
+    legend.position = "right",
+    panel.grid.minor = element_blank(),
+    strip.text = element_text(face = "bold", size = 12)
+  )
+
+ggsave(
+  file.path(figure_output_dir, "Yukon_Production_vs_CV.png"),
+  p_prod_cv, width = 10, height = 7, dpi = 300, bg = "white"
 )
