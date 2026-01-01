@@ -24,8 +24,8 @@ source("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Co
 
 
 # Define BASE output directories (without Production subfolder - that gets created by function)
-BASE_KUSKO_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Kusko_Annual"
-BASE_YUKON_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Yukon_Annual"
+BASE_KUSKO_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/Maps/Kusko_Annual"
+BASE_YUKON_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/Maps/Yukon_Annual"
 BASE_NUSHAGAK_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Nushagak_Annual"
 
 
@@ -34,15 +34,15 @@ BASE_NUSHAGAK_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat
 ################################################################################
 
 # # KUSKOKWIM FULL YEAR
-# for (year in c(2017, 2018, 2019, 2020, 2021)) {
-#   cat("\n--- Kuskokwim", year, "---\n")
-#   tryCatch({
-#     results <- run_annual_analysis(year, "Kusko")
-#     create_annual_map(results, BASE_KUSKO_DIR, year, "Kusko", filter_type = "none")
-#   }, error = function(e) {
-#     cat("ERROR processing Kusko", year, ":", e$message, "\n")
-#   })
-# }
+for (year in c(2017, 2018, 2019, 2020, 2021)) {
+  cat("\n--- Kuskokwim", year, "---\n")
+  tryCatch({
+    results <- run_annual_analysis(year, "Kusko")
+    create_annual_map(results, BASE_KUSKO_DIR, year, "Kusko", filter_type = "none")
+  }, error = function(e) {
+    cat("ERROR processing Kusko", year, ":", e$message, "\n")
+  })
+}
 
 # YUKON FULL YEAR
 for (year in c(2015, 2016, 2018, 2021)) {
