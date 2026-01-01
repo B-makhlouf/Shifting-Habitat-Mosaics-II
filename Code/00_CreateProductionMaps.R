@@ -211,13 +211,14 @@ create_annual_map <- function(analysis_results,
   colcode[basin_assign_norm == 0] <- 'white'
   
   if (watershed == "Yukon") {
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[5]
-    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[7]
-    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[8]
-    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
-    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette_expanded[2]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[7]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[8]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette_expanded[9]
+    colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    
     
     legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
     legend_colors <- c(palette_expanded[2], palette_expanded[4], palette_expanded[5], 
@@ -225,11 +226,15 @@ create_annual_map <- function(analysis_results,
                        palette_expanded[10])
     
   } else if (watershed == "Kusko") {
-    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette_expanded[5]
+   
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette_expanded[2]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[7]
-    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[9]
-    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette_expanded[10]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[8]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette_expanded[9]
+    colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
     
+  
     legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.8", "0.8-1.0")
     legend_colors <- c(palette_expanded[2], palette_expanded[4], palette_expanded[6], 
                        palette_expanded[8], palette_expanded[9])
@@ -256,21 +261,21 @@ create_annual_map <- function(analysis_results,
   if (watershed == "Yukon") {
     # Conservative Yukon linewidths
     linewidths <- ifelse(stream_order >= 9, 3.7,
-                         ifelse(stream_order >= 8, 2.5,
-                                ifelse(stream_order >= 7, 2.3,
+                         ifelse(stream_order >= 8, 5,
+                                ifelse(stream_order >= 7, 2.0,
                                        ifelse(stream_order >= 6, 1.5,
-                                              ifelse(stream_order >= 5, 1.5,
-                                                     ifelse(stream_order >= 4, 1.5, 
+                                              ifelse(stream_order >= 5, 1.4,
+                                                     ifelse(stream_order >= 4, 1.0, 
                                                             ifelse(stream_order >= 3, 0, 0)))))))
   } else if (watershed == "Kusko") {
     # Dramatic Kusko linewidths
     linewidths <- ifelse(stream_order >= 9, 5,
                          ifelse(stream_order >= 8, 6,
-                                ifelse(stream_order >= 7, 6,
-                                       ifelse(stream_order >= 6, 3.5,
-                                              ifelse(stream_order >= 5, 3.0,
+                                ifelse(stream_order >= 7, 5,
+                                       ifelse(stream_order >= 6, 3.0,
+                                              ifelse(stream_order >= 5, 2.7,
                                                      ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 3, 2.0, 0)))))))
+                                                            ifelse(stream_order >= 3, 1.2, 0)))))))
   } else if (watershed == "Nushagak") {
     # Nushagak linewidths
     linewidths <- ifelse(stream_order >= 9, 4,
@@ -283,7 +288,7 @@ create_annual_map <- function(analysis_results,
   }
   
   # Highlight high production areas with slightly thicker lines
-  linewidths[basin_assign_norm > 0.7] <- linewidths[basin_assign_norm > 0.7] * 1.1
+  linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
   
   # ========================================================================
   # CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
@@ -393,8 +398,8 @@ run_annual_analysis <- function(year,
   )
   
   PARAMS <- list(
-    Kusko = list(min_stream_order = 3, min_error = 0.00003, sensitivity_threshold = 0.00, max_error = NULL),
-    Yukon = list(min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7, max_error = NULL),
+    Kusko = list(min_stream_order = 3, min_error = 0.0005, sensitivity_threshold = 0.000, max_error = NULL),
+    Yukon = list(min_stream_order = 4, min_error = 0.0035, sensitivity_threshold = 0.000, max_error = NULL),
     Nushagak = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0, max_error = NULL, has_genetic_data = FALSE)
   )
   
@@ -559,13 +564,13 @@ run_annual_analysis <- function(year,
   
   if (watershed == "Kusko") {
     pid_prior <- edges$UniPh2oNoE
-    PresencePrior <- ifelse((edges$Str_Order %in% c(7)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(6,7)) & edges$SPAWNING_C == 0, 0, 1)
+    NewHabitatPrior <- ifelse(edges$Spawner_IP < .3, 0, 1)
     
   } else if (watershed == "Yukon") {
     pid_prior <- edges$PriorSl2
-    PresencePrior <- ifelse((edges$Str_Order %in% c(8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, 1)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    NewHabitatPrior <- ifelse(edges$Spawner_IP == .3, 0, 1)
     
     ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
     my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
@@ -598,7 +603,7 @@ run_annual_analysis <- function(year,
     
     if (watershed == "Kusko") {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        pid_prior * StreamOrderPrior * PresencePrior
+         StreamOrderPrior * PresencePrior * pid_prior #* NewHabitatPrior
       
     } else if (watershed == "Yukon") {
       gen_prior <- rep(0, length(pid_iso))
@@ -606,7 +611,7 @@ run_annual_analysis <- function(year,
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        pid_prior * StreamOrderPrior * gen_prior * PresencePrior
+         StreamOrderPrior * gen_prior * PresencePrior  #* NewHabitatPrior #pid_prior
       
     } else {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
@@ -744,7 +749,7 @@ for (year in c(2017, 2018, 2019, 2020, 2021)) {
   })
 }
 
-#YUKON FULL YEAR
+# #YUKON FULL YEAR
 for (year in c(2015, 2016, 2018, 2021)) {
   cat("\n--- Yukon", year, "---\n")
   tryCatch({
