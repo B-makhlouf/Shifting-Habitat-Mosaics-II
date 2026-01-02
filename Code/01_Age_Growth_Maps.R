@@ -45,14 +45,14 @@ run_yukon_analysis <- function(year, analysis_type = "age", age_class = NULL,
   )
   
   if (analysis_type == "age") {
-    paths$output_dir = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Yukon_Annual/AgeClass"
+    paths$output_dir = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/Maps/Yukon_Annual/AgeClass"
   } else {
-    paths$output_dir = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Yukon_Annual/Growth"
+    paths$output_dir = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/Maps/Yukon_Annual/Growth"
   }
   
   # Analysis parameters
   params <- list(
-    min_stream_order = 4, min_error = 0.003, sensitivity_threshold = 0.7
+    min_stream_order = 4, min_error = 0.0035, sensitivity_threshold = 0.000
   )
   
   # Mapping parameters

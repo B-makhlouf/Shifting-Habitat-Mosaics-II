@@ -220,13 +220,12 @@ create_annual_map <- function(analysis_results,
     colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
     
     
-    legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0")
-    legend_colors <- c(palette_expanded[2], palette_expanded[4], palette_expanded[5], 
-                       palette_expanded[7], palette_expanded[8], palette_expanded[9], 
-                       palette_expanded[10])
+    legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
+    legend_colors <- c(palette_expanded[2], palette_expanded[5], palette_expanded[7], 
+                       palette_expanded[8], palette_expanded[9], palette_expanded[10])
     
   } else if (watershed == "Kusko") {
-   
+    
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[7]
@@ -234,10 +233,10 @@ create_annual_map <- function(analysis_results,
     colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette_expanded[9]
     colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette_expanded[10]
     
-  
-    legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.8", "0.8-1.0")
-    legend_colors <- c(palette_expanded[2], palette_expanded[4], palette_expanded[6], 
-                       palette_expanded[8], palette_expanded[9])
+    
+    legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
+    legend_colors <- c(palette_expanded[2], palette_expanded[5], palette_expanded[7], 
+                       palette_expanded[8], palette_expanded[9], palette_expanded[10])
     
   } else if (watershed == "Nushagak") {
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
@@ -603,7 +602,7 @@ run_annual_analysis <- function(year,
     
     if (watershed == "Kusko") {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-         StreamOrderPrior * PresencePrior * pid_prior #* NewHabitatPrior
+        StreamOrderPrior * PresencePrior * pid_prior #* NewHabitatPrior
       
     } else if (watershed == "Yukon") {
       gen_prior <- rep(0, length(pid_iso))
@@ -611,7 +610,7 @@ run_annual_analysis <- function(year,
       gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-         StreamOrderPrior * gen_prior * PresencePrior  #* NewHabitatPrior #pid_prior
+        StreamOrderPrior * gen_prior * PresencePrior  #* NewHabitatPrior #pid_prior
       
     } else {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
