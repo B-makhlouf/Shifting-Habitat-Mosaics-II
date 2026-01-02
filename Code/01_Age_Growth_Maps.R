@@ -12,7 +12,7 @@ library(RColorBrewer); library(grid)
 #==============================================================================
 
 run_yukon_analysis <- function(year, analysis_type = "age", age_class = NULL, 
-                               growth_percentile = 0.75) {
+                               growth_percentile = 0.85) {
   
   # ============================================================================
   # CONFIG & VALIDATION
@@ -57,8 +57,8 @@ run_yukon_analysis <- function(year, analysis_type = "age", age_class = NULL,
   
   # Mapping parameters
   map_params <- list(
-    lwd_9 = 3.7, lwd_8 = 3.0, lwd_7 = 3.2, lwd_6 = 2.2, 
-    lwd_5 = 1.5, lwd_4 = 1.2, lwd_3 = 0.5
+    lwd_9 = 3.7, lwd_8 = 5, lwd_7 = 2.0, lwd_6 = 1.5, 
+    lwd_5 = 1.4, lwd_4 = 1.0, lwd_3 = 0.5
   )
   
   dir.create(paths$output_dir, recursive = TRUE, showWarnings = FALSE)
@@ -260,10 +260,16 @@ run_yukon_analysis <- function(year, analysis_type = "age", age_class = NULL,
   
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'grey95'
-  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
-  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
-  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 1.0] <- palette[10]
+    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette[2]
+    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette[5]
+    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.8] <- "gray95"
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette [8]
+    colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette[9]
+    colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette[10]
+  
+  
+  
   
   stream_order <- edges$Str_Order
   colcode[stream_order < params$min_stream_order] <- "gray50"

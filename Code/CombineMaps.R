@@ -4,7 +4,7 @@ library(ggplot2)
 
 BASE <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II"
 
-MAPS_DIR <- file.path(BASE, "Maps/Yukon_Annual")
+MAPS_DIR <- file.path(BASE, "Figures/Maps/Yukon_Annual")
 OUTPUT_DIR <- file.path(BASE, "Figures")
 YEARS <- c(2015, 2016, 2021)
 
@@ -25,12 +25,12 @@ for (year in YEARS) {
     
     age1 = file.path(
       MAPS_DIR, "AgeClass",
-      paste0(year, "_1.3_AgeClass_Yukon.png")
+      paste0(year, "_Age1.3_Yukon.png")
     ),
     
     age2 = file.path(
       MAPS_DIR, "AgeClass",
-      paste0(year, "_1.4_AgeClass_Yukon.png")
+      paste0(year, "_Age1.4_Yukon.png")
     )
   )
   
