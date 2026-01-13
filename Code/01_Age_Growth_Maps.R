@@ -256,14 +256,14 @@ run_yukon_analysis <- function(year, analysis_type = "age", age_class = NULL,
   
   cat("Creating map...\n")
   
-  palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
+  palette <- colorRampPalette(brewer.pal(9, "OrRd"))(10)
   
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- 'grey95'
-    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette[2]
-    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette[5]
-    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.8] <- "gray95"
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette[2]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette[5]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
+    #colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.8] <- "gray95"
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette [8]
     colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette[9]
     colcode[basin_assign_norm > 0.95 & basin_assign_norm <= 1.0] <- palette[10]
@@ -283,6 +283,9 @@ run_yukon_analysis <- function(year, analysis_type = "age", age_class = NULL,
   linewidths[stream_order == 4] <- map_params$lwd_4
   linewidths[stream_order == 3] <- 0
   linewidths[stream_order <= 2] <- 0
+  
+  linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
+  
   
   # Create filename based on analysis type
   if (analysis_type == "age") {
@@ -342,11 +345,11 @@ for (year in c(2015, 2016, 2021)) {
   }
 }
 
-# GROWTH ANALYSIS
-for (year in c(2015, 2016, 2021)) {
-  tryCatch({
-    run_yukon_analysis(year, analysis_type = "growth", growth_percentile = 0.75)
-  }, error = function(e) {
-    cat("ERROR - Year", year, ":", e$message, "\n")
-  })
-}
+# # GROWTH ANALYSIS
+# for (year in c(2015, 2016, 2021)) {
+#   tryCatch({
+#     run_yukon_analysis(year, analysis_type = "growth", growth_percentile = 0.75)
+#   }, error = function(e) {
+#     cat("ERROR - Year", year, ":", e$message, "\n")
+#   })
+# }
