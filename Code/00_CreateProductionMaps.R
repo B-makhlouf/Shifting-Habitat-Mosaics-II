@@ -274,7 +274,7 @@ create_annual_map <- function(analysis_results,
                                        ifelse(stream_order >= 6, 3.0,
                                               ifelse(stream_order >= 5, 2.7,
                                                      ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 3, 1.2, 0)))))))
+                                                            ifelse(stream_order >= 2, 1.2, 0)))))))
   } else if (watershed == "Nushagak") {
     # Nushagak linewidths
     linewidths <- ifelse(stream_order >= 9, 4,
@@ -397,7 +397,7 @@ run_annual_analysis <- function(year,
   )
   
   PARAMS <- list(
-    Kusko = list(min_stream_order = 3, min_error = 0.0005, sensitivity_threshold = 0.000, max_error = NULL),
+    Kusko = list(min_stream_order = 3, min_error = 0.0005, sensitivity_threshold = 0.7, max_error = NULL),
     Yukon = list(min_stream_order = 4, min_error = 0.0035, sensitivity_threshold = 0.000, max_error = NULL),
     Nushagak = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0, max_error = NULL, has_genetic_data = FALSE)
   )
@@ -564,7 +564,9 @@ run_annual_analysis <- function(year,
   if (watershed == "Kusko") {
     pid_prior <- edges$UniPh2oNoE
     PresencePrior <- ifelse((edges$Str_Order %in% c(6,7)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP < .3, 0, 1)
+    #NewHabitatPrior <- ifelse(edges$Spawner_IP < .3, 0, 1)
+    NewHabitatPrior <- ifelse(edges$Avg_Slop_1 > 2.5, 0, 1)
+    
     
   } else if (watershed == "Yukon") {
     pid_prior <- edges$PriorSl2
@@ -602,7 +604,7 @@ run_annual_analysis <- function(year,
     
     if (watershed == "Kusko") {
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * PresencePrior * pid_prior #* NewHabitatPrior
+        StreamOrderPrior * PresencePrior * pid_prior * NewHabitatPrior
       
     } else if (watershed == "Yukon") {
       gen_prior <- rep(0, length(pid_iso))
