@@ -226,8 +226,9 @@ create_annual_map <- function(analysis_results,
     
   } else if (watershed == "Kusko") {
     
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette_expanded[2]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
+    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette_expanded[2]
+    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette_expanded[5]
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.7] <- palette_expanded[2]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette_expanded[7]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette_expanded[8]
     colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette_expanded[9]
@@ -274,7 +275,7 @@ create_annual_map <- function(analysis_results,
                                        ifelse(stream_order >= 6, 3.0,
                                               ifelse(stream_order >= 5, 2.7,
                                                      ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 2, 1.2, 0)))))))
+                                                            ifelse(stream_order >= 3, 1.2, 0)))))))
   } else if (watershed == "Nushagak") {
     # Nushagak linewidths
     linewidths <- ifelse(stream_order >= 9, 4,
@@ -397,7 +398,7 @@ run_annual_analysis <- function(year,
   )
   
   PARAMS <- list(
-    Kusko = list(min_stream_order = 3, min_error = 0.0005, sensitivity_threshold = 0.7, max_error = NULL),
+    Kusko = list(min_stream_order = 3, min_error = 0.00057, sensitivity_threshold = 0.7, max_error = 0.00089),
     Yukon = list(min_stream_order = 4, min_error = 0.0035, sensitivity_threshold = 0.000, max_error = NULL),
     Nushagak = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0, max_error = NULL, has_genetic_data = FALSE)
   )
@@ -740,7 +741,7 @@ BASE_NUSHAGAK_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat
 # ============================================================================
 
 #KUSKOKWIM FULL YEAR
-for (year in c(2017, 2018, 2019, 2020, 2021)) {
+for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
   cat("\n--- Kuskokwim", year, "---\n")
   tryCatch({
     results <- run_annual_analysis(year, "Kusko")
@@ -750,16 +751,16 @@ for (year in c(2017, 2018, 2019, 2020, 2021)) {
   })
 }
 
-# #YUKON FULL YEAR
-for (year in c(2015, 2016, 2018, 2021)) {
-  cat("\n--- Yukon", year, "---\n")
-  tryCatch({
-    results <- run_annual_analysis(year, "Yukon")
-    create_annual_map(results, BASE_YUKON_DIR, year, "Yukon", filter_type = "none")
-  }, error = function(e) {
-    cat("ERROR processing Yukon", year, ":", e$message, "\n")
-  })
-}
+# # #YUKON FULL YEAR
+# for (year in c(2015, 2016, 2018, 2021)) {
+#   cat("\n--- Yukon", year, "---\n")
+#   tryCatch({
+#     results <- run_annual_analysis(year, "Yukon")
+#     create_annual_map(results, BASE_YUKON_DIR, year, "Yukon", filter_type = "none")
+#   }, error = function(e) {
+#     cat("ERROR processing Yukon", year, ":", e$message, "\n")
+#   })
+# }
 
 # ============================================================================
 # EXAMPLE 2: HALF YEAR (50% CUMULATIVE CPUE CUTOFF) (uncomment to run)

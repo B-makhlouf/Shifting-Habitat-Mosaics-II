@@ -58,3 +58,13 @@ p <- ggplot(combined_data, aes(x = dist_up, y = slope)) +
   )
 
 print(p)
+
+# Save here: /Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/ContourMaps
+
+ggsave(
+  filename = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/ContourMaps/Kusko_ContourMap_2017_2021.png",
+  plot = p,
+  width = 12,
+  height = 4,
+  dpi = 300
+)
