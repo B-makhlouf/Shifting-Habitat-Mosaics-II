@@ -56,14 +56,14 @@ PATHS <- list(
   # ── Data inputs (external repo) ────────────────────────────
   natal_data_dir = here("Data","Natal Origins"),
   
-  runsize_data = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
+  runsize_data = here("Data","AYKEscapement.xlsx"),
   
   # ── Outputs ────────────────────────────────────────────────
   output_kusko = here("Outputs", "ProductionData"),
   output_yukon = here("Outputs", "ProductionData")
 )
 
-MAP_OUTPUT_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/FullYearProd"
+MAP_OUTPUT_DIR <- here("Figures","Maps")
 
 # ==============================================================================
 # FUNCTION 1: KUSKOKWIM ANALYSIS
@@ -190,13 +190,16 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   # Load genetic region data
   ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
   my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
+  uy.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
   
   edges$GenLMU <- "none"
   edges$GenLMU[edges$reachid %in% ly.gen$reachid] <- "lower"
   edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "middle"
+  edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "upper"
   
   LYsites <- which(edges$GenLMU == "lower")
   MYsites <- which(edges$GenLMU == "middle")
+  UYsites <- which(edges$GENLMU == "upper")
   
   if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
   
@@ -388,9 +391,9 @@ for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 }
 
 # Yukon full year
-for (year in c(2015, 2016, 2018, 2021)) {
-  tryCatch({
-    results <- run_yukon_analysis(year)
-    create_map(results, year, "Yukon")
-  }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
-}
+# for (year in c(2015, 2016, 2018, 2021)) {
+#   tryCatch({
+#     results <- run_yukon_analysis(year)
+#     create_map(results, year, "Yukon")
+#   }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
+# }
