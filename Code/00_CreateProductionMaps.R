@@ -33,8 +33,7 @@ PATHS <- list(
   output_yukon = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Outputs/ProductionData"
 )
 
-BASE_KUSKO_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/Kusko_Annual"
-BASE_YUKON_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/Yukon_Annual"
+MAP_OUTPUT_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/FullYearProd"
 
 # ==============================================================================
 # HELPER: APPLY FILTERS TO NATAL DATA
@@ -389,15 +388,7 @@ run_yukon_analysis <- function(year,
 # FUNCTION 3: CREATE MAP (unified color scheme, watershed-specific line widths)
 # ==============================================================================
 
-create_map <- function(analysis_results,
-                       base_output_dir,
-                       year,
-                       watershed,
-                       filter_type = "none",
-                       cpue_lower = NULL,
-                       cpue_upper = NULL,
-                       date_start = NULL,
-                       date_end = NULL) {
+create_map <- function(analysis_results, year, watershed) {
   
   edges <- analysis_results$edges
   basin <- analysis_results$basin
@@ -449,24 +440,11 @@ create_map <- function(analysis_results,
   linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
   
   # --------------------------------------------------------------------------
-  # OUTPUT PATH
+  # OUTPUT
   # --------------------------------------------------------------------------
   
-  scenario_dir <- switch(filter_type,
-                         "cpue_50_cutoff" = "Half_Year",
-                         "cpue_percentile" = paste0("CPUE_", cpue_lower, "-", cpue_upper, "pct"),
-                         "date_range" = paste0("DOY_", date_start, "-", date_end),
-                         "both" = paste0("CPUE_", cpue_lower, "-", cpue_upper, "pct_DOY_", date_start, "-", date_end),
-                         "Full_Year"
-  )
-  
-  output_dir <- file.path(base_output_dir, "Production", scenario_dir)
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  map_filename <- file.path(output_dir, paste0(year, "_", watershed, "_Annual_Production.png"))
-  
-  # --------------------------------------------------------------------------
-  # CREATE PNG
-  # --------------------------------------------------------------------------
+  dir.create(MAP_OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
+  map_filename <- file.path(MAP_OUTPUT_DIR, paste0(watershed, "_", year, "_full.png"))
   
   png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   par(mar = c(4, 4, 4, 2), bg = "white")
@@ -493,13 +471,13 @@ create_map <- function(analysis_results,
 cat("✓ Script loaded. Functions available:\n")
 cat("  - run_kusko_analysis(year, filter_type, ...)\n")
 cat("  - run_yukon_analysis(year, filter_type, ...)\n")
-cat("  - create_map(results, base_output_dir, year, watershed, filter_type, ...)\n\n")
+cat("  - create_map(results, year, watershed)\n\n")
 
 # Kuskokwim full year
 for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
   tryCatch({
     results <- run_kusko_analysis(year)
-    create_map(results, BASE_KUSKO_DIR, year, "Kusko")
+    create_map(results, year, "Kusko")
   }, error = function(e) cat("ERROR Kusko", year, ":", e$message, "\n"))
 }
 
@@ -507,6 +485,7 @@ for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 for (year in c(2015, 2016, 2018, 2021)) {
   tryCatch({
     results <- run_yukon_analysis(year)
-    create_map(results, BASE_YUKON_DIR, year, "Yukon")
+    create_map(results, year, "Yukon")
   }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
 }
+
