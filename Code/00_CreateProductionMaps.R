@@ -23,152 +23,7 @@ suppressPackageStartupMessages({
 })
 
 # ============================================================================
-# SECTION 2: HISTOGRAM CREATION FUNCTIONS (from 00_Visualization.R)
-# ============================================================================
-
-#' Create CPUE histogram with genetic composition coloring (for Yukon)
-#' Matches the QC script approach with filtered data underline
-create_cpue_histogram_genetic <- function(natal_data, year, watershed) {
-  
-  if (watershed == "Yukon") {
-    # YUKON: Genetic composition coloring
-    doy_breaks <- seq(150, 190, by = 10)
-    
-    # Calculate by DOY (matching QC script exactly)
-    daily_genetic <- natal_data %>%
-      group_by(DOY) %>%
-      summarise(
-        cpue = first(dailyCPUEprop),
-        has_genetics = sum(!is.na(Lower) & !is.na(Middle), na.rm = TRUE) > 0,
-        mean_Lower = mean(Lower[!is.na(Lower)], na.rm = TRUE),
-        mean_Middle = mean(Middle[!is.na(Middle)], na.rm = TRUE),
-        mean_Upper = mean(Upper[!is.na(Upper)], na.rm = TRUE),
-        .groups = 'drop'
-      ) %>%
-      mutate(
-        mean_Lower = ifelse(is.na(mean_Lower), 0, mean_Lower),
-        mean_Middle = ifelse(is.na(mean_Middle), 0, mean_Middle),
-        mean_Upper = ifelse(is.na(mean_Upper), 0, mean_Upper)
-      )
-    
-    # Create stacked data for ggplot (all three groups: Lower, Middle, Upper)
-    stacked_data <- daily_genetic %>%
-      filter(has_genetics) %>%
-      select(DOY, cpue, mean_Lower, mean_Middle, mean_Upper) %>%
-      pivot_longer(
-        cols = starts_with("mean_"),
-        names_to = "genetic_group",
-        values_to = "proportion",
-        names_prefix = "mean_"
-      ) %>%
-      mutate(
-        genetic_group = factor(genetic_group, levels = c("Lower", "Middle", "Upper")),
-        cpue_segment = cpue * proportion
-      )
-    
-    # Define genetic group colors
-    genetic_colors <- c("Lower" = "#1b9e77", "Middle" = "#d95f02", "Upper" = "#7570b3")
-    
-    # Get DOY range of actual data to show red underline
-    doy_range <- range(natal_data$DOY, na.rm = TRUE)
-    
-    # Get max y value for scaling
-    max_cpue <- max(daily_genetic$cpue, na.rm = TRUE)
-    
-    # Create histogram with red underline for filtered data range
-    gg_hist <- ggplot(daily_genetic, aes(x = DOY)) +
-      # Gray bars for days WITHOUT genetics
-      geom_col(data = filter(daily_genetic, !has_genetics),
-               aes(y = cpue), fill = "gray70", alpha = 0.8, width = 0.8) +
-      
-      # Stacked colored bars for days WITH genetics
-      geom_col(data = stacked_data,
-               aes(y = cpue_segment, fill = genetic_group), alpha = 0.85, width = 0.8) +
-      
-      # Color scale for genetic groups
-      scale_fill_manual(values = genetic_colors, name = "Genetic Group") +
-      
-      # X-axis fixed from 150 to 190
-      scale_x_continuous(
-        limits = c(150, 190),
-        breaks = seq(150, 190, by = 10),
-        labels = seq(150, 190, by = 10)
-      ) +
-      
-      # Y-axis limits (extended above to show line)
-      scale_y_continuous(limits = c(0, max_cpue * 1.3)) +
-      
-      # Coordinates
-      coord_cartesian(xlim = c(150, 190), expand = FALSE) +
-      
-      # Labels and theme
-      labs(
-        title = NULL,
-        x = "Day of Year",
-        y = "Daily CPUE Proportion"
-      ) +
-      theme_minimal() +
-      theme(
-        plot.title = element_text(size = 10, face = "bold"),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 7),
-        axis.text.x = element_text(angle = 0, hjust = 0.5),
-        plot.background = element_rect(fill = "white", color = NA),
-        panel.background = element_rect(fill = "white", color = NA),
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_line(color = "gray95", size = 0.2),
-        plot.margin = margin(2, 2, 2, 2, "mm"),
-        legend.position = "bottom",
-        legend.text = element_text(size = 6),
-        legend.title = element_text(size = 7),
-        legend.margin = margin(0, 0, 0, 0)
-      )
-    
-    return(gg_hist)
-    
-  } else {
-    # KUSKO and NUSHAGAK: Simple tomato-colored histogram (no genetic data)
-    return(create_cpue_histogram_simple(natal_data, year))
-  }
-}
-
-#' Simple CPUE histogram (for Kusko, Nushagak, or when genetic data unavailable)
-create_cpue_histogram_simple <- function(natal_data, year) {
-  
-  doy_to_date <- function(doy) as.Date(doy - 1, origin = "2024-01-01")
-  doy_breaks <- seq(140, 210, by = 10)
-  
-  gg_hist <- ggplot(natal_data, aes(x = DOY, y = dailyCPUEprop)) + 
-    geom_line(color = "black", linewidth = 2) +
-    geom_ribbon(aes(ymin = 0, ymax = dailyCPUEprop), fill = "tomato", alpha = 0.7) +
-    scale_x_continuous(
-      limits = c(140, 200),
-      breaks = doy_breaks,
-      labels = function(x) paste0(x, "\n", format(doy_to_date(x), "%b %d"))
-    ) +
-    scale_y_continuous(limits = c(0, 0.1)) +
-    coord_cartesian(xlim = c(140, 200), ylim = c(0, 0.1), expand = FALSE) +
-    labs(
-      title = paste("Annual Distribution", year),
-      x = "Day of Year (Date)",
-      y = "Daily CPUE Proportion"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 10, face = "bold"),
-      axis.title = element_text(size = 9),
-      axis.text = element_text(size = 8),
-      axis.text.x = element_text(angle = 0, hjust = 0.5),
-      plot.background = element_rect(fill = "white", color = NA),
-      panel.background = element_rect(fill = "white", color = NA),
-      plot.margin = margin(0, 0, 0, 0)
-    )
-  
-  return(gg_hist)
-}
-
-# ============================================================================
-# SECTION 3: MAIN MAPPING FUNCTION (from 00_Visualization.R)
+# SECTION 2: MAIN MAPPING FUNCTION (from 00_Visualization.R)
 # ============================================================================
 
 #' Create annual map with scenario-based directory structure
@@ -238,17 +93,6 @@ create_annual_map <- function(analysis_results,
     legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
     legend_colors <- c(palette_expanded[2], palette_expanded[5], palette_expanded[7], 
                        palette_expanded[8], palette_expanded[9], palette_expanded[10])
-    
-  } else if (watershed == "Nushagak") {
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette_expanded[2]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette_expanded[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette_expanded[6]
-    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.8] <- palette_expanded[8]
-    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 1.0] <- palette_expanded[9]
-    
-    legend_labels <- c("0.0-0.2", "0.2-0.4", "0.4-0.6", "0.6-0.8", "0.8-1.0")
-    legend_colors <- c(palette_expanded[2], palette_expanded[4], palette_expanded[6], 
-                       palette_expanded[8], palette_expanded[9])
   }
   
   # ========================================================================
@@ -276,25 +120,10 @@ create_annual_map <- function(analysis_results,
                                               ifelse(stream_order >= 5, 2.7,
                                                      ifelse(stream_order >= 4, 2.7,
                                                             ifelse(stream_order >= 3, 1.2, 0)))))))
-  } else if (watershed == "Nushagak") {
-    # Nushagak linewidths
-    linewidths <- ifelse(stream_order >= 9, 4,
-                         ifelse(stream_order >= 8, 3.5,
-                                ifelse(stream_order >= 7, 3,
-                                       ifelse(stream_order >= 6, 2.5,
-                                              ifelse(stream_order >= 5, 2.0,
-                                                     ifelse(stream_order >= 4, 1.5,
-                                                            ifelse(stream_order >= 3, 1.0, 0.5)))))))
   }
   
   # Highlight high production areas with slightly thicker lines
   linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
-  
-  # ========================================================================
-  # CREATE CPUE HISTOGRAM (with genetic coloring for Yukon)
-  # ========================================================================
-  
-  gg_hist <- create_cpue_histogram_genetic(natal_data, year, watershed)
   
   # ========================================================================
   # DETERMINE SCENARIO SUBDIRECTORY AND CREATE OUTPUT FILENAME
@@ -328,7 +157,7 @@ create_annual_map <- function(analysis_results,
   png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   
   # PLOT BASE MAP
-  par(mar = c(8, 4, 4, 2), bg = "white")
+  par(mar = c(4, 4, 4, 2), bg = "white")
   plot(st_geometry(basin), col = 'gray60', border = 'gray60', 
        main = paste0("Annual Production\nYear: ", year, " River: ", watershed), bg = "white")
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
@@ -336,10 +165,6 @@ create_annual_map <- function(analysis_results,
   # ADD LEGEND
   legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5, 
          title = "Relative posterior density", bty = "n", bg = "white")
-  
-  # OVERLAY HISTOGRAM
-  vp_hist <- viewport(x = 0.5, y = 0.05, width = 0.7, height = 0.2, just = c("center", "bottom"))
-  print(gg_hist, vp = vp_hist)
   
   dev.off()
   par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
@@ -353,13 +178,13 @@ create_annual_map <- function(analysis_results,
 }
 
 # ============================================================================
-# SECTION 4: CORE ANALYSIS FUNCTION (from 00_Assignment_noCA.R)
+# SECTION 3: CORE ANALYSIS FUNCTION (from 00_Assignment_noCA.R)
 # ============================================================================
 
 #' Run complete salmon assignment analysis for a given year and watershed
 #'
 #' @param year Numeric year to analyze
-#' @param watershed Character: "Kusko", "Yukon", or "Nushagak"
+#' @param watershed Character: "Kusko" or "Yukon"
 #' @param filter_type Character: "none", "cpue_50_cutoff", "cpue_percentile", "date_range", "both"
 #' @param cpue_lower Numeric: Lower CPUE percentile (for cpue_percentile or both filters)
 #' @param cpue_upper Numeric: Upper CPUE percentile (for cpue_percentile or both filters)
@@ -389,26 +214,22 @@ run_annual_analysis <- function(year,
     yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
     yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
     yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
-    nushagak_edges = "/Users/benjaminmakhlouf/Spatial Data/NushagakUSGS.shp",
-    nushagak_basin = "/Users/benjaminmakhlouf/Spatial Data/Nushagak_basin.shp",
     natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
     output_kusko = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Kusko",
-    output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon",
-    output_nushagak = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Nushagak"
+    output_yukon = "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
   )
   
   PARAMS <- list(
     Kusko = list(min_stream_order = 3, min_error = 0.00057, sensitivity_threshold = 0.7, max_error = 0.00089),
-    Yukon = list(min_stream_order = 4, min_error = 0.0035, sensitivity_threshold = 0.000, max_error = NULL),
-    Nushagak = list(min_stream_order = 3, min_error = 0.0000, sensitivity_threshold = 0.0, max_error = NULL, has_genetic_data = FALSE)
+    Yukon = list(min_stream_order = 4, min_error = 0.0035, sensitivity_threshold = 0.000, max_error = NULL)
   )
   
   # ========================================================================
   # VALIDATION & INITIALIZATION
   # ========================================================================
   
-  if (!(watershed %in% c("Kusko", "Yukon", "Nushagak"))) {
-    stop("Watershed must be 'Kusko', 'Yukon', or 'Nushagak'")
+  if (!(watershed %in% c("Kusko", "Yukon"))) {
+    stop("Watershed must be 'Kusko' or 'Yukon'")
   }
   
   if (verbose) cat(paste("\n=== Processing", watershed, year, "===\n"))
@@ -496,9 +317,6 @@ run_annual_analysis <- function(year,
   } else if (watershed == "Yukon") {
     edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
     basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
-  } else {
-    edges <- st_read(PATHS$nushagak_edges, quiet = TRUE)
-    basin <- st_read(PATHS$nushagak_basin, quiet = TRUE)
   }
   
   edges <- st_transform(edges, st_crs(basin))
@@ -583,11 +401,6 @@ run_annual_analysis <- function(year,
     
     LYsites <- which(edges$GenLMU == "lower")
     MYsites <- which(edges$GenLMU == "middle")
-    
-  } else if (watershed == "Nushagak") {
-    pid_prior <- edges$UniPh2oNoE
-    PresencePrior <- ifelse((edges$Str_Order %in% c(6)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP == 0, 0, edges$Spawner_IP)
   }
   
   # ========================================================================
@@ -614,10 +427,6 @@ run_annual_analysis <- function(year,
       
       assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
         StreamOrderPrior * gen_prior * PresencePrior  #* NewHabitatPrior #pid_prior
-      
-    } else {
-      assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        pid_prior * StreamOrderPrior * NewHabitatPrior * PresencePrior
     }
     
     assign_norm <- assign / sum(assign)
@@ -660,9 +469,7 @@ run_annual_analysis <- function(year,
   # EXPORT TO CSV
   # ========================================================================
   
-  output_dir <- if (watershed == "Kusko") PATHS$output_kusko else 
-    if (watershed == "Yukon") PATHS$output_yukon else 
-      PATHS$output_nushagak
+  output_dir <- if (watershed == "Kusko") PATHS$output_kusko else PATHS$output_yukon
   
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
@@ -722,7 +529,7 @@ run_annual_analysis <- function(year,
 }
 
 # ============================================================================
-# SECTION 5: EXECUTION EXAMPLES (from 00_Run_Analysis.R)
+# SECTION 4: EXECUTION EXAMPLES (from 00_Run_Analysis.R)
 # ============================================================================
 
 cat("✓ Master script loaded successfully!\n")
@@ -734,7 +541,6 @@ cat("\n")
 # Define BASE output directories
 BASE_KUSKO_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/Maps/Kusko_Annual"
 BASE_YUKON_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Figures/Maps/Yukon_Annual"
-BASE_NUSHAGAK_DIR <- "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Maps/Nushagak_Annual"
 
 # ============================================================================
 # EXAMPLE 1: FULL YEAR ANALYSIS (uncomment to run)
