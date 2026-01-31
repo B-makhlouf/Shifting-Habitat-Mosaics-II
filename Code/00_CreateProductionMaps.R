@@ -1,6 +1,7 @@
 ################################################################################
-# SALMON ANALYSIS - SIMPLIFIED VERSION
-# Three functions: run_kusko_analysis(), run_yukon_analysis(), create_map()
+# SALMON ANALYSIS - FULL RUN
+# Two functions: run_kusko_analysis(), run_yukon_analysis()
+# Plus create_map() for visualization
 ################################################################################
 
 # ==============================================================================
@@ -20,8 +21,6 @@ suppressPackageStartupMessages({
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-
-
 
 PATHS <- list(
   
@@ -55,7 +54,7 @@ PATHS <- list(
   ),
   
   # ── Data inputs (external repo) ────────────────────────────
-  natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
+  natal_data_dir = here("Data","Natal Origins"),
   
   runsize_data = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
   
@@ -64,92 +63,13 @@ PATHS <- list(
   output_yukon = here("Outputs", "ProductionData")
 )
 
-
 MAP_OUTPUT_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/FullYearProd"
-
-
-
-
-
-# ==============================================================================
-# HELPER: APPLY FILTERS TO NATAL DATA
-# ==============================================================================
-
-apply_filters <- function(natal_data, filter_type, cpue_lower, cpue_upper, date_start, date_end) {
-  
-  filtered_data <- natal_data
-  original_n <- nrow(natal_data)
-  original_cpue <- sum(natal_data$COratio, na.rm = TRUE)
-  filter_description <- "No filter"
-  
-  # CPUE 50% cutoff filter
-  if (filter_type == "cpue_50_cutoff") {
-    daily_cpue <- filtered_data %>%
-      group_by(DOY) %>%
-      summarise(daily_total = sum(COratio, na.rm = TRUE), .groups = 'drop') %>%
-      arrange(DOY) %>%
-      mutate(cumsum_proportion = cumsum(daily_total) / sum(daily_total))
-    
-    cutoff_doy <- max(daily_cpue$DOY[daily_cpue$cumsum_proportion <= 0.5])
-    filtered_data <- filtered_data %>% filter(DOY <= cutoff_doy)
-    filter_description <- paste0("Up to 50% cumulative CPUE (DOY <= ", cutoff_doy, ")")
-  }
-  
-  # CPUE percentile filter
-  if (filter_type %in% c("cpue_percentile", "both")) {
-    cpue_lower <- ifelse(is.null(cpue_lower), 0, cpue_lower)
-    cpue_upper <- ifelse(is.null(cpue_upper), 100, cpue_upper)
-    
-    daily_cpue <- filtered_data %>%
-      group_by(DOY) %>%
-      summarise(mean_cpue = mean(dailyCPUEprop, na.rm = TRUE), .groups = 'drop') %>%
-      mutate(cpue_percentile = rank(mean_cpue) / n() * 100)
-    
-    target_doys <- daily_cpue$DOY[daily_cpue$cpue_percentile >= cpue_lower & 
-                                    daily_cpue$cpue_percentile <= cpue_upper]
-    filtered_data <- filtered_data %>% filter(DOY %in% target_doys)
-    filter_description <- paste0("CPUE percentile: ", cpue_lower, "-", cpue_upper, "%")
-  }
-  
-  # Date range filter
-  if (filter_type %in% c("date_range", "both")) {
-    date_parts <- c()
-    if (!is.null(date_start)) {
-      filtered_data <- filtered_data %>% filter(DOY >= date_start)
-      date_parts <- c(date_parts, paste0("DOY >= ", date_start))
-    }
-    if (!is.null(date_end)) {
-      filtered_data <- filtered_data %>% filter(DOY <= date_end)
-      date_parts <- c(date_parts, paste0("DOY <= ", date_end))
-    }
-    if (filter_type == "both") {
-      filter_description <- paste(filter_description, "&", paste(date_parts, collapse = " & "))
-    } else {
-      filter_description <- paste(date_parts, collapse = " & ")
-    }
-  }
-  
-  # Store metadata as attributes
-  attr(filtered_data, "original_n") <- original_n
-  attr(filtered_data, "filtered_n") <- nrow(filtered_data)
-  attr(filtered_data, "percent_retained") <- round(nrow(filtered_data) / original_n * 100, 1)
-  attr(filtered_data, "cpue_retained") <- round(sum(filtered_data$COratio, na.rm = TRUE) / original_cpue * 100, 1)
-  attr(filtered_data, "filter_description") <- filter_description
-  
-  return(filtered_data)
-}
 
 # ==============================================================================
 # FUNCTION 1: KUSKOKWIM ANALYSIS
 # ==============================================================================
 
-run_kusko_analysis <- function(year,
-                               filter_type = "none",
-                               cpue_lower = NULL,
-                               cpue_upper = NULL,
-                               date_start = NULL,
-                               date_end = NULL,
-                               verbose = TRUE) {
+run_kusko_analysis <- function(year, verbose = TRUE) {
   
   # Parameters
   min_stream_order <- 3
@@ -166,21 +86,16 @@ run_kusko_analysis <- function(year,
   
   if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
   
-  # Load and filter natal data
-  natal_data_raw <- read_csv(
+  # Load natal data
+  natal_data <- read_csv(
     file.path(PATHS$natal_data_dir, paste0(year, "_Kusko_Natal_Origins_Genetics_CPUE.csv")),
     show_col_types = FALSE
-  )
-  natal_data_clean <- filter(natal_data_raw, !is.na(natal_iso), !is.na(dailyCPUEprop))
-  natal_data <- apply_filters(natal_data_clean, filter_type, cpue_lower, cpue_upper, date_start, date_end)
+  ) %>%
+    filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
   
-  if (verbose) {
-    cat(paste("  Initial observations:", nrow(natal_data_clean), "\n"))
-    cat(paste("  Filter:", attr(natal_data, "filter_description"), "\n"))
-    cat(paste("  Retained:", attr(natal_data, "filtered_n"), "(", attr(natal_data, "percent_retained"), "%)\n"))
-  }
+  if (verbose) cat(paste("  Observations:", nrow(natal_data), "\n"))
   
-  if (nrow(natal_data) == 0) stop("No data remaining after filtering!")
+  if (nrow(natal_data) == 0) stop("No data available!")
   
   # Calculate error
   pid_iso <- edges$iso_pred
@@ -191,12 +106,10 @@ run_kusko_analysis <- function(year,
   # Setup priors
   StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
   PresencePrior <- ifelse((edges$Str_Order %in% c(6,7)) & edges$SPAWNING_C == 0, 0, 1)
-  NewHabitatPrior <- ifelse(edges$Avg_Slop_1 > 2.5, 0, 1)
+  NewHabitatPrior <- ifelse(edges$Channel_sl > 2.5, 0, 1)
   pid_prior <- edges$UniPh2oNoE
   
   # Bayesian assignment
-  if (verbose) cat("  Performing Bayesian assignment...\n")
-  
   n_basins <- nrow(edges)
   n_fish <- nrow(natal_data)
   assignment_matrix <- matrix(0, nrow = n_basins, ncol = n_fish)
@@ -222,7 +135,6 @@ run_kusko_analysis <- function(year,
     
     runsizedat <- read_excel(PATHS$runsize_data)
     runsize <- as.numeric(runsizedat$Total_Run[runsizedat$River == "Kusko" & runsizedat$Year == year])
-    if (filter_type == "cpue_50_cutoff") runsize <- runsize / 2
     basin_assign_individuals <- basin_assign_rescale * runsize
   } else {
     basin_assign_rescale <- basin_assign_norm <- basin_assign_individuals <- rep(0, length(basin_assign_sum))
@@ -235,14 +147,6 @@ run_kusko_analysis <- function(year,
   # Export CSV
   dir.create(PATHS$output_kusko, recursive = TRUE, showWarnings = FALSE)
   
-  filename_base <- switch(filter_type,
-                          "cpue_50_cutoff" = paste0("CPUE50pct_", year, "_Kusko_Assignment_Results"),
-                          "cpue_percentile" = paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_", year, "_Kusko_Assignment_Results"),
-                          "date_range" = paste0("DOY", date_start, "-", date_end, "_", year, "_Kusko_Assignment_Results"),
-                          "both" = paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_DOY", date_start, "-", date_end, "_", year, "_Kusko_Assignment_Results"),
-                          paste0(year, "_Kusko_Assignment_Results")
-  )
-  
   output_data <- data.frame(
     reachid = st_drop_geometry(edges)$reachid,
     Str_Order = st_drop_geometry(edges)$Str_Order,
@@ -253,7 +157,7 @@ run_kusko_analysis <- function(year,
     assignment_individuals = basin_assign_individuals
   )
   
-  filepath <- file.path(PATHS$output_kusko, paste0(filename_base, ".csv"))
+  filepath <- file.path(PATHS$output_kusko, paste0(year, "_Kusko_Assignment_Results.csv"))
   write_csv(output_data, filepath)
   if (verbose) cat(paste("  ✓ Exported:", filepath, "\n"))
   
@@ -261,14 +165,7 @@ run_kusko_analysis <- function(year,
     edges = edges,
     basin = basin,
     results = output_data,
-    natal_data = natal_data,
-    filter_metadata = list(
-      filter_type = filter_type,
-      cpue_lower = cpue_lower,
-      cpue_upper = cpue_upper,
-      date_start = date_start,
-      date_end = date_end
-    )
+    natal_data = natal_data
   ))
 }
 
@@ -276,13 +173,7 @@ run_kusko_analysis <- function(year,
 # FUNCTION 2: YUKON ANALYSIS
 # ==============================================================================
 
-run_yukon_analysis <- function(year,
-                               filter_type = "none",
-                               cpue_lower = NULL,
-                               cpue_upper = NULL,
-                               date_start = NULL,
-                               date_end = NULL,
-                               verbose = TRUE) {
+run_yukon_analysis <- function(year, verbose = TRUE) {
   
   # Parameters
   min_stream_order <- 4
@@ -309,21 +200,16 @@ run_yukon_analysis <- function(year,
   
   if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
   
-  # Load and filter natal data
-  natal_data_raw <- read_csv(
+  # Load natal data
+  natal_data <- read_csv(
     file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
     show_col_types = FALSE
-  )
-  natal_data_clean <- filter(natal_data_raw, !is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
-  natal_data <- apply_filters(natal_data_clean, filter_type, cpue_lower, cpue_upper, date_start, date_end)
+  ) %>%
+    filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
   
-  if (verbose) {
-    cat(paste("  Initial observations:", nrow(natal_data_clean), "\n"))
-    cat(paste("  Filter:", attr(natal_data, "filter_description"), "\n"))
-    cat(paste("  Retained:", attr(natal_data, "filtered_n"), "(", attr(natal_data, "percent_retained"), "%)\n"))
-  }
+  if (verbose) cat(paste("  Observations:", nrow(natal_data), "\n"))
   
-  if (nrow(natal_data) == 0) stop("No data remaining after filtering!")
+  if (nrow(natal_data) == 0) stop("No data available!")
   
   # Calculate error
   pid_iso <- edges$iso_pred
@@ -368,7 +254,6 @@ run_yukon_analysis <- function(year,
     
     runsizedat <- read_excel(PATHS$runsize_data)
     runsize <- as.numeric(runsizedat$Total_Run[runsizedat$River == "Yukon" & runsizedat$Year == year])
-    if (filter_type == "cpue_50_cutoff") runsize <- runsize / 2
     basin_assign_individuals <- basin_assign_rescale * runsize
   } else {
     basin_assign_rescale <- basin_assign_norm <- basin_assign_individuals <- rep(0, length(basin_assign_sum))
@@ -380,14 +265,6 @@ run_yukon_analysis <- function(year,
   
   # Export CSV
   dir.create(PATHS$output_yukon, recursive = TRUE, showWarnings = FALSE)
-  
-  filename_base <- switch(filter_type,
-                          "cpue_50_cutoff" = paste0("CPUE50pct_", year, "_Yukon_Assignment_Results"),
-                          "cpue_percentile" = paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_", year, "_Yukon_Assignment_Results"),
-                          "date_range" = paste0("DOY", date_start, "-", date_end, "_", year, "_Yukon_Assignment_Results"),
-                          "both" = paste0("CPUE", cpue_lower, "-", cpue_upper, "pct_DOY", date_start, "-", date_end, "_", year, "_Yukon_Assignment_Results"),
-                          paste0(year, "_Yukon_Assignment_Results")
-  )
   
   edges_df <- st_drop_geometry(edges)
   output_data <- data.frame(
@@ -401,7 +278,7 @@ run_yukon_analysis <- function(year,
     GenLMU = edges_df$GenLMU
   )
   
-  filepath <- file.path(PATHS$output_yukon, paste0(filename_base, ".csv"))
+  filepath <- file.path(PATHS$output_yukon, paste0(year, "_Yukon_Assignment_Results.csv"))
   write_csv(output_data, filepath)
   if (verbose) cat(paste("  ✓ Exported:", filepath, "\n"))
   
@@ -409,19 +286,12 @@ run_yukon_analysis <- function(year,
     edges = edges,
     basin = basin,
     results = output_data,
-    natal_data = natal_data,
-    filter_metadata = list(
-      filter_type = filter_type,
-      cpue_lower = cpue_lower,
-      cpue_upper = cpue_upper,
-      date_start = date_start,
-      date_end = date_end
-    )
+    natal_data = natal_data
   ))
 }
 
 # ==============================================================================
-# FUNCTION 3: CREATE MAP (unified color scheme, watershed-specific line widths)
+# FUNCTION 3: CREATE MAP
 # ==============================================================================
 
 create_map <- function(analysis_results, year, watershed) {
@@ -431,7 +301,7 @@ create_map <- function(analysis_results, year, watershed) {
   basin_assign_norm <- analysis_results$results$assignment_norm
   
   # --------------------------------------------------------------------------
-  # UNIFIED COLOR SCHEME (same for both watersheds)
+  # COLOR SCHEME
   # --------------------------------------------------------------------------
   
   palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
@@ -505,8 +375,8 @@ create_map <- function(analysis_results, year, watershed) {
 # ==============================================================================
 
 cat("✓ Script loaded. Functions available:\n")
-cat("  - run_kusko_analysis(year, filter_type, ...)\n")
-cat("  - run_yukon_analysis(year, filter_type, ...)\n")
+cat("  - run_kusko_analysis(year)\n")
+cat("  - run_yukon_analysis(year)\n")
 cat("  - create_map(results, year, watershed)\n\n")
 
 # Kuskokwim full year
@@ -524,4 +394,3 @@ for (year in c(2015, 2016, 2018, 2021)) {
     create_map(results, year, "Yukon")
   }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
 }
-
