@@ -29,8 +29,8 @@ PATHS <- list(
   yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
   natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
   runsize_data = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
-  output_kusko = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/AnnualProdData/Kusko",
-  output_yukon = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/AnnualProdData/Yukon"
+  output_kusko = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Outputs/ProductionData",
+  output_yukon = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Outputs/ProductionData"
 )
 
 BASE_KUSKO_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/Kusko_Annual"
