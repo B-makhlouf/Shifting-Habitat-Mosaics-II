@@ -14,26 +14,62 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(RColorBrewer)
   library(readxl)
+  library(here)
 })
 
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
 
+
+
 PATHS <- list(
-  kusko_edges = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Data/SpatialData/Kusko_Reachbase_complete2.shp",
-  kusko_basin = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp",
-  yukon_edges = "/Users/benjaminmakhlouf/Spatial Data/SMH2/YukonUSGS_noCA.shp",
-  yukon_basin = "/Users/benjaminmakhlouf/Spatial Data/Basin Map Necessary Shapefiles/Yuk_Mrg_final_alb.shp",
-  yukon_ly_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_LYGen.shp",
-  yukon_my_gen = "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Yukon/For_Sean/edges_MYGen.shp",
+  
+  # ── Shapefiles ─────────────────────────────────────────────
+  kusko_edges  = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges.shp"
+  ),
+  
+  kusko_basin  = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "Kusko_basin.shp"
+  ),
+  
+  yukon_edges  = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges.shp"
+  ),
+  
+  yukon_basin  = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "Yukon_basin.shp"
+  ),
+  
+  yukon_ly_gen = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "edges_lYGen.shp"
+  ),
+  
+  yukon_my_gen = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "edges_mYGen.shp"
+  ),
+  
+  yukon_uy_gen = here(
+    "Data", "Spatial Data", "AnalysisShapefiles", "edges_UYGen.shp"
+  ),
+  
+  # ── Data inputs (external repo) ────────────────────────────
   natal_data_dir = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/Data/Natal Origin Analysis Data/03_Natal Origins Genetics CPUE",
+  
   runsize_data = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
-  output_kusko = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Outputs/ProductionData",
-  output_yukon = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Outputs/ProductionData"
+  
+  # ── Outputs ────────────────────────────────────────────────
+  output_kusko = here("Outputs", "ProductionData"),
+  output_yukon = here("Outputs", "ProductionData")
 )
 
+
 MAP_OUTPUT_DIR <- "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/FullYearProd"
+
+
+
+
 
 # ==============================================================================
 # HELPER: APPLY FILTERS TO NATAL DATA
