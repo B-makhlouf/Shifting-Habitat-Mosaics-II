@@ -34,7 +34,7 @@ PATHS <- list(
   ),
   
   yukon_edges  = here(
-    "Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges.shp"
+    "Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges2.shp"
   ),
   
   yukon_basin  = here(
@@ -178,7 +178,7 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   # Parameters
   min_stream_order <- 4
   min_error <- 0.0035
-  sensitivity_threshold <- 0.0
+  sensitivity_threshold <- 0.7
   
   if (verbose) cat(paste("\n=== Processing Yukon", year, "===\n"))
   
@@ -187,19 +187,10 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
   edges <- st_transform(edges, st_crs(basin))
   
-  # Load genetic region data
-  ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
-  my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
-  uy.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
-  
-  edges$GenLMU <- "none"
-  edges$GenLMU[edges$reachid %in% ly.gen$reachid] <- "lower"
-  edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "middle"
-  edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "upper"
-  
-  LYsites <- which(edges$GenLMU == "lower")
-  MYsites <- which(edges$GenLMU == "middle")
-  UYsites <- which(edges$GENLMU == "upper")
+  # Identify genetic regions from existing GENLMU attribute
+  LYsites <- which(tolower(edges$GenLMU) == "lower")
+  MYsites <- which(tolower(edges$GenLMU) == "middle")
+  UYsites <- which(tolower(edges$GenLMU) == "upper")
   
   if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
   
@@ -223,6 +214,8 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   # Setup priors
   StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
   PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+  newhabitatprior<- ifelse(edges$Channel_sl > 2.3, 0, 1)
+  porcpupinepr<- edges$Porc_off #turns off the upper porcupine for now 
   
   # Bayesian assignment
   if (verbose) cat("  Performing Bayesian assignment...\n")
@@ -237,9 +230,10 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
     gen_prior <- rep(0, length(pid_iso))
     gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
     gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
+    gen_prior[UYsites] <- as.numeric(natal_data$Upper[i])
     
     assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-      StreamOrderPrior * gen_prior * PresencePrior
+      StreamOrderPrior * gen_prior * PresencePrior * porcpupinepr * newhabitatprior
     
     assign_norm <- assign / sum(assign)
     assign_rescaled <- assign_norm / max(assign_norm)
@@ -278,7 +272,7 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
     assignment_rescale = basin_assign_rescale,
     assignment_norm = basin_assign_norm,
     assignment_individuals = basin_assign_individuals,
-    GenLMU = edges_df$GenLMU
+    GENLMU = edges_df$GenLMU
   )
   
   filepath <- file.path(PATHS$output_yukon, paste0(year, "_Yukon_Assignment_Results.csv"))
@@ -383,17 +377,17 @@ cat("  - run_yukon_analysis(year)\n")
 cat("  - create_map(results, year, watershed)\n\n")
 
 # Kuskokwim full year
-for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
-  tryCatch({
-    results <- run_kusko_analysis(year)
-    create_map(results, year, "Kusko")
-  }, error = function(e) cat("ERROR Kusko", year, ":", e$message, "\n"))
-}
-
-# Yukon full year
-# for (year in c(2015, 2016, 2018, 2021)) {
+# for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
 #   tryCatch({
-#     results <- run_yukon_analysis(year)
-#     create_map(results, year, "Yukon")
-#   }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
+#     results <- run_kusko_analysis(year)
+#     create_map(results, year, "Kusko")
+#   }, error = function(e) cat("ERROR Kusko", year, ":", e$message, "\n"))
 # }
+
+##Yukon full year
+for (year in c(2015, 2016, 2018, 2021)) {
+  tryCatch({
+    results <- run_yukon_analysis(year)
+    create_map(results, year, "Yukon")
+  }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
+}
