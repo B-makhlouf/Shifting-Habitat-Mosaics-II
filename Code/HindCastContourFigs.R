@@ -497,3 +497,5 @@ ggsave(
 )
 
 cat("Discharge figure saved to:", file.path(output_dir, "Log_Discharge_vs_Blaskey_Temp_2017-2021.png"), "\n")
+
+
