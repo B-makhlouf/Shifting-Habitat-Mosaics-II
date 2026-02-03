@@ -176,7 +176,7 @@ run_kusko_analysis <- function(year, verbose = TRUE) {
 run_yukon_analysis <- function(year, verbose = TRUE) {
   
   # Parameters
-  min_stream_order <- 4
+  min_stream_order <- 5
   min_error <- 0.0035
   sensitivity_threshold <- 0.7
   
@@ -305,12 +305,16 @@ create_map <- function(analysis_results, year, watershed) {
   
   colcode <- rep("gray90", length(basin_assign_norm))
   colcode[basin_assign_norm == 0] <- "white"
-  colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette[2]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette[5]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
-  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[8]
-  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette[9]
-  colcode[basin_assign_norm > 0.95] <- palette[10]
+  colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
+  colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+  colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+  colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+  colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+  colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+  colcode[basin_assign_norm > 0.9] <- palette[10]
   
   legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
   legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
