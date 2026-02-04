@@ -156,9 +156,9 @@ df2017 <- df2017 %>%
   rename(
     mean_summer_temp = weighted_avg_temp,
     SNAP_temp = SnapTp2017,
+    SNAP_prec = SnapPr2017,
     Production = assignment_norm
   )
-
 # =============================================================================
 # 2018
 # =============================================================================
@@ -289,6 +289,7 @@ df2018 <- df2018 %>%
   rename(
     mean_summer_temp = weighted_avg_temp,
     SNAP_temp = SnapTp2018,
+    SNAP_prec = SnapPr2018,
     Production = assignment_norm
   )
 
@@ -422,8 +423,10 @@ df2019 <- df2019 %>%
   rename(
     mean_summer_temp = weighted_avg_temp,
     SNAP_temp = SnapTp2019,
+    SNAP_prec = SnapPr2019,
     Production = assignment_norm
   )
+
 
 # =============================================================================
 # 2020
@@ -555,6 +558,7 @@ df2020 <- df2020 %>%
   rename(
     mean_summer_temp = weighted_avg_temp,
     SNAP_temp = SnapTp2020,
+    SNAP_prec = SnapPr2020,
     Production = assignment_norm
   )
 
@@ -688,211 +692,187 @@ df2021 <- df2021 %>%
   rename(
     mean_summer_temp = weighted_avg_temp,
     SNAP_temp = SnapTp2021,
+    SNAP_prec = SnapPr2021,
     Production = assignment_norm
   )
 
 # =============================================================================
-# DETERMINE GLOBAL AXIS LIMITS FOR TEMPERATURE PLOTS
+# CALCULATE GLOBAL AXIS LIMITS
 # =============================================================================
-# Combine all filtered data to find global min/max
-all_data <- bind_rows(
-  df2017 %>% filter(SNAP_temp > 5, Production > 0.7) %>% mutate(year = 2017),
-  df2018 %>% filter(SNAP_temp > 5, Production > 0.7) %>% mutate(year = 2018),
-  df2019 %>% filter(SNAP_temp > 5, Production > 0.7) %>% mutate(year = 2019),
-  df2020 %>% filter(SNAP_temp > 5, Production > 0.7) %>% mutate(year = 2020),
-  df2021 %>% filter(SNAP_temp > 5, Production > 0.7) %>% mutate(year = 2021)
+# Create filtered datasets for each year
+df_2017_filtered <- df2017 %>% filter(Production > .7)
+df_2018_filtered <- df2018 %>% filter(Production > .7)
+df_2019_filtered <- df2019 %>% filter(Production > .7)
+df_2020_filtered <- df2020 %>% filter(Production > .7)
+df_2021_filtered <- df2021 %>% filter(Production > .7)
+
+# Combine all filtered data
+all_data_temp <- bind_rows(
+  df_2017_filtered %>% mutate(year = 2017),
+  df_2018_filtered %>% mutate(year = 2018),
+  df_2019_filtered %>% mutate(year = 2019),
+  df_2020_filtered %>% mutate(year = 2020),
+  df_2021_filtered %>% mutate(year = 2021)
 )
 
-# Calculate global limits with some padding for temperature plots
-x_limits_temp <- c(floor(min(all_data$SNAP_temp, na.rm = TRUE)), 
-                   ceiling(max(all_data$SNAP_temp, na.rm = TRUE)))
-y_limits_temp <- c(floor(min(all_data$mean_summer_temp, na.rm = TRUE)), 
-                   ceiling(max(all_data$mean_summer_temp, na.rm = TRUE)))
+# Calculate global limits for temperature plots
+x_limits_temp <- range(all_data_temp$mean_summer_temp, na.rm = TRUE)
+y_limits_temp <- c(10, max(all_data_temp$SNAP_temp, na.rm = TRUE))
 
-cat("X-axis limits (SNAP temp):", x_limits_temp, "\n")
-cat("Y-axis limits (Mean summer temp):", y_limits_temp, "\n")
+cat("Temperature plot X-axis limits (mean_summer_temp):", x_limits_temp, "\n")
+cat("Temperature plot Y-axis limits (SNAP_temp):", y_limits_temp, "\n")
 
-# =============================================================================
-# DETERMINE GLOBAL AXIS LIMITS FOR DISCHARGE PLOTS
-# =============================================================================
-# Filter data for discharge plots and add log transformation
-all_data_disch <- all_data %>% 
-  filter(mean_summer_disch > 0) %>%
+# Calculate global limits for discharge plots (only for data with positive discharge)
+all_data_disch <- all_data_temp %>% 
+  filter(mean_summer_disch > 0, !is.na(SNAP_prec)) %>%
   mutate(log_discharge = log10(mean_summer_disch))
 
-# Calculate global limits for discharge plots
-x_limits_disch <- c(floor(min(all_data_disch$log_discharge, na.rm = TRUE)), 
-                    ceiling(max(all_data_disch$log_discharge, na.rm = TRUE)))
-y_limits_disch <- y_limits_temp  # Same y-axis as temperature plots
+x_limits_disch <- range(all_data_disch$log_discharge, na.rm = TRUE)
+y_limits_disch <- range(all_data_disch$SNAP_prec, na.rm = TRUE)
 
-cat("X-axis limits (Log10 Mean summer discharge):", x_limits_disch, "\n")
-cat("Y-axis limits (Mean summer temp):", y_limits_disch, "\n")
+cat("Discharge plot X-axis limits (log10 discharge):", x_limits_disch, "\n")
+cat("Discharge plot Y-axis limits (SNAP_prec):", y_limits_disch, "\n")
 
 # =============================================================================
-# CREATE TEMPERATURE PLOTS WITH CONSISTENT AXES (NO LEGENDS)
+# CREATE TEMPERATURE PLOTS WITH CONSISTENT AXES
 # =============================================================================
-# Create plot for 2017
-p2017_temp <- ggplot(df2017 %>% filter(SNAP_temp > 5, Production > 0.7), 
-                     aes(x = SNAP_temp, y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2017_temp <- ggplot(df_2017_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "YlOrRd")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "YlOrRd") +
   coord_cartesian(xlim = x_limits_temp, ylim = y_limits_temp) +
   labs(
-    x = "SNAP Temperature 2017",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Mean Summer Temp (Blaskey)",
+    y = "SNAP Temperature",
     title = "2017"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create plot for 2018
-p2018_temp <- ggplot(df2018 %>% filter(SNAP_temp > 5, Production > 0.7), 
-                     aes(x = SNAP_temp, y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2018_temp <- ggplot(df_2018_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "YlOrRd")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "YlOrRd") +
   coord_cartesian(xlim = x_limits_temp, ylim = y_limits_temp) +
   labs(
-    x = "SNAP Temperature 2018",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Mean Summer Temp (Blaskey)",
+    y = "SNAP Temperature",
     title = "2018"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create plot for 2019
-p2019_temp <- ggplot(df2019 %>% filter(SNAP_temp > 5, Production > 0.7), 
-                     aes(x = SNAP_temp, y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2019_temp <- ggplot(df_2019_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "YlOrRd")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "YlOrRd") +
   coord_cartesian(xlim = x_limits_temp, ylim = y_limits_temp) +
   labs(
-    x = "SNAP Temperature 2019",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Mean Summer Temp (Blaskey)",
+    y = "SNAP Temperature",
     title = "2019"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create plot for 2020
-p2020_temp <- ggplot(df2020 %>% filter(SNAP_temp > 5, Production > 0.7), 
-                     aes(x = SNAP_temp, y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2020_temp <- ggplot(df_2020_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "YlOrRd")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "YlOrRd") +
   coord_cartesian(xlim = x_limits_temp, ylim = y_limits_temp) +
   labs(
-    x = "SNAP Temperature 2020",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Mean Summer Temp (Blaskey)",
+    y = "SNAP Temperature",
     title = "2020"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create plot for 2021
-p2021_temp <- ggplot(df2021 %>% filter(SNAP_temp > 5, Production > 0.7), 
-                     aes(x = SNAP_temp, y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2021_temp <- ggplot(df_2021_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "YlOrRd")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "YlOrRd") +
   coord_cartesian(xlim = x_limits_temp, ylim = y_limits_temp) +
   labs(
-    x = "SNAP Temperature 2021",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Mean Summer Temp (Blaskey)",
+    y = "SNAP Temperature",
     title = "2021"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
 # =============================================================================
-# CREATE DISCHARGE PLOTS WITH CONSISTENT AXES (NO LEGENDS) - LOG TRANSFORMED
+# CREATE DISCHARGE PLOTS WITH CONSISTENT AXES
 # =============================================================================
-# Create discharge plot for 2017
-p2017_disch <- ggplot(df2017 %>% filter(SNAP_temp > 5, Production > 0.7, mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2017_disch <- ggplot(df_2017_filtered %>% filter(mean_summer_disch > 0), 
+                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "Blues")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "Blues") +
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
-    x = "Log10 Mean Summer Discharge 2017",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Log10 Mean Summer Discharge",
+    y = "SNAP Precipitation",
     title = "2017"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create discharge plot for 2018
-p2018_disch <- ggplot(df2018 %>% filter(SNAP_temp > 5, Production > 0.7, mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2018_disch <- ggplot(df_2018_filtered %>% filter(mean_summer_disch > 0), 
+                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "Blues")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "Blues") +
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
-    x = "Log10 Mean Summer Discharge 2018",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Log10 Mean Summer Discharge",
+    y = "SNAP Precipitation",
     title = "2018"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create discharge plot for 2019
-p2019_disch <- ggplot(df2019 %>% filter(SNAP_temp > 5, Production > 0.7, mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2019_disch <- ggplot(df_2019_filtered %>% filter(mean_summer_disch > 0), 
+                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "Blues")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "Blues") +
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
-    x = "Log10 Mean Summer Discharge 2019",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Log10 Mean Summer Discharge",
+    y = "SNAP Precipitation",
     title = "2019"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create discharge plot for 2020
-p2020_disch <- ggplot(df2020 %>% filter(SNAP_temp > 5, Production > 0.7, mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2020_disch <- ggplot(df_2020_filtered %>% filter(mean_summer_disch > 0), 
+                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "Blues")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "Blues") +
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
-    x = "Log10 Mean Summer Discharge 2020",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Log10 Mean Summer Discharge",
+    y = "SNAP Precipitation",
     title = "2020"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
-# Create discharge plot for 2021
-p2021_disch <- ggplot(df2021 %>% filter(SNAP_temp > 5, Production > 0.7, mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = mean_summer_temp)) +
-  geom_point(aes(size = Production), alpha = 0.2, color = "gray30") +
-  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
-  scale_fill_gradientn(colors = brewer.pal(9, "YlOrRd")) +
-  scale_size_continuous(range = c(1, 5)) +
+p2021_disch <- ggplot(df_2021_filtered %>% filter(mean_summer_disch > 0), 
+                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = brewer.pal(9, "Blues")[1]) +
+  stat_density_2d_filled(bins = 8) +
+  scale_fill_brewer(palette = "Blues") +
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
-    x = "Log10 Mean Summer Discharge 2021",
-    y = "Mean Summer Temp (Blaskey)",
+    x = "Log10 Mean Summer Discharge",
+    y = "SNAP Precipitation",
     title = "2021"
   ) +
-  theme_bw() +
-  theme(legend.position = "none")
+  theme_bw()
 
 # =============================================================================
 # COMBINE TEMPERATURE PLOTS INTO MULTI-PANEL FIGURE (SINGLE ROW)
