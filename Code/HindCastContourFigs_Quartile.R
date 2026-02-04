@@ -722,17 +722,19 @@ y_limits_temp <- c(10, max(all_data_temp$SNAP_temp, na.rm = TRUE))
 cat("Temperature plot X-axis limits (mean_summer_temp):", x_limits_temp, "\n")
 cat("Temperature plot Y-axis limits (SNAP_temp):", y_limits_temp, "\n")
 
-# Calculate global limits for discharge plots (only for data with positive discharge)
+# Calculate global limits for discharge plots (only for data with positive discharge and precip)
 all_data_disch <- all_data_temp %>% 
-  filter(mean_summer_disch > 0, !is.na(SNAP_prec)) %>%
-  mutate(log_discharge = log10(mean_summer_disch))
+  filter(mean_summer_disch > 0, !is.na(SNAP_prec), SNAP_prec > 0) %>%
+  mutate(
+    log_discharge = log10(mean_summer_disch),
+    log_precip = log10(SNAP_prec)
+  )
 
 x_limits_disch <- range(all_data_disch$log_discharge, na.rm = TRUE)
-y_limits_disch <- range(all_data_disch$SNAP_prec, na.rm = TRUE)
+y_limits_disch <- range(all_data_disch$log_precip, na.rm = TRUE)
 
 cat("Discharge plot X-axis limits (log10 discharge):", x_limits_disch, "\n")
-cat("Discharge plot Y-axis limits (SNAP_prec):", y_limits_disch, "\n")
-
+cat("Discharge plot Y-axis limits (log10 SNAP_prec):", y_limits_disch, "\n")
 # =============================================================================
 # CREATE TEMPERATURE PLOTS WITH CONSISTENT AXES
 # =============================================================================
@@ -804,8 +806,8 @@ p2021_temp <- ggplot(df_2021_filtered, aes(x = mean_summer_temp, y = SNAP_temp))
 # =============================================================================
 # CREATE DISCHARGE PLOTS WITH CONSISTENT AXES
 # =============================================================================
-p2017_disch <- ggplot(df_2017_filtered %>% filter(mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+p2017_disch <- ggplot(df_2017_filtered %>% filter(mean_summer_disch > 0, SNAP_prec > 0), 
+                      aes(x = log10(mean_summer_disch), y = log10(SNAP_prec))) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
            fill = brewer.pal(9, "Blues")[1]) +
   stat_density_2d_filled(bins = 8) +
@@ -813,13 +815,13 @@ p2017_disch <- ggplot(df_2017_filtered %>% filter(mean_summer_disch > 0),
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
     x = "Log10 Mean Summer Discharge",
-    y = "SNAP Precipitation",
+    y = "Log10 SNAP Precipitation",
     title = "2017"
   ) +
   theme_bw()
 
-p2018_disch <- ggplot(df_2018_filtered %>% filter(mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+p2018_disch <- ggplot(df_2018_filtered %>% filter(mean_summer_disch > 0, SNAP_prec > 0), 
+                      aes(x = log10(mean_summer_disch), y = log10(SNAP_prec))) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
            fill = brewer.pal(9, "Blues")[1]) +
   stat_density_2d_filled(bins = 8) +
@@ -827,13 +829,13 @@ p2018_disch <- ggplot(df_2018_filtered %>% filter(mean_summer_disch > 0),
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
     x = "Log10 Mean Summer Discharge",
-    y = "SNAP Precipitation",
+    y = "Log10 SNAP Precipitation",
     title = "2018"
   ) +
   theme_bw()
 
-p2019_disch <- ggplot(df_2019_filtered %>% filter(mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+p2019_disch <- ggplot(df_2019_filtered %>% filter(mean_summer_disch > 0, SNAP_prec > 0), 
+                      aes(x = log10(mean_summer_disch), y = log10(SNAP_prec))) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
            fill = brewer.pal(9, "Blues")[1]) +
   stat_density_2d_filled(bins = 8) +
@@ -841,13 +843,13 @@ p2019_disch <- ggplot(df_2019_filtered %>% filter(mean_summer_disch > 0),
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
     x = "Log10 Mean Summer Discharge",
-    y = "SNAP Precipitation",
+    y = "Log10 SNAP Precipitation",
     title = "2019"
   ) +
   theme_bw()
 
-p2020_disch <- ggplot(df_2020_filtered %>% filter(mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+p2020_disch <- ggplot(df_2020_filtered %>% filter(mean_summer_disch > 0, SNAP_prec > 0), 
+                      aes(x = log10(mean_summer_disch), y = log10(SNAP_prec))) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
            fill = brewer.pal(9, "Blues")[1]) +
   stat_density_2d_filled(bins = 8) +
@@ -855,13 +857,13 @@ p2020_disch <- ggplot(df_2020_filtered %>% filter(mean_summer_disch > 0),
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
     x = "Log10 Mean Summer Discharge",
-    y = "SNAP Precipitation",
+    y = "Log10 SNAP Precipitation",
     title = "2020"
   ) +
   theme_bw()
 
-p2021_disch <- ggplot(df_2021_filtered %>% filter(mean_summer_disch > 0), 
-                      aes(x = log10(mean_summer_disch), y = SNAP_prec)) +
+p2021_disch <- ggplot(df_2021_filtered %>% filter(mean_summer_disch > 0, SNAP_prec > 0), 
+                      aes(x = log10(mean_summer_disch), y = log10(SNAP_prec))) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
            fill = brewer.pal(9, "Blues")[1]) +
   stat_density_2d_filled(bins = 8) +
@@ -869,7 +871,7 @@ p2021_disch <- ggplot(df_2021_filtered %>% filter(mean_summer_disch > 0),
   coord_cartesian(xlim = x_limits_disch, ylim = y_limits_disch) +
   labs(
     x = "Log10 Mean Summer Discharge",
-    y = "SNAP Precipitation",
+    y = "Log10 SNAP Precipitation",
     title = "2021"
   ) +
   theme_bw()

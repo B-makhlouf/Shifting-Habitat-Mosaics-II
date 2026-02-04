@@ -1,6 +1,6 @@
 ################################################################################
-# SALMON ANALYSIS - FULL RUN
-# Two functions: run_kusko_analysis(), run_yukon_analysis()
+# SALMON ANALYSIS - YUKON LOWER & MIDDLE COMBINED (EXCLUDING UPPER)
+# Function: run_yukon_lower_middle_analysis()
 # Plus create_map() for visualization
 ################################################################################
 
@@ -25,14 +25,6 @@ suppressPackageStartupMessages({
 PATHS <- list(
   
   # ── Shapefiles ─────────────────────────────────────────────
-  kusko_edges  = here(
-    "Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges.shp"
-  ),
-  
-  kusko_basin  = here(
-    "Data", "Spatial Data", "AnalysisShapefiles", "Kusko_basin.shp"
-  ),
-  
   yukon_edges  = here(
     "Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges2.shp"
   ),
@@ -41,146 +33,29 @@ PATHS <- list(
     "Data", "Spatial Data", "AnalysisShapefiles", "Yukon_basin.shp"
   ),
   
-  yukon_ly_gen = here(
-    "Data", "Spatial Data", "AnalysisShapefiles", "edges_lYGen.shp"
-  ),
-  
-  yukon_my_gen = here(
-    "Data", "Spatial Data", "AnalysisShapefiles", "edges_mYGen.shp"
-  ),
-  
-  yukon_uy_gen = here(
-    "Data", "Spatial Data", "AnalysisShapefiles", "edges_UYGen.shp"
-  ),
-  
-  # ── Data inputs (external repo) ────────────────────────────
+  # ── Data inputs ────────────────────────────────────────────
   natal_data_dir = here("Data","Natal Origins"),
   
   runsize_data = here("Data","AYKEscapement.xlsx"),
   
   # ── Outputs ────────────────────────────────────────────────
-  output_kusko = here("Outputs", "ProductionData"),
-  output_yukon = here("Outputs", "ProductionData")
+  output_yukon = "C:/Users/makhl/Research Repos/Shifting-Habitat-Mosaics-II/Outputs/ProductionData/CanadaOnly"
 )
 
-MAP_OUTPUT_DIR <- here("Figures","Maps")
+MAP_OUTPUT_DIR <- "C:/Users/makhl/Research Repos/Shifting-Habitat-Mosaics-II/Figures/Maps/CanadaOnly"
 
 # ==============================================================================
-# FUNCTION 1: KUSKOKWIM ANALYSIS
+# FUNCTION: YUKON LOWER + MIDDLE ANALYSIS (EXCLUDING UPPER)
 # ==============================================================================
 
-run_kusko_analysis <- function(year, verbose = TRUE) {
-  
-  # Parameters
-  min_stream_order <- 3
-  min_error <- 0.00057
-  max_error <- 0.00089
-  sensitivity_threshold <- 0.7
-  
-  if (verbose) cat(paste("\n=== Processing Kusko", year, "===\n"))
-  
-  # Load spatial data
-  edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
-  basin <- st_read(PATHS$kusko_basin, quiet = TRUE)
-  edges <- st_transform(edges, st_crs(basin))
-  
-  if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
-  
-  # Load natal data
-  natal_data <- read_csv(
-    file.path(PATHS$natal_data_dir, paste0(year, "_Kusko_Natal_Origins_Genetics_CPUE.csv")),
-    show_col_types = FALSE
-  ) %>%
-    filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
-  
-  if (verbose) cat(paste("  Observations:", nrow(natal_data), "\n"))
-  
-  if (nrow(natal_data) == 0) stop("No data available!")
-  
-  # Calculate error
-  pid_iso <- edges$iso_pred
-  pid_isose <- edges$isose_pred
-  pid_isose_mod <- pmax(pmin(pid_isose, max_error), min_error)
-  error <- sqrt(pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
-  
-  # Setup priors
-  StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
-  PresencePrior <- ifelse((edges$Str_Order %in% c(6,7)) & edges$SPAWNING_C == 0, 0, 1)
-  NewHabitatPrior <- ifelse(edges$Channel_sl > 2.5, 0, 1)
-  pid_prior <- edges$UniPh2oNoE
-  
-  # Bayesian assignment
-  n_basins <- nrow(edges)
-  n_fish <- nrow(natal_data)
-  assignment_matrix <- matrix(0, nrow = n_basins, ncol = n_fish)
-  
-  for (i in 1:n_fish) {
-    fish_iso <- natal_data$natal_iso[i]
-    assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-      StreamOrderPrior * PresencePrior * pid_prior * NewHabitatPrior
-    
-    assign_norm <- assign / sum(assign)
-    assign_rescaled <- assign_norm / max(assign_norm)
-    assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
-    assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
-  }
-  
-  # Process results
-  basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
-  total_sum <- sum(basin_assign_sum, na.rm = TRUE)
-  
-  if (total_sum > 0) {
-    basin_assign_rescale <- basin_assign_sum / total_sum
-    basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
-    
-    runsizedat <- read_excel(PATHS$runsize_data)
-    runsize <- as.numeric(runsizedat$Total_Run[runsizedat$River == "Kusko" & runsizedat$Year == year])
-    basin_assign_individuals <- basin_assign_rescale * runsize
-  } else {
-    basin_assign_rescale <- basin_assign_norm <- basin_assign_individuals <- rep(0, length(basin_assign_sum))
-  }
-  
-  if (verbose) {
-    cat(paste("  Segments with assignment > 0:", sum(basin_assign_sum > 0), "/", nrow(edges), "\n"))
-  }
-  
-  # Export CSV
-  dir.create(PATHS$output_kusko, recursive = TRUE, showWarnings = FALSE)
-  
-  output_data <- data.frame(
-    reachid = st_drop_geometry(edges)$reachid,
-    Str_Order = st_drop_geometry(edges)$Str_Order,
-    iso_pred = st_drop_geometry(edges)$iso_pred,
-    assignment_sum = basin_assign_sum,
-    assignment_rescale = basin_assign_rescale,
-    assignment_norm = basin_assign_norm,
-    assignment_individuals = basin_assign_individuals
-  )
-  
-  filepath <- file.path(PATHS$output_kusko, paste0(year, "_Kusko_Assignment_Results.csv"))
-  write_csv(output_data, filepath)
-  if (verbose) cat(paste("  ✓ Exported:", filepath, "\n"))
-  
-  return(list(
-    edges = edges,
-    basin = basin,
-    results = output_data,
-    natal_data = natal_data
-  ))
-}
-
-# ==============================================================================
-# FUNCTION 2: YUKON ANALYSIS
-# ==============================================================================
-
-run_yukon_analysis <- function(year, verbose = TRUE) {
+run_yukon_lower_middle_analysis <- function(year, verbose = TRUE) {
   
   # Parameters
   min_stream_order <- 4
   min_error <- 0.0035
   sensitivity_threshold <- 0.7
   
-  if (verbose) cat(paste("\n=== Processing Yukon", year, "===\n"))
+  if (verbose) cat(paste("\n=== Processing Yukon (Lower + Middle only)", year, "===\n"))
   
   # Load spatial data
   edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
@@ -190,16 +65,27 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   # Identify genetic regions from existing GENLMU attribute
   LYsites <- which(tolower(edges$GenLMU) == "lower")
   MYsites <- which(tolower(edges$GenLMU) == "middle")
-  UYsites <- which(tolower(edges$GenLMU) == "upper")
   
-  if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
+  # Filter edges to ONLY Lower and Middle sites (exclude Upper)
+  LM_sites <- c(LYsites, MYsites)
+  edges <- edges[LM_sites, ]
+  
+  # Re-identify which rows are Lower vs Middle in filtered dataset
+  LYsites_filtered <- which(tolower(edges$GenLMU) == "lower")
+  MYsites_filtered <- which(tolower(edges$GenLMU) == "middle")
+  
+  if (verbose) {
+    cat(paste("  Loaded", nrow(edges), "stream segments (Lower + Middle only)\n"))
+    cat(paste("    Lower sites:", length(LYsites_filtered), "\n"))
+    cat(paste("    Middle sites:", length(MYsites_filtered), "\n"))
+  }
   
   # Load natal data
   natal_data <- read_csv(
     file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
     show_col_types = FALSE
   ) %>%
-    filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
+    filter(!is.na(Lower), !is.na(Middle), !is.na(natal_iso), !is.na(dailyCPUEprop))
   
   if (verbose) cat(paste("  Observations:", nrow(natal_data), "\n"))
   
@@ -214,11 +100,11 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   # Setup priors
   StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
   PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-  newhabitatprior<- ifelse(edges$Channel_sl > 2.3, 0, 1)
-  porcpupinepr<- edges$Porc_off #turns off the upper porcupine for now 
+  newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
+  porcpupinepr <- edges$Porc_off
   
   # Bayesian assignment
-  if (verbose) cat("  Performing Bayesian assignment...\n")
+  if (verbose) cat("  Performing Bayesian assignment (Lower + Middle)...\n")
   
   n_basins <- nrow(edges)
   n_fish <- nrow(natal_data)
@@ -227,10 +113,10 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
   for (i in 1:n_fish) {
     fish_iso <- natal_data$natal_iso[i]
     
-    gen_prior <- rep(0, length(pid_iso))
-    gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
-    gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
-    gen_prior[UYsites] <- as.numeric(natal_data$Upper[i])
+    # Set genetic prior based on site location (Lower or Middle)
+    gen_prior <- rep(0, n_basins)
+    gen_prior[LYsites_filtered] <- as.numeric(natal_data$Lower[i])
+    gen_prior[MYsites_filtered] <- as.numeric(natal_data$Middle[i])
     
     assign <- (1/sqrt(2*pi*error^2)) * exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
       StreamOrderPrior * gen_prior * PresencePrior * porcpupinepr * newhabitatprior
@@ -251,7 +137,10 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
     
     runsizedat <- read_excel(PATHS$runsize_data)
     runsize <- as.numeric(runsizedat$Total_Run[runsizedat$River == "Yukon" & runsizedat$Year == year])
-    basin_assign_individuals <- basin_assign_rescale * runsize
+    
+    # Scale by combined Lower + Middle proportion
+    avg_lower_middle_prop <- mean(natal_data$Lower + natal_data$Middle, na.rm = TRUE)
+    basin_assign_individuals <- basin_assign_rescale * runsize * avg_lower_middle_prop
   } else {
     basin_assign_rescale <- basin_assign_norm <- basin_assign_individuals <- rep(0, length(basin_assign_sum))
   }
@@ -275,7 +164,7 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
     GENLMU = edges_df$GenLMU
   )
   
-  filepath <- file.path(PATHS$output_yukon, paste0(year, "_Yukon_Assignment_Results.csv"))
+  filepath <- file.path(PATHS$output_yukon, paste0(year, "_Yukon_LowerMiddle_Assignment_Results.csv"))
   write_csv(output_data, filepath)
   if (verbose) cat(paste("  ✓ Exported:", filepath, "\n"))
   
@@ -288,10 +177,10 @@ run_yukon_analysis <- function(year, verbose = TRUE) {
 }
 
 # ==============================================================================
-# FUNCTION 3: CREATE MAP
+# FUNCTION: CREATE MAP
 # ==============================================================================
 
-create_map <- function(analysis_results, year, watershed) {
+create_map <- function(analysis_results, year) {
   
   edges <- analysis_results$edges
   basin <- analysis_results$basin
@@ -320,28 +209,18 @@ create_map <- function(analysis_results, year, watershed) {
   legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
   
   # --------------------------------------------------------------------------
-  # WATERSHED-SPECIFIC LINE WIDTHS
+  # LINE WIDTHS (Yukon-specific)
   # --------------------------------------------------------------------------
   
   stream_order <- edges$Str_Order
   stream_order[is.na(stream_order)] <- 1
   
-  if (watershed == "Yukon") {
-    linewidths <- ifelse(stream_order >= 9, 3.7,
-                         ifelse(stream_order >= 8, 5,
-                                ifelse(stream_order >= 7, 2.0,
-                                       ifelse(stream_order >= 6, 1.5,
-                                              ifelse(stream_order >= 5, 1.4,
-                                                     ifelse(stream_order >= 4, 1.0, 0))))))
-  } else {
-    linewidths <- ifelse(stream_order >= 9, 5,
-                         ifelse(stream_order >= 8, 6,
-                                ifelse(stream_order >= 7, 5,
-                                       ifelse(stream_order >= 6, 3.0,
-                                              ifelse(stream_order >= 5, 2.7,
-                                                     ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 3, 1.2, 0)))))))
-  }
+  linewidths <- ifelse(stream_order >= 9, 3.7,
+                       ifelse(stream_order >= 8, 5,
+                              ifelse(stream_order >= 7, 2.0,
+                                     ifelse(stream_order >= 6, 1.5,
+                                            ifelse(stream_order >= 5, 1.4,
+                                                   ifelse(stream_order >= 4, 1.0, 0))))))
   
   # Emphasize high production areas
   linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
@@ -351,13 +230,14 @@ create_map <- function(analysis_results, year, watershed) {
   # --------------------------------------------------------------------------
   
   dir.create(MAP_OUTPUT_DIR, recursive = TRUE, showWarnings = FALSE)
-  map_filename <- file.path(MAP_OUTPUT_DIR, paste0(watershed, "_", year, "_full.png"))
+  map_filename <- file.path(MAP_OUTPUT_DIR, paste0("Yukon_LowerMiddle_", year, ".png"))
   
   png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
   par(mar = c(4, 4, 4, 2), bg = "white")
   
   plot(st_geometry(basin), col = "gray60", border = "gray60",
-       main = paste0("Annual Production\nYear: ", year, " River: ", watershed), bg = "white")
+       main = paste0("Annual Production - Lower & Middle Yukon\nYear: ", year), 
+       bg = "white")
   plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, add = TRUE, lwd = linewidths)
   
   legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
@@ -376,22 +256,13 @@ create_map <- function(analysis_results, year, watershed) {
 # ==============================================================================
 
 cat("✓ Script loaded. Functions available:\n")
-cat("  - run_kusko_analysis(year)\n")
-cat("  - run_yukon_analysis(year)\n")
-cat("  - create_map(results, year, watershed)\n\n")
+cat("  - run_yukon_lower_middle_analysis(year)\n")
+cat("  - create_map(results, year)\n\n")
 
-# Kuskokwim full year
-# for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
-#   tryCatch({
-#     results <- run_kusko_analysis(year)
-#     create_map(results, year, "Kusko")
-#   }, error = function(e) cat("ERROR Kusko", year, ":", e$message, "\n"))
-# }
-
-##Yukon full year
+# Run analysis for Lower + Middle Yukon (excluding Upper)
 for (year in c(2015, 2016, 2018, 2021)) {
   tryCatch({
-    results <- run_yukon_analysis(year)
-    create_map(results, year, "Yukon")
-  }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
+    results <- run_yukon_lower_middle_analysis(year)
+    create_map(results, year)
+  }, error = function(e) cat("ERROR Yukon Lower+Middle", year, ":", e$message, "\n"))
 }
