@@ -8,6 +8,11 @@ library(here)
 library(patchwork)
 library(RColorBrewer)
 library(ggplot2)
+library(dplyr)
+
+library(conflicted)
+conflict_prefer("select", "dplyr")
+conflict_prefer("filter", "dplyr")
 
 # =============================================================================
 # READ IN BASE DATA (USED FOR ALL YEARS)
@@ -58,7 +63,7 @@ Prod2017$COMID <- COMID
 # 4. Reshape production data to long format (quartiles)
 # -----------------------------------------------------------------------------
 Prod2017_long <- Prod2017 %>%
-  select(reachid, COMID, matches("assignment_individuals")) %>%
+  dplyr::select(reachid, COMID, matches("assignment_individuals")) %>%
   pivot_longer(
     cols = matches("assignment_individuals"),
     names_to = "Quartile",
@@ -150,7 +155,7 @@ df2017 <- df2017 %>%
 df2017 <- df2017 %>%
   left_join(
     kusko_shp %>%
-      select(reachid, SnapTp2017, SnapPr2017),
+      select(reachid, SnapTp2017, SnapPr2017, Channel_sl),
     by = "reachid"
   ) %>%
   rename(
@@ -283,7 +288,7 @@ df2018 <- df2018 %>%
 df2018 <- df2018 %>%
   left_join(
     kusko_shp %>%
-      select(reachid, SnapTp2018, SnapPr2018),
+      select(reachid, SnapTp2018, SnapPr2018, Channel_sl),
     by = "reachid"
   ) %>%
   rename(
@@ -417,7 +422,7 @@ df2019 <- df2019 %>%
 df2019 <- df2019 %>%
   left_join(
     kusko_shp %>%
-      select(reachid, SnapTp2019, SnapPr2019),
+      select(reachid, SnapTp2019, SnapPr2019, Channel_sl),
     by = "reachid"
   ) %>%
   rename(
@@ -552,7 +557,7 @@ df2020 <- df2020 %>%
 df2020 <- df2020 %>%
   left_join(
     kusko_shp %>%
-      select(reachid, SnapTp2020, SnapPr2020),
+      select(reachid, SnapTp2020, SnapPr2020, Channel_sl),
     by = "reachid"
   ) %>%
   rename(
@@ -686,7 +691,7 @@ df2021 <- df2021 %>%
 df2021 <- df2021 %>%
   left_join(
     kusko_shp %>%
-      select(reachid, SnapTp2021, SnapPr2021),
+      select(reachid, SnapTp2021, SnapPr2021,Channel_sl),
     by = "reachid"
   ) %>%
   rename(
@@ -705,6 +710,7 @@ df_2018_filtered <- df2018 %>% filter(Production > .7)
 df_2019_filtered <- df2019 %>% filter(Production > .7)
 df_2020_filtered <- df2020 %>% filter(Production > .7)
 df_2021_filtered <- df2021 %>% filter(Production > .7)
+
 
 # Combine all filtered data
 all_data_temp <- bind_rows(
@@ -735,9 +741,124 @@ y_limits_disch <- range(all_data_disch$log_precip, na.rm = TRUE)
 
 cat("Discharge plot X-axis limits (log10 discharge):", x_limits_disch, "\n")
 cat("Discharge plot Y-axis limits (log10 SNAP_prec):", y_limits_disch, "\n")
-# =============================================================================
-# CREATE TEMPERATURE PLOTS WITH CONSISTENT AXES
-# =============================================================================
+
+
+library(ggplot2)
+library(patchwork)
+library(RColorBrewer)
+
+library(ggplot2)
+library(patchwork)
+library(RColorBrewer)
+
+years <- 2017:2021
+fill_colors <- brewer.pal(9, "YlOrRd")[-1]
+
+# Column 1: Stream Temperature vs Channel Slope
+plots_col1 <- lapply(seq_along(years), function(i) {
+  yr <- years[i]
+  df <- get(paste0("df_", yr, "_filtered"))
+  
+  p <- ggplot(df, aes(x = mean_summer_temp, y = Channel_sl)) +
+    annotate(
+      "rect",
+      xmin = -Inf, xmax = Inf,
+      ymin = -Inf, ymax = Inf,
+      fill = brewer.pal(9, "YlOrRd")[1]
+    ) +
+    stat_density_2d_filled(bins = 8) +
+    scale_fill_manual(values = fill_colors) +
+    scale_x_continuous(limits = c(3, 15), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(0, 3), expand = c(0, 0)) +
+    theme_minimal() +
+    theme(
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      legend.position = "none",
+      panel.grid = element_blank(),
+      plot.title = element_blank()
+    )
+  
+  # Add year label on left side for first column only
+  p <- p + ggtitle(yr) +
+    theme(
+      plot.title = element_text(hjust = -0.2, size = 12, vjust = 0.5)
+    )
+  
+  return(p)
+})
+
+# Column 2: Air Temperature vs Channel Slope
+plots_col2 <- lapply(seq_along(years), function(i) {
+  yr <- years[i]
+  df <- get(paste0("df_", yr, "_filtered"))
+  
+  ggplot(df, aes(x = SNAP_temp, y = Channel_sl)) +
+    annotate(
+      "rect",
+      xmin = -Inf, xmax = Inf,
+      ymin = -Inf, ymax = Inf,
+      fill = brewer.pal(9, "YlOrRd")[1]
+    ) +
+    stat_density_2d_filled(bins = 8) +
+    scale_fill_manual(values = fill_colors) +
+    scale_x_continuous(limits = c(11, 17), expand = c(0, 0)) +
+    scale_y_continuous(limits = c(0, 3), expand = c(0, 0)) +
+    theme_minimal() +
+    theme(
+      axis.title = element_blank(),
+      axis.text = element_blank(),
+      axis.ticks = element_blank(),
+      legend.position = "none",
+      panel.grid = element_blank(),
+      plot.title = element_blank()
+    )
+})
+
+# Combine all plots in a 5x2 grid
+combined_plot <- (
+  plots_col1[[1]] | plots_col2[[1]]
+) / (
+  plots_col1[[2]] | plots_col2[[2]]
+) / (
+  plots_col1[[3]] | plots_col2[[3]]
+) / (
+  plots_col1[[4]] | plots_col2[[4]]
+) / (
+  plots_col1[[5]] | plots_col2[[5]]
+) +
+  plot_annotation(
+    title = "Stream Temp vs Slope                    Air Temp vs Slope",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+    )
+  )
+
+print(combined_plot)
+
+# Optional: Save with specific dimensions
+# ggsave("two_column_density_plot.png", combined_plot, width = 8, height = 10, dpi = 300)
+
+
+
+
+
+
+
+
+
+
+
+
+#####
+
+
+
+
+
+
+
 p2017_temp <- ggplot(df_2017_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 
            fill = brewer.pal(9, "YlOrRd")[1]) +
@@ -750,6 +871,12 @@ p2017_temp <- ggplot(df_2017_filtered, aes(x = mean_summer_temp, y = SNAP_temp))
     title = "2017"
   ) +
   theme_bw()
+
+
+
+
+
+
 
 p2018_temp <- ggplot(df_2018_filtered, aes(x = mean_summer_temp, y = SNAP_temp)) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, 

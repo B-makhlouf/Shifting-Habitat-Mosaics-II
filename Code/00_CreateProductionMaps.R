@@ -381,17 +381,17 @@ cat("  - run_yukon_analysis(year)\n")
 cat("  - create_map(results, year, watershed)\n\n")
 
 # Kuskokwim full year
-# for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
-#   tryCatch({
-#     results <- run_kusko_analysis(year)
-#     create_map(results, year, "Kusko")
-#   }, error = function(e) cat("ERROR Kusko", year, ":", e$message, "\n"))
-# }
+for (year in c(2017, 2018, 2019, 2020, 2021, 2022)) {
+  tryCatch({
+    results <- run_kusko_analysis(year)
+    create_map(results, year, "Kusko")
+  }, error = function(e) cat("ERROR Kusko", year, ":", e$message, "\n"))
+}
 
 ##Yukon full year
-for (year in c(2015, 2016, 2018, 2021)) {
-  tryCatch({
-    results <- run_yukon_analysis(year)
-    create_map(results, year, "Yukon")
-  }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
-}
+# for (year in c(2015, 2016, 2018, 2021)) {
+#   tryCatch({
+#     results <- run_yukon_analysis(year)
+#     create_map(results, year, "Yukon")
+#   }, error = function(e) cat("ERROR Yukon", year, ":", e$message, "\n"))
+# }
