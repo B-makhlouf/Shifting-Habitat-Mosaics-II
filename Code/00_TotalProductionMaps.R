@@ -221,7 +221,7 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 5
+    min_stream_order <- 4
     min_error <- 0.0035
     sensitivity_threshold <- 0.7
     
@@ -396,7 +396,7 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 3
+    min_stream_order <- 4
     min_error <- 0.0035
     sensitivity_threshold <- 0.7
     
