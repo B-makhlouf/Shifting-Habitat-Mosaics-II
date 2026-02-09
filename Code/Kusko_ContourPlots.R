@@ -349,14 +349,16 @@ for (yr in YEARS) {
 
 
 ################################################################################
-# PART 4: 10-PANEL CONTOUR FIGURE
+# PART 4: 10-PANEL CONTOUR FIGURE (SQUARE PANELS — FIXED)
 ################################################################################
 
 cat("\n================================================================\n")
 cat("PART 4: BUILDING 10-PANEL CONTOUR FIGURE\n")
 cat("================================================================\n")
 
+# ------------------------------------------------------------------
 # Filter to high-production reaches
+# ------------------------------------------------------------------
 filtered_list <- lapply(YEARS, function(yr) {
   year_results[[as.character(yr)]] %>%
     filter(Production > 0.7) %>%
@@ -364,92 +366,207 @@ filtered_list <- lapply(YEARS, function(yr) {
 })
 names(filtered_list) <- as.character(YEARS)
 
-all_filtered <- bind_rows(filtered_list)
-
+# ------------------------------------------------------------------
 # Global axis limits
-x_lim_temp  <- c(3, 15)
+# ------------------------------------------------------------------
+x_lim_temp  <- c(5, 15)     # stream temperature starts at 5 °C
 y_lim_slope <- c(0, 3)
 x_lim_air   <- c(11, 17)
 
+# ------------------------------------------------------------------
+# Guiding lines
+# ------------------------------------------------------------------
+slope_guides        <- c(0.5, 1, 2)
+stream_temp_guides <- seq(5, 15, by = 2)
+air_temp_guides    <- seq(11, 17, by = 2)
+
 fill_colors <- brewer.pal(9, "YlOrRd")[-1]
 
-# Column 1: Stream Temperature vs Channel Slope
-plots_col1 <- lapply(seq_along(YEARS), function(i) {
-  yr <- YEARS[i]
-  df <- filtered_list[[as.character(yr)]]
-  
-  ggplot(df, aes(x = mean_summer_temp, y = Channel_sl)) +
-    annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "white") +
-    stat_density_2d_filled(bins = 8) +
-    scale_fill_manual(values = fill_colors) +
-    scale_x_continuous(limits = x_lim_temp, expand = c(0, 0)) +
-    scale_y_continuous(limits = y_lim_slope, expand = c(0, 0)) +
-    labs(
-      x = if (i == length(YEARS)) "Mean Summer Temperature (\u00B0C)" else NULL,
-      y = "Channel Slope"
-    ) +
-    theme_minimal() +
-    theme(
-      axis.text    = element_text(size = 9),
-      axis.title.x = if (i == length(YEARS)) element_text(size = 10) else element_blank(),
-      axis.title.y = element_text(size = 10),
-      legend.position = "none",
-      panel.grid   = element_blank(),
-      plot.title   = element_text(hjust = -0.2, size = 12, vjust = 0.5)
-    ) +
-    ggtitle(yr)
-})
+# ------------------------------------------------------------------
+# Shared theme (KEY FIX: aspect.ratio = 1)
+# ------------------------------------------------------------------
+base_theme <- theme_minimal() +
+  theme(
+    aspect.ratio   = 1,      # <-- forces square panels
+    axis.text       = element_text(size = 8, color = "grey30"),
+    axis.title      = element_blank(),
+    legend.position = "none",
+    panel.grid      = element_blank(),
+    plot.margin     = margin(2, 4, 2, 4),
+    plot.title      = element_blank()
+  )
 
-# Column 2: SNAP Air Temperature vs Channel Slope
-plots_col2 <- lapply(seq_along(YEARS), function(i) {
-  yr <- YEARS[i]
-  df <- filtered_list[[as.character(yr)]]
+# ------------------------------------------------------------------
+# Column 1: Stream Temperature vs Channel Slope
+# ------------------------------------------------------------------
+plots_col1 <- lapply(seq_along(YEARS), function(i) {
+  df <- filtered_list[[as.character(YEARS[i])]]
+  is_bottom <- (i == length(YEARS))
   
-  ggplot(df, aes(x = SNAP_temp, y = Channel_sl)) +
-    annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "white") +
+  ggplot(df, aes(mean_summer_temp, Channel_sl)) +
+    annotate("rect", xmin = -Inf, xmax = Inf,
+             ymin = -Inf, ymax = Inf, fill = "white") +
+    
+    geom_hline(yintercept = slope_guides,
+               color = "grey80", linewidth = 0.3) +
+    geom_vline(xintercept = stream_temp_guides,
+               color = "grey80", linewidth = 0.3) +
+    
     stat_density_2d_filled(bins = 8) +
     scale_fill_manual(values = fill_colors) +
-    scale_x_continuous(limits = x_lim_air, expand = c(0, 0)) +
-    scale_y_continuous(limits = y_lim_slope, expand = c(0, 0)) +
-    labs(
-      x = if (i == length(YEARS)) "SNAP Air Temperature (\u00B0C)" else NULL,
-      y = NULL
+    
+    scale_x_continuous(
+      limits = x_lim_temp,
+      expand = c(0, 0),
+      labels = if (is_bottom) waiver() else NULL
     ) +
-    theme_minimal() +
+    scale_y_continuous(
+      limits = y_lim_slope,
+      expand = c(0, 0)
+    ) +
+    
+    base_theme +
     theme(
-      axis.text    = element_text(size = 9),
-      axis.title.x = if (i == length(YEARS)) element_text(size = 10) else element_blank(),
-      axis.title.y = element_blank(),
-      legend.position = "none",
-      panel.grid   = element_blank(),
-      plot.title   = element_blank()
+      axis.text.x = if (is_bottom)
+        element_text(size = 8, color = "grey30")
+      else element_blank()
     )
 })
 
-# Combine into 5-row x 2-column layout
-combined_plot <- (plots_col1[[1]] | plots_col2[[1]]) /
-  (plots_col1[[2]] | plots_col2[[2]]) /
-  (plots_col1[[3]] | plots_col2[[3]]) /
-  (plots_col1[[4]] | plots_col2[[4]]) /
-  (plots_col1[[5]] | plots_col2[[5]]) +
+# ------------------------------------------------------------------
+# Column 2: SNAP Air Temperature vs Channel Slope
+# ------------------------------------------------------------------
+plots_col2 <- lapply(seq_along(YEARS), function(i) {
+  df <- filtered_list[[as.character(YEARS[i])]]
+  is_bottom <- (i == length(YEARS))
+  
+  ggplot(df, aes(SNAP_temp, Channel_sl)) +
+    annotate("rect", xmin = -Inf, xmax = Inf,
+             ymin = -Inf, ymax = Inf, fill = "white") +
+    
+    geom_hline(
+      yintercept = slope_guides,
+      color = "grey50",
+      linewidth = 0.35,
+      alpha = 0.6
+    ) +
+    geom_vline(
+      xintercept = stream_temp_guides, # or air_temp_guides
+      color = "grey50",
+      linewidth = 0.35,
+      alpha = 0.6
+    ) +
+    
+    stat_density_2d_filled(bins = 8) +
+    scale_fill_manual(values = fill_colors) +
+    
+    scale_x_continuous(
+      limits = x_lim_air,
+      expand = c(0, 0),
+      labels = if (is_bottom) waiver() else NULL
+    ) +
+    scale_y_continuous(
+      limits = y_lim_slope,
+      expand = c(0, 0),
+      labels = NULL
+    ) +
+    
+    base_theme +
+    theme(
+      axis.text.x = if (is_bottom)
+        element_text(size = 8, color = "grey30")
+      else element_blank(),
+      axis.text.y = element_blank()
+    )
+})
+
+# ------------------------------------------------------------------
+# Year label panels
+# ------------------------------------------------------------------
+year_labels <- lapply(YEARS, function(yr) {
+  ggplot() +
+    annotate(
+      "text",
+      x = 1, y = 0.5,
+      label = yr,
+      hjust = 1,
+      size = 4.5,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+    theme_void() +
+    theme(
+      plot.margin = margin(0, 6, 0, 0)  # breathing room from panels
+    )
+})
+# ------------------------------------------------------------------
+# Assemble rows
+# ------------------------------------------------------------------
+rows <- lapply(seq_along(YEARS), function(i) {
+  wrap_plots(
+    year_labels[[i]],
+    plots_col1[[i]],
+    plots_col2[[i]],
+    widths = c(0.08, 1, 1)
+  )
+})
+
+combined_plot <- wrap_plots(rows, ncol = 1) +
   plot_annotation(
-    title = "Stream Temp vs Slope                    Air Temp vs Slope",
-    theme = theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
+    title = expression(
+      paste("Stream Temperature vs Slope",
+            "                              ",
+            "Air Temperature vs Slope")
+    ),
+    theme = theme(
+      plot.title = element_text(
+        size = 12, face = "bold", hjust = 0.5,
+        color = "grey10", margin = margin(b = 8)
+      )
+    )
   )
 
+# ------------------------------------------------------------------
+# Shared axis labels
+# ------------------------------------------------------------------
+final_plot <- wrap_elements(combined_plot) +
+  labs(tag = "Channel Slope") +
+  theme(
+    plot.tag = element_text(size = 11, angle = 90, color = "grey20"),
+    plot.tag.position = "left"
+  )
+
+final_with_xlab <- final_plot +
+  plot_annotation(
+    caption = expression(
+      paste("Mean Summer Stream Temperature (\u00B0C)",
+            "                                        ",
+            "SNAP Air Temperature (\u00B0C)")
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        size = 10, hjust = 0.55, color = "grey20",
+        margin = margin(t = 4)
+      )
+    )
+  )
+
+# ------------------------------------------------------------------
 # Save
+# ------------------------------------------------------------------
 dir.create(PATHS$output_figures, recursive = TRUE, showWarnings = FALSE)
 
 ggsave(
-  file.path(PATHS$output_figures, "Quartile_StreamTemp_AirTemp_vs_Slope_2017-2021.png"),
-  plot   = combined_plot,
-  width  = 10,
-  height = 16,
+  file.path(PATHS$output_figures,
+            "Quartile_StreamTemp_AirTemp_vs_Slope_2017-2021.png"),
+  plot   = final_with_xlab,
+  width  = 9,
+  height = 11,
   dpi    = 300,
   bg     = "white"
 )
 
-print(combined_plot)
+print(final_with_xlab)
 
 cat("\n================================================================\n")
 cat("WORKFLOW COMPLETE\n")
