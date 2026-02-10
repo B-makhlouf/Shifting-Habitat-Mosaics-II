@@ -349,7 +349,7 @@ for (yr in YEARS) {
 
 
 ################################################################################
-# PART 4: 10-PANEL CONTOUR FIGURE (SQUARE PANELS — FIXED)
+# PART 4: 10-PANEL CONTOUR FIGURE (FIXED SPACING + LABELS)
 ################################################################################
 
 cat("\n================================================================\n")
@@ -369,30 +369,31 @@ names(filtered_list) <- as.character(YEARS)
 # ------------------------------------------------------------------
 # Global axis limits
 # ------------------------------------------------------------------
-x_lim_temp  <- c(5, 15)     # stream temperature starts at 5 °C
+x_lim_temp  <- c(5, 15)
 y_lim_slope <- c(0, 3)
 x_lim_air   <- c(11, 17)
 
 # ------------------------------------------------------------------
-# Guiding lines
+# Colors
 # ------------------------------------------------------------------
-slope_guides        <- c(0.5, 1, 2)
-stream_temp_guides <- seq(5, 15, by = 2)
-air_temp_guides    <- seq(11, 17, by = 2)
 
 fill_colors <- brewer.pal(9, "YlOrRd")[-1]
 
 # ------------------------------------------------------------------
-# Shared theme (KEY FIX: aspect.ratio = 1)
+# Shared theme — NO aspect.ratio (this was causing the column gap)
+# patchwork + aspect.ratio forces padding to maintain square panels.
+# Instead we let the figure dimensions control panel proportions.
 # ------------------------------------------------------------------
 base_theme <- theme_minimal() +
   theme(
-    aspect.ratio   = 1,      # <-- forces square panels
     axis.text       = element_text(size = 8, color = "grey30"),
     axis.title      = element_blank(),
     legend.position = "none",
-    panel.grid      = element_blank(),
-    plot.margin     = margin(2, 4, 2, 4),
+    panel.grid.major = element_line(color = "grey50", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.ontop      = TRUE,
+    panel.background = element_rect(fill = NA, color = NA),
+    plot.margin     = margin(1, 2, 1, 2),
     plot.title      = element_blank()
   )
 
@@ -407,12 +408,8 @@ plots_col1 <- lapply(seq_along(YEARS), function(i) {
     annotate("rect", xmin = -Inf, xmax = Inf,
              ymin = -Inf, ymax = Inf, fill = "white") +
     
-    geom_hline(yintercept = slope_guides,
-               color = "grey80", linewidth = 0.3) +
-    geom_vline(xintercept = stream_temp_guides,
-               color = "grey80", linewidth = 0.3) +
-    
     stat_density_2d_filled(bins = 8) +
+    
     scale_fill_manual(values = fill_colors) +
     
     scale_x_continuous(
@@ -424,6 +421,8 @@ plots_col1 <- lapply(seq_along(YEARS), function(i) {
       limits = y_lim_slope,
       expand = c(0, 0)
     ) +
+    
+    coord_cartesian(clip = "off") +
     
     base_theme +
     theme(
@@ -444,20 +443,8 @@ plots_col2 <- lapply(seq_along(YEARS), function(i) {
     annotate("rect", xmin = -Inf, xmax = Inf,
              ymin = -Inf, ymax = Inf, fill = "white") +
     
-    geom_hline(
-      yintercept = slope_guides,
-      color = "grey50",
-      linewidth = 0.35,
-      alpha = 0.6
-    ) +
-    geom_vline(
-      xintercept = stream_temp_guides, # or air_temp_guides
-      color = "grey50",
-      linewidth = 0.35,
-      alpha = 0.6
-    ) +
-    
     stat_density_2d_filled(bins = 8) +
+    
     scale_fill_manual(values = fill_colors) +
     
     scale_x_continuous(
@@ -471,6 +458,8 @@ plots_col2 <- lapply(seq_along(YEARS), function(i) {
       labels = NULL
     ) +
     
+    coord_cartesian(clip = "off") +
+    
     base_theme +
     theme(
       axis.text.x = if (is_bottom)
@@ -481,78 +470,90 @@ plots_col2 <- lapply(seq_along(YEARS), function(i) {
 })
 
 # ------------------------------------------------------------------
-# Year label panels
+# Year label panels — centered text
 # ------------------------------------------------------------------
 year_labels <- lapply(YEARS, function(yr) {
   ggplot() +
     annotate(
       "text",
-      x = 1, y = 0.5,
+      x = 0.5, y = 0.5,
       label = yr,
-      hjust = 1,
-      size = 4.5,
+      hjust = 0.5,
+      size = 4,
       fontface = "bold",
       color = "grey20"
     ) +
+    xlim(0, 1) + ylim(0, 1) +
     theme_void() +
-    theme(
-      plot.margin = margin(0, 6, 0, 0)  # breathing room from panels
-    )
-})
-# ------------------------------------------------------------------
-# Assemble rows
-# ------------------------------------------------------------------
-rows <- lapply(seq_along(YEARS), function(i) {
-  wrap_plots(
-    year_labels[[i]],
-    plots_col1[[i]],
-    plots_col2[[i]],
-    widths = c(0.08, 1, 1)
-  )
+    theme(plot.margin = margin(0, 0, 0, 0))
 })
 
-combined_plot <- wrap_plots(rows, ncol = 1) +
+# ------------------------------------------------------------------
+# Assemble — flat 3-column grid (no nested rows)
+# ------------------------------------------------------------------
+flat_list <- list()
+for (i in seq_along(YEARS)) {
+  flat_list <- c(flat_list, list(
+    year_labels[[i]],
+    plots_col1[[i]],
+    plots_col2[[i]]
+  ))
+}
+
+combined_plot <- wrap_plots(flat_list, ncol = 3,
+                            widths = c(0.15, 1, 1)) +
+  plot_layout(heights = rep(1, length(YEARS)))
+
+# ------------------------------------------------------------------
+# Column titles
+# ------------------------------------------------------------------
+combined_plot <- combined_plot +
   plot_annotation(
     title = expression(
       paste("Stream Temperature vs Slope",
-            "                              ",
+            "                         ",
             "Air Temperature vs Slope")
     ),
     theme = theme(
       plot.title = element_text(
         size = 12, face = "bold", hjust = 0.5,
-        color = "grey10", margin = margin(b = 8)
+        color = "grey10", margin = margin(b = 4)
       )
     )
   )
 
 # ------------------------------------------------------------------
-# Shared axis labels
+# Shared y-axis label (rotated on left)
 # ------------------------------------------------------------------
 final_plot <- wrap_elements(combined_plot) +
   labs(tag = "Channel Slope") +
   theme(
-    plot.tag = element_text(size = 11, angle = 90, color = "grey20"),
+    plot.tag          = element_text(size = 11, angle = 90, color = "grey20"),
     plot.tag.position = "left"
   )
 
+# ------------------------------------------------------------------
+# Shared x-axis label (bottom caption)
+# ------------------------------------------------------------------
 final_with_xlab <- final_plot +
   plot_annotation(
     caption = expression(
       paste("Mean Summer Stream Temperature (\u00B0C)",
-            "                                        ",
+            "                                     ",
             "SNAP Air Temperature (\u00B0C)")
     ),
     theme = theme(
       plot.caption = element_text(
         size = 10, hjust = 0.55, color = "grey20",
-        margin = margin(t = 4)
+        margin = margin(t = 2)
       )
     )
   )
 
 # ------------------------------------------------------------------
 # Save
+# Figure dimensions chosen so panels are roughly square:
+#   Each panel column ~3.8" wide, each row ~1.8" tall → ~square
 # ------------------------------------------------------------------
 dir.create(PATHS$output_figures, recursive = TRUE, showWarnings = FALSE)
 
@@ -560,8 +561,8 @@ ggsave(
   file.path(PATHS$output_figures,
             "Quartile_StreamTemp_AirTemp_vs_Slope_2017-2021.png"),
   plot   = final_with_xlab,
-  width  = 9,
-  height = 11,
+  width  = 8.5,
+  height = 17,
   dpi    = 300,
   bg     = "white"
 )
@@ -569,5 +570,5 @@ ggsave(
 print(final_with_xlab)
 
 cat("\n================================================================\n")
-cat("WORKFLOW COMPLETE\n")
+cat("FIGURE COMPLETE\n")
 cat("================================================================\n")
