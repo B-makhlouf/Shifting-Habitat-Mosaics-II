@@ -562,7 +562,7 @@ ggsave(
             "Quartile_StreamTemp_AirTemp_vs_Slope_2017-2021.png"),
   plot   = final_with_xlab,
   width  = 8.5,
-  height = 17,
+  height = 16,
   dpi    = 300,
   bg     = "white"
 )
