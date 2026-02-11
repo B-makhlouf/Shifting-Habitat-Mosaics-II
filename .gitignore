@@ -40,7 +40,7 @@ vignettes/*.pdf
 .Renviron
 
 #Spatial Data 
-SpatialData/
+Data/Spatial Data/
 
 # translation temp files
 po/*~
