@@ -1,328 +1,425 @@
 ################################################################################
-# YUKON SALMON - 50% CPUE ANALYSIS
-# Analyzes first half of run using cumulative CPUE cutoff
+# COMBINED YUKON + KUSKOKWIM — FIRST 50% CPUE PRODUCTION ANALYSIS
+# 
+# Goal: For each overlapping year (2017, 2018, 2019, 2021), run the Bayesian
+#        natal assignment for BOTH the Kuskokwim and Yukon (Lower + Middle)
+#        using only fish from the first 50% of the CPUE run. Combine the
+#        assignment vectors into a single data frame before normalizing.
+#
+# This script is intentionally linear (no functions) for step-by-step clarity.
 ################################################################################
 
+
 # ==============================================================================
-# LIBRARIES
+# STEP 0: LIBRARIES
 # ==============================================================================
 
 suppressPackageStartupMessages({
   library(sf)
   library(dplyr)
   library(readr)
-  library(ggplot2)
-  library(RColorBrewer)
   library(readxl)
   library(here)
 })
 
+
 # ==============================================================================
-# CONFIGURATION
+# STEP 1: CONFIGURATION
 # ==============================================================================
 
 PATHS <- list(
-  # Shapefiles
-  yukon_edges    = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges.shp"),
-  yukon_basin    = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_basin.shp"),
-  yukon_ly_gen   = here("Data", "Spatial Data", "AnalysisShapefiles", "edges_lYGen.shp"),
-  yukon_my_gen   = here("Data", "Spatial Data", "AnalysisShapefiles", "edges_mYGen.shp"),
+  # -- Kuskokwim shapefiles --
+  kusko_edges  = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges.shp"),
+  kusko_basin  = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_basin.shp"),
   
-  # Data inputs
+  # -- Yukon shapefiles --
+  yukon_edges  = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges2.shp"),
+  yukon_basin  = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_basin.shp"),
+  yukon_ly_gen = here("Data", "Spatial Data", "AnalysisShapefiles", "edges_lYGen.shp"),
+  yukon_my_gen = here("Data", "Spatial Data", "AnalysisShapefiles", "edges_mYGen.shp"),
+  yukon_uy_gen = here("Data", "Spatial Data", "AnalysisShapefiles", "edges_uYGen.shp"),
+  
+  # -- Data inputs --
   natal_data_dir = here("Data", "Natal Origins"),
-  runsize_data   = "/Users/benjaminmakhlouf/Research_repos/Schindler_GitHub/Arctic_Yukon_Kuskokwim_Data/AYKEscapement.xlsx",
+  runsize_data   = here("Data", "AYKEscapement.xlsx"),
   
-  # Outputs
-  output_dir     = here("Outputs", "ProductionData"),
-  map_output_dir = "/Users/benjaminmakhlouf/Research_repos/Shifting-Habitat-Mosaics-II/Figures/Maps/FirstHalfProd"
+  # -- Outputs --
+  output_dir = here("Outputs", "ProductionData", "Combined_50pct")
 )
 
-# Analysis parameters
-PARAMS <- list(
+# Years with data in BOTH rivers
+YEARS <- c(2017, 2018, 2019, 2021)
+
+# Kuskokwim-specific parameters
+KUSKO_PARAMS <- list(
+  min_stream_order      = 3,
+  sensitivity_threshold = 0.7
+)
+
+# Yukon-specific parameters
+YUKON_PARAMS <- list(
   min_stream_order      = 4,
   min_error             = 0.0035,
   sensitivity_threshold = 0.0
 )
 
-# ==============================================================================
-# FUNCTION: APPLY 50% CPUE CUTOFF
-# ==============================================================================
-
-apply_cpue_50_cutoff <- function(natal_data) {
-  
-  # Calculate cumulative CPUE by day
-  daily_cpue <- natal_data %>%
-    group_by(DOY) %>%
-    summarise(daily_total = sum(COratio, na.rm = TRUE), .groups = 'drop') %>%
-    arrange(DOY) %>%
-    mutate(cumsum_proportion = cumsum(daily_total) / sum(daily_total))
-  
-  # Find cutoff DOY (50% threshold)
-  cutoff_doy <- max(daily_cpue$DOY[daily_cpue$cumsum_proportion <= 0.5])
-  
-  # Filter data
-  filtered_data <- natal_data %>% filter(DOY <= cutoff_doy)
-  
-  # Attach metadata
-  attr(filtered_data, "cutoff_doy") <- cutoff_doy
-  attr(filtered_data, "original_n") <- nrow(natal_data)
-  attr(filtered_data, "filtered_n") <- nrow(filtered_data)
-  attr(filtered_data, "percent_retained") <- round(nrow(filtered_data) / nrow(natal_data) * 100, 1)
-  
-  return(filtered_data)
-}
 
 # ==============================================================================
-# FUNCTION: YUKON 50% ANALYSIS
+# STEP 2: LOOP OVER YEARS
 # ==============================================================================
-
-run_yukon_50pct_analysis <- function(year, verbose = TRUE) {
-  
-  if (verbose) cat(paste("\n=== Yukon", year, "- 50% CPUE Analysis ===\n"))
-  
-  # --------------------------------------------------------------------------
-  # 1. LOAD SPATIAL DATA
-  # --------------------------------------------------------------------------
-  
-  edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
-  basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
-  edges <- st_transform(edges, st_crs(basin))
-  
-  # Load genetic regions
-  ly.gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
-  my.gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
-  
-  edges$GenLMU <- "none"
-  edges$GenLMU[edges$reachid %in% ly.gen$reachid] <- "lower"
-  edges$GenLMU[edges$reachid %in% my.gen$reachid] <- "middle"
-  
-  LYsites <- which(edges$GenLMU == "lower")
-  MYsites <- which(edges$GenLMU == "middle")
-  
-  if (verbose) cat(paste("  Loaded", nrow(edges), "stream segments\n"))
-  
-  # --------------------------------------------------------------------------
-  # 2. LOAD AND FILTER NATAL DATA
-  # --------------------------------------------------------------------------
-  
-  natal_data_raw <- read_csv(
-    file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
-    show_col_types = FALSE
-  )
-  
-  natal_data_clean <- natal_data_raw %>%
-    filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
-  
-  natal_data <- apply_cpue_50_cutoff(natal_data_clean)
-  
-  if (verbose) {
-    cat(paste("  Initial observations:", nrow(natal_data_clean), "\n"))
-    cat(paste("  50% CPUE cutoff at DOY:", attr(natal_data, "cutoff_doy"), "\n"))
-    cat(paste("  Retained:", attr(natal_data, "filtered_n"), 
-              "(", attr(natal_data, "percent_retained"), "%)\n"))
-  }
-  
-  if (nrow(natal_data) == 0) stop("No data remaining after filtering!")
-  
-  # --------------------------------------------------------------------------
-  # 3. CALCULATE PREDICTION ERROR
-  # --------------------------------------------------------------------------
-  
-  pid_iso <- edges$iso_pred
-  pid_isose <- edges$isose_pred
-  pid_isose_mod <- ifelse(pid_isose < PARAMS$min_error, PARAMS$min_error, pid_isose)
-  error <- sqrt(pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
-  
-  # --------------------------------------------------------------------------
-  # 4. SETUP PRIORS
-  # --------------------------------------------------------------------------
-  
-  StreamOrderPrior <- ifelse(edges$Str_Order >= PARAMS$min_stream_order, 1, 0)
-  PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-  
-  # --------------------------------------------------------------------------
-  # 5. BAYESIAN ASSIGNMENT
-  # --------------------------------------------------------------------------
-  
-  if (verbose) cat("  Performing Bayesian assignment...\n")
-  
-  n_basins <- nrow(edges)
-  n_fish <- nrow(natal_data)
-  assignment_matrix <- matrix(0, nrow = n_basins, ncol = n_fish)
-  
-  for (i in 1:n_fish) {
-    fish_iso <- natal_data$natal_iso[i]
-    
-    # Genetic prior
-    gen_prior <- rep(0, length(pid_iso))
-    gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
-    gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
-    
-    # Assignment probability
-    assign <- (1/sqrt(2*pi*error^2)) * 
-      exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-      StreamOrderPrior * gen_prior * PresencePrior
-    
-    # Normalize and rescale
-    assign_norm <- assign / sum(assign)
-    assign_rescaled <- assign_norm / max(assign_norm)
-    assign_rescaled[assign_rescaled < PARAMS$sensitivity_threshold] <- 0
-    
-    # Weight by CPUE
-    assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
-  }
-  
-  # --------------------------------------------------------------------------
-  # 6. PROCESS RESULTS
-  # --------------------------------------------------------------------------
-  
-  basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
-  total_sum <- sum(basin_assign_sum, na.rm = TRUE)
-  
-  if (total_sum > 0) {
-    basin_assign_rescale <- basin_assign_sum / total_sum
-    basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
-    
-    # Scale to individuals (half of total run)
-    runsizedat <- read_excel(PATHS$runsize_data)
-    runsize_full <- as.numeric(runsizedat$Total_Run[runsizedat$River == "Yukon" & runsizedat$Year == year])
-    runsize_half <- runsize_full / 2
-    basin_assign_individuals <- basin_assign_rescale * runsize_half
-  } else {
-    basin_assign_rescale <- basin_assign_norm <- basin_assign_individuals <- rep(0, length(basin_assign_sum))
-  }
-  
-  if (verbose) {
-    cat(paste("  Segments with assignment > 0:", sum(basin_assign_sum > 0), "/", nrow(edges), "\n"))
-  }
-  
-  # --------------------------------------------------------------------------
-  # 7. EXPORT RESULTS
-  # --------------------------------------------------------------------------
-  
-  dir.create(PATHS$output_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  edges_df <- st_drop_geometry(edges)
-  output_data <- data.frame(
-    reachid = edges_df$reachid,
-    Str_Order = edges_df$Str_Order,
-    iso_pred = edges_df$iso_pred,
-    assignment_sum = basin_assign_sum,
-    assignment_rescale = basin_assign_rescale,
-    assignment_norm = basin_assign_norm,
-    assignment_individuals = basin_assign_individuals,
-    GenLMU = edges_df$GenLMU
-  )
-  
-  filepath <- file.path(PATHS$output_dir, paste0("CPUE50pct_", year, "_Yukon_Assignment_Results.csv"))
-  write_csv(output_data, filepath)
-  
-  if (verbose) cat(paste("  ✓ Exported:", filepath, "\n"))
-  
-  # --------------------------------------------------------------------------
-  # 8. RETURN RESULTS
-  # --------------------------------------------------------------------------
-  
-  return(list(
-    edges = edges,
-    basin = basin,
-    results = output_data,
-    natal_data = natal_data,
-    cutoff_doy = attr(natal_data, "cutoff_doy")
-  ))
-}
-
-# ==============================================================================
-# FUNCTION: CREATE MAP
-# ==============================================================================
-
-create_map <- function(analysis_results, year) {
-  
-  edges <- analysis_results$edges
-  basin <- analysis_results$basin
-  basin_assign_norm <- analysis_results$results$assignment_norm
-  
-  # --------------------------------------------------------------------------
-  # COLOR SCHEME
-  # --------------------------------------------------------------------------
-  
-  palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
-  
-  colcode <- rep("gray90", length(basin_assign_norm))
-  colcode[basin_assign_norm == 0] <- "white"
-  colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.4] <- palette[2]
-  colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.7] <- palette[5]
-  colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[7]
-  colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[8]
-  colcode[basin_assign_norm > 0.9 & basin_assign_norm <= 0.95] <- palette[9]
-  colcode[basin_assign_norm > 0.95] <- palette[10]
-  
-  legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
-  legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
-  
-  # --------------------------------------------------------------------------
-  # LINE WIDTHS
-  # --------------------------------------------------------------------------
-  
-  stream_order <- edges$Str_Order
-  stream_order[is.na(stream_order)] <- 1
-  
-  linewidths <- ifelse(stream_order >= 9, 3.7,
-                       ifelse(stream_order >= 8, 5,
-                              ifelse(stream_order >= 7, 2.0,
-                                     ifelse(stream_order >= 6, 1.5,
-                                            ifelse(stream_order >= 5, 1.4,
-                                                   ifelse(stream_order >= 4, 1.0, 0))))))
-  
-  # Emphasize high production areas
-  linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
-  
-  # --------------------------------------------------------------------------
-  # GENERATE MAP
-  # --------------------------------------------------------------------------
-  
-  dir.create(PATHS$map_output_dir, recursive = TRUE, showWarnings = FALSE)
-  map_filename <- file.path(PATHS$map_output_dir, paste0("Yukon_", year, "_50pct.png"))
-  
-  png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
-  par(mar = c(4, 4, 4, 2), bg = "white")
-  
-  plot(st_geometry(basin), col = "gray60", border = "gray60",
-       main = paste0("First 50% of Run Production\nYear: ", year, " River: Yukon"), 
-       bg = "white")
-  plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, 
-       add = TRUE, lwd = linewidths)
-  
-  legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
-         title = "Relative posterior density", bty = "n", bg = "white")
-  
-  dev.off()
-  par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
-  
-  cat(paste("  ✓ Map saved:", map_filename, "\n"))
-  
-  return(map_filename)
-}
-
-# ==============================================================================
-# EXECUTION
-# ==============================================================================
-
-cat("\n✓ Yukon 50% CPUE Analysis Script Loaded\n")
-cat("  Functions:\n")
-cat("    - run_yukon_50pct_analysis(year)\n")
-cat("    - create_map(results, year)\n\n")
-
-# Run analysis for all available years
-YEARS <- c(2015, 2016, 2018, 2021)
 
 for (year in YEARS) {
+  
+  cat("\n################################################################################\n")
+  cat(paste0("# YEAR: ", year, " — Combined Kusko + Yukon 50% CPUE\n"))
+  cat("################################################################################\n\n")
+  
   tryCatch({
-    results <- run_yukon_50pct_analysis(year)
-    create_map(results, year)
+    
+    
+    # ==========================================================================
+    # PART A: KUSKOKWIM
+    # ==========================================================================
+    
+    cat("----------------------------------------------\n")
+    cat("  PART A: KUSKOKWIM\n")
+    cat("----------------------------------------------\n\n")
+    
+    
+    # -- A1. Load Kuskokwim spatial data --------------------------------------
+    
+    kusko_edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
+    kusko_basin <- st_read(PATHS$kusko_basin, quiet = TRUE)
+    kusko_edges <- st_transform(kusko_edges, st_crs(kusko_basin))
+    
+    n_kusko_segments <- nrow(kusko_edges)
+    cat(paste("  Loaded", n_kusko_segments, "Kuskokwim stream segments\n"))
+    
+    
+    # -- A2. Load Kuskokwim natal data ----------------------------------------
+    
+    kusko_natal_raw <- read_csv(
+      file.path(PATHS$natal_data_dir, paste0(year, "_Kusko_Natal_Origins_Genetics_CPUE.csv")),
+      show_col_types = FALSE
+    ) %>%
+      filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
+    
+    cat(paste("  Kusko observations (raw):", nrow(kusko_natal_raw), "\n"))
+    
+    
+    # -- A3. Apply 50% CPUE cutoff to Kuskokwim -------------------------------
+    
+    kusko_daily_cpue <- kusko_natal_raw %>%
+      group_by(DOY) %>%
+      summarise(daily_total = sum(COratio, na.rm = TRUE), .groups = "drop") %>%
+      arrange(DOY) %>%
+      mutate(cumsum_proportion = cumsum(daily_total) / sum(daily_total))
+    
+    kusko_cutoff_doy <- max(kusko_daily_cpue$DOY[kusko_daily_cpue$cumsum_proportion <= 0.5])
+    
+    kusko_natal <- kusko_natal_raw %>%
+      filter(DOY <= kusko_cutoff_doy)
+    
+    cat(paste("  Kusko 50% CPUE cutoff at DOY:", kusko_cutoff_doy, "\n"))
+    cat(paste("  Kusko observations retained:", nrow(kusko_natal), 
+              "(", round(nrow(kusko_natal) / nrow(kusko_natal_raw) * 100, 1), "%)\n"))
+    
+    if (nrow(kusko_natal) == 0) stop("No Kusko data after 50% CPUE filter!")
+    
+    
+    # -- A4. Calculate Kuskokwim prediction error -----------------------------
+    
+    kusko_pid_iso       <- kusko_edges$iso_pred
+    kusko_pid_isose     <- kusko_edges$isose_pred
+    kusko_pid_isose_mod <- rep(mean(kusko_pid_isose, na.rm = TRUE), length(kusko_pid_isose))
+    kusko_error         <- sqrt(kusko_pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
+    
+    
+    # -- A5. Setup Kuskokwim priors -------------------------------------------
+    
+    kusko_StreamOrderPrior <- ifelse(kusko_edges$Str_Order >= KUSKO_PARAMS$min_stream_order, 1, 0)
+    kusko_PresencePrior    <- ifelse((kusko_edges$Str_Order %in% c(6, 7)) & kusko_edges$SPAWNING_C == 0, 0, 1)
+    kusko_NewHabitatPrior  <- ifelse(kusko_edges$Channel_sl > 2.5, 0, 1)
+    kusko_pid_prior        <- kusko_edges$UniPh2oNoE
+    
+    
+    # -- A6. Kuskokwim Bayesian assignment ------------------------------------
+    
+    cat("  Running Kusko Bayesian assignment...\n")
+    
+    n_kusko_fish <- nrow(kusko_natal)
+    kusko_assignment_matrix <- matrix(0, nrow = n_kusko_segments, ncol = n_kusko_fish)
+    
+    for (i in 1:n_kusko_fish) {
+      fish_iso <- kusko_natal$natal_iso[i]
+      
+      assign <- (1 / sqrt(2 * pi * kusko_error^2)) *
+        exp(-1 * (fish_iso - kusko_pid_iso)^2 / (2 * kusko_error^2)) *
+        kusko_StreamOrderPrior * kusko_PresencePrior *
+        kusko_pid_prior * kusko_NewHabitatPrior
+      
+      assign_norm     <- assign / sum(assign)
+      assign_rescaled <- assign_norm / max(assign_norm)
+      assign_rescaled[assign_rescaled < KUSKO_PARAMS$sensitivity_threshold] <- 0
+      
+      kusko_assignment_matrix[, i] <- assign_rescaled * as.numeric(kusko_natal$COratio[i])
+    }
+    
+    
+    # -- A7. Sum across fish → one value per Kusko segment --------------------
+    
+    kusko_basin_assign_sum <- apply(kusko_assignment_matrix, 1, sum, na.rm = TRUE)
+    
+    cat(paste("  Kusko segments with assignment > 0:",
+              sum(kusko_basin_assign_sum > 0), "/", n_kusko_segments, "\n\n"))
+    
+    
+    # ==========================================================================
+    # PART B: YUKON (FULL Yukon)
+    # ==========================================================================
+    
+    cat("----------------------------------------------\n")
+    cat("  PART B: YUKON (Lower + Middle)\n")
+    cat("----------------------------------------------\n\n")
+    
+    
+    # -- B1. Load Yukon spatial data ------------------------------------------
+    
+    yukon_edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
+    yukon_basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
+    yukon_edges <- st_transform(yukon_edges, st_crs(yukon_basin))
+    
+    # Load genetic region lookups
+    ly_gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
+    my_gen <- st_read(PATHS$yukon_my_gen, quiet = TRUE)
+    uy_gen <- st_read(PATHS$yukon_uy_gen, quiet = TRUE)
+    
+    # Tag each edge with its genetic region
+    yukon_edges$GenLMU <- "none"
+    yukon_edges$GenLMU[yukon_edges$reachid %in% ly_gen$reachid] <- "lower"
+    yukon_edges$GenLMU[yukon_edges$reachid %in% my_gen$reachid] <- "middle"
+    yukon_edges$GenLMU[yukon_edges$reachid %in% uy_gen$reachid] <- "upper"
+    
+    # Index vectors for lower and middle sites
+    LYsites <- which(yukon_edges$GenLMU == "lower")
+    MYsites <- which(yukon_edges$GenLMU == "middle")
+    UYsites <- which(yukon_edges$GenLMU == "upper")
+    
+    n_yukon_segments <- nrow(yukon_edges)
+    cat(paste("  Loaded", n_yukon_segments, "Yukon stream segments\n"))
+    cat(paste("    Lower:", length(LYsites), " | Middle:", length(MYsites), "\n"))
+    
+    
+    # -- B2. Load Yukon natal data --------------------------------------------
+    
+    yukon_natal_raw <- read_csv(
+      file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
+      show_col_types = FALSE
+    ) %>%
+      filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
+    
+    cat(paste("  Yukon observations (raw):", nrow(yukon_natal_raw), "\n"))
+    
+    
+    # -- B3. Apply 50% CPUE cutoff to Yukon -----------------------------------
+    
+    yukon_daily_cpue <- yukon_natal_raw %>%
+      group_by(DOY) %>%
+      summarise(daily_total = sum(COratio, na.rm = TRUE), .groups = "drop") %>%
+      arrange(DOY) %>%
+      mutate(cumsum_proportion = cumsum(daily_total) / sum(daily_total))
+    
+    yukon_cutoff_doy <- max(yukon_daily_cpue$DOY[yukon_daily_cpue$cumsum_proportion <= 0.5])
+    
+    yukon_natal <- yukon_natal_raw %>%
+      filter(DOY <= yukon_cutoff_doy)
+    
+    cat(paste("  Yukon 50% CPUE cutoff at DOY:", yukon_cutoff_doy, "\n"))
+    cat(paste("  Yukon observations retained:", nrow(yukon_natal),
+              "(", round(nrow(yukon_natal) / nrow(yukon_natal_raw) * 100, 1), "%)\n"))
+    
+    if (nrow(yukon_natal) == 0) stop("No Yukon data after 50% CPUE filter!")
+    
+    
+    # -- B4. Calculate Yukon prediction error ---------------------------------
+    
+    yukon_pid_iso       <- yukon_edges$iso_pred
+    yukon_pid_isose     <- yukon_edges$isose_pred
+    yukon_pid_isose_mod <- ifelse(yukon_pid_isose < YUKON_PARAMS$min_error,
+                                  YUKON_PARAMS$min_error,
+                                  yukon_pid_isose)
+    yukon_error <- sqrt(yukon_pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
+    
+    
+    # -- B5. Setup Yukon priors -----------------------------------------------
+    
+    yukon_StreamOrderPrior <- ifelse(yukon_edges$Str_Order >= YUKON_PARAMS$min_stream_order, 1, 0)
+    yukon_PresencePrior    <- ifelse((yukon_edges$Str_Order %in% c(7, 8, 9)) & 
+                                       yukon_edges$SPAWNING_C == 0, 0, 1)
+    
+    
+    # -- B6. Yukon Bayesian assignment ----------------------------------------
+    
+    cat("  Running Yukon Bayesian assignment...\n")
+    
+    n_yukon_fish <- nrow(yukon_natal)
+    yukon_assignment_matrix <- matrix(0, nrow = n_yukon_segments, ncol = n_yukon_fish)
+    
+    for (i in 1:n_yukon_fish) {
+      fish_iso <- yukon_natal$natal_iso[i]
+      
+      # Build genetic prior (fish-specific)
+      gen_prior <- rep(0, n_yukon_segments)
+      gen_prior[LYsites] <- as.numeric(yukon_natal$Lower[i])
+      gen_prior[MYsites] <- as.numeric(yukon_natal$Middle[i])
+      
+      # Assignment probability
+      assign <- (1 / sqrt(2 * pi * yukon_error^2)) *
+        exp(-1 * (fish_iso - yukon_pid_iso)^2 / (2 * yukon_error^2)) *
+        yukon_StreamOrderPrior * gen_prior * yukon_PresencePrior
+      
+      # Normalize and rescale
+      assign_norm     <- assign / sum(assign)
+      assign_rescaled <- assign_norm / max(assign_norm)
+      assign_rescaled[assign_rescaled < YUKON_PARAMS$sensitivity_threshold] <- 0
+      
+      # Weight by CPUE
+      yukon_assignment_matrix[, i] <- assign_rescaled * as.numeric(yukon_natal$COratio[i])
+    }
+    
+    
+    # -- B7. Sum across fish → one value per Yukon segment --------------------
+    
+    yukon_basin_assign_sum <- apply(yukon_assignment_matrix, 1, sum, na.rm = TRUE)
+    
+    cat(paste("  Yukon segments with assignment > 0:",
+              sum(yukon_basin_assign_sum > 0), "/", n_yukon_segments, "\n\n"))
+    
+    
+    # ==========================================================================
+    # PART C: COMBINE INTO A SINGLE DATA FRAME
+    # ==========================================================================
+    
+    cat("----------------------------------------------\n")
+    cat("  PART C: COMBINE RESULTS\n")
+    cat("----------------------------------------------\n\n")
+    
+    # Build Kuskokwim rows
+    kusko_df <- data.frame(
+      river          = "Kusko",
+      reachid        = st_drop_geometry(kusko_edges)$reachid,
+      Str_Order      = st_drop_geometry(kusko_edges)$Str_Order,
+      iso_pred       = st_drop_geometry(kusko_edges)$iso_pred,
+      assignment_sum = kusko_basin_assign_sum
+    )
+    
+    # Build Yukon rows
+    yukon_df <- data.frame(
+      river          = "Yukon",
+      reachid        = st_drop_geometry(yukon_edges)$reachid,
+      Str_Order      = st_drop_geometry(yukon_edges)$Str_Order,
+      iso_pred       = st_drop_geometry(yukon_edges)$iso_pred,
+      assignment_sum = yukon_basin_assign_sum
+    )
+    
+    # Stack into one data frame
+    combined_df <- bind_rows(kusko_df, yukon_df)
+    
+    cat(paste("  Combined data frame:", nrow(combined_df), "rows\n"))
+    cat(paste("    Kusko rows:", nrow(kusko_df), "\n"))
+    cat(paste("    Yukon rows:", nrow(yukon_df), "\n"))
+    cat(paste("    Total segments with assignment > 0:",
+              sum(combined_df$assignment_sum > 0), "\n"))
+    
+    # -- D1. Load run size data -----------------------------------------------
+    
+    runsizedat <- read_excel(PATHS$runsize_data)
+    
+    kusko_runsize <- as.numeric(
+      runsizedat$Total_Run[runsizedat$River == "Kusko" & runsizedat$Year == year]
+    )
+    yukon_runsize <- as.numeric(
+      runsizedat$Total_Run[runsizedat$River == "Yukon" & runsizedat$Year == year]
+    )
+    
+    # Get the actual CPUE proportion at each river's cutoff DOY
+    kusko_cpue_proportion <- kusko_daily_cpue$cumsum_proportion[kusko_daily_cpue$DOY == kusko_cutoff_doy]
+    yukon_cpue_proportion <- yukon_daily_cpue$cumsum_proportion[yukon_daily_cpue$DOY == yukon_cutoff_doy]
+    
+    # Scale run size by the actual proportion retained
+    kusko_runsize_scaled <- kusko_runsize * kusko_cpue_proportion
+    yukon_runsize_scaled <- yukon_runsize * yukon_cpue_proportion
+    
+    cat(paste("  Kusko CPUE proportion:", round(kusko_cpue_proportion, 4),
+              "| Scaled run size:", round(kusko_runsize_scaled), "\n"))
+    cat(paste("  Yukon CPUE proportion:", round(yukon_cpue_proportion, 4),
+              "| Scaled run size:", round(yukon_runsize_scaled), "\n"))
+    
+    
+    # -- D2. Multiply each river's assignment_sum by its escapement -----------
+    
+    combined_df$runsize_scaled <- ifelse(combined_df$river == "Kusko",
+                                         kusko_runsize_scaled,
+                                         yukon_runsize_scaled)
+    
+    combined_df <- combined_df %>%
+      group_by(river) %>%
+      mutate(
+        river_total = sum(assignment_sum, na.rm = TRUE),
+        river_proportion = ifelse(river_total > 0, assignment_sum / river_total, 0),
+        assignment_individuals = river_proportion * runsize_scaled
+      ) %>%
+      ungroup()
+    
+    cat(paste("  Kusko total individuals:", round(sum(combined_df$assignment_individuals[combined_df$river == "Kusko"])), "\n"))
+    cat(paste("  Yukon total individuals:", round(sum(combined_df$assignment_individuals[combined_df$river == "Yukon"])), "\n"))
+    
+    
+    # -- D3. Normalize across both rivers (sum to 1) --------------------------
+    
+    total_individuals <- sum(combined_df$assignment_individuals, na.rm = TRUE)
+    combined_df$assignment_rescale <- combined_df$assignment_individuals / total_individuals
+    
+    cat(paste("  Total individuals (both rivers):", round(total_individuals), "\n"))
+    cat(paste("  Sum of assignment_rescale:", round(sum(combined_df$assignment_rescale, na.rm = TRUE), 4), "\n"))
+    
+    
+    # -- D4. Rescale to range 0–1 ---------------------------------------------
+    
+    max_rescale <- max(combined_df$assignment_rescale, na.rm = TRUE)
+    combined_df$assignment_norm <- combined_df$assignment_rescale / max_rescale
+    
+    cat(paste("  Max assignment_norm:", max(combined_df$assignment_norm, na.rm = TRUE), "\n"))
+    cat(paste("  Segments with norm > 0:", sum(combined_df$assignment_norm > 0), "\n\n"))
+    
+    
+    # -- D5. Clean up helper columns ------------------------------------------
+    
+    combined_df <- combined_df %>%
+      select(river, reachid, Str_Order, iso_pred,
+             assignment_sum, assignment_individuals,
+             assignment_rescale, assignment_norm)
+    
+    
+    # ==========================================================================
+    # PART E: EXPORT
+    # ==========================================================================
+    
+    cat("----------------------------------------------\n")
+    cat("  PART E: EXPORT\n")
+    cat("----------------------------------------------\n\n")
+    
+    dir.create(PATHS$output_dir, recursive = TRUE, showWarnings = FALSE)
+    
+    filepath <- file.path(PATHS$output_dir,
+                          paste0(year, "_Combined_50pct_Assignment_Results.csv"))
+    write_csv(combined_df, filepath)
+    cat(paste("  ✓ Exported:", filepath, "\n"))
+    
+    
   }, error = function(e) {
-    cat(paste("ERROR -", year, ":", e$message, "\n"))
+    cat(paste("ERROR in year", year, ":", e$message, "\n"))
   })
 }
 
-cat("\n✓ Analysis complete\n")
+    
