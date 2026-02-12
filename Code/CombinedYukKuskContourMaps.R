@@ -61,7 +61,7 @@ PATHS <- list(
 )
 
 # Years with data in BOTH rivers
-YEARS <- c(2017, 2018)
+YEARS <- c(2017, 2018, 2019, 2021)
 
 # Temperature sampling interval (days)
 TEMP_INTERVAL_DAYS <- 3
