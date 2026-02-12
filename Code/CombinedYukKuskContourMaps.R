@@ -5,9 +5,13 @@
 #       high-productivity habitat (normalized production >= 0.7) from BOTH 
 #       basins on the same plot.
 #       Uses first 50% of CPUE run timing.
-#       Temperature sampling every 3 days.
+#       Temperature sampling every 3 days (Blaskey NetCDF stream temp).
+#       SNAP air temperature from shapefile columns (SnapTp20XX).
 #
-# Output: Multi-panel figure with both basins' high-productivity locations
+# Output: 2-column × N-year panel figure:
+#         Column 1 = Stream Temperature (Blaskey) vs Slope
+#         Column 2 = SNAP Air Temperature vs Slope
+#         Years as rows, year labels on left
 ################################################################################
 
 
@@ -22,6 +26,7 @@ suppressPackageStartupMessages({
   library(readr)
   library(readxl)
   library(lubridate)
+  library(stringr)
   library(here)
   library(ggplot2)
   library(patchwork)
@@ -57,7 +62,7 @@ PATHS <- list(
   cpue_data_dir  = here("Data", "CPUE"),
   
   # Outputs
-  output_figures = here("Figures", "ContourPlots", "Combined_Top30pct_50CPUE")
+  output_figures = here("Figures", "ContourPlots")
 )
 
 # Years with data in BOTH rivers
@@ -155,6 +160,7 @@ cat("================================================================\n")
 kusko_edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
 kusko_basin <- st_read(PATHS$kusko_basin, quiet = TRUE)
 kusko_edges <- st_transform(kusko_edges, st_crs(kusko_basin))
+kusko_shp   <- st_drop_geometry(kusko_edges)
 
 cat("  Kuskokwim stream segments:", nrow(kusko_edges), "\n")
 
@@ -162,6 +168,7 @@ cat("  Kuskokwim stream segments:", nrow(kusko_edges), "\n")
 yukon_edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
 yukon_basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
 yukon_edges <- st_transform(yukon_edges, st_crs(yukon_basin))
+yukon_shp   <- st_drop_geometry(yukon_edges)
 
 # Load genetic regions
 ly_gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
@@ -260,9 +267,7 @@ for (yr in YEARS) {
   kusko_basin_assign_sum <- apply(kusko_assignment_matrix, 1, sum, na.rm = TRUE)
   kusko_assign_norm <- kusko_basin_assign_sum / max(kusko_basin_assign_sum, na.rm = TRUE)
   
-  # Filter to production >= 0.7
   n_above_threshold <- sum(kusko_assign_norm >= PRODUCTION_THRESHOLD)
-  
   cat("    Segments with production >= 0.7:", n_above_threshold, "\n")
   
   # Temperature matching (every 3 days)
@@ -278,7 +283,9 @@ for (yr in YEARS) {
     group_by(COMID) %>%
     summarise(mean_summer_temp = mean(value, na.rm = TRUE), .groups = "drop")
   
-  # Build Kusko results
+  # Build Kusko results — include SNAP temp from shapefile
+  kusko_snap_col <- paste0("SnapTp", yr)
+  
   kusko_result <- st_drop_geometry(kusko_edges) %>%
     mutate(
       Production = kusko_assign_norm,
@@ -286,6 +293,7 @@ for (yr in YEARS) {
       year = yr
     ) %>%
     left_join(kusko_mean_temp, by = "COMID") %>%
+    rename(SNAP_temp = !!sym(kusko_snap_col)) %>%
     filter(Production >= PRODUCTION_THRESHOLD)
   
   cat("    Reaches with production >= 0.7 and temperature:", nrow(kusko_result), "\n")
@@ -358,9 +366,7 @@ for (yr in YEARS) {
   yukon_basin_assign_sum <- apply(yukon_assignment_matrix, 1, sum, na.rm = TRUE)
   yukon_assign_norm <- yukon_basin_assign_sum / max(yukon_basin_assign_sum, na.rm = TRUE)
   
-  # Filter to production >= 0.7
   n_above_threshold <- sum(yukon_assign_norm >= PRODUCTION_THRESHOLD)
-  
   cat("    Segments with production >= 0.7:", n_above_threshold, "\n")
   
   # Temperature matching (every 3 days)
@@ -376,7 +382,9 @@ for (yr in YEARS) {
     group_by(COMID) %>%
     summarise(mean_summer_temp = mean(value, na.rm = TRUE), .groups = "drop")
   
-  # Build Yukon results
+  # Build Yukon results — include SNAP temp from shapefile
+  yukon_snap_col <- paste0("SnapTp", yr)
+  
   yukon_result <- st_drop_geometry(yukon_edges) %>%
     mutate(
       Production = yukon_assign_norm,
@@ -384,6 +392,7 @@ for (yr in YEARS) {
       year = yr
     ) %>%
     left_join(yukon_mean_temp, by = "COMID") %>%
+    rename(SNAP_temp = !!sym(yukon_snap_col)) %>%
     filter(Production >= PRODUCTION_THRESHOLD)
   
   cat("    Reaches with production >= 0.7 and temperature:", nrow(yukon_result), "\n")
@@ -401,88 +410,221 @@ for (yr in YEARS) {
 
 
 ################################################################################
-# PART 4: CREATE CONTOUR PLOTS
+# PART 4: 2-COLUMN CONTOUR FIGURE
+#   Column 1: Stream Temperature (Blaskey NetCDF) vs Channel Slope
+#   Column 2: SNAP Air Temperature vs Channel Slope
+#   Rows: one per year, year labels on left
 ################################################################################
 
 cat("\n================================================================\n")
-cat("PART 4: CREATING CONTOUR PLOTS\n")
+cat("PART 4: BUILDING CONTOUR FIGURE\n")
 cat("================================================================\n")
 
-# Color scheme
+# ------------------------------------------------------------------
+# Prepare filtered data list
+# ------------------------------------------------------------------
+filtered_list <- lapply(YEARS, function(yr) {
+  year_results[[as.character(yr)]]
+})
+names(filtered_list) <- as.character(YEARS)
+
+# ------------------------------------------------------------------
+# Global axis limits
+# ------------------------------------------------------------------
+x_lim_temp  <- c(5, 13)
+y_lim_slope <- c(0, 3)
+x_lim_air   <- c(11, 17)
+
+# ------------------------------------------------------------------
+# Colors
+# ------------------------------------------------------------------
 fill_colors <- brewer.pal(9, "YlOrRd")[-1]
 
+# ------------------------------------------------------------------
 # Shared theme
+# ------------------------------------------------------------------
 base_theme <- theme_minimal() +
   theme(
-    axis.text = element_text(size = 9, color = "grey30"),
-    axis.title = element_text(size = 10, color = "grey20"),
-    legend.position = "right",
-    legend.title = element_text(size = 9),
-    legend.text = element_text(size = 8),
-    panel.grid.major = element_line(color = "grey50", linewidth = 0.3),
+    axis.text       = element_text(size = 8, color = "grey30"),
+    axis.title      = element_blank(),
+    legend.position = "none",
+    panel.grid.major = element_line(color = alpha("grey50", 0.3), linewidth = 0.3),
     panel.grid.minor = element_blank(),
+    panel.ontop      = TRUE,
     panel.background = element_rect(fill = NA, color = NA),
-    plot.margin = margin(5, 5, 5, 5),
-    plot.title = element_text(size = 11, face = "bold", hjust = 0.5)
+    plot.margin     = margin(1, 2, 1, 2),
+    plot.title      = element_blank()
   )
 
-# Global axis limits
-x_lim_temp <- c(5, 15)
-y_lim_slope <- c(0, 3)
-
-# Create plots for each year
-plots_list <- lapply(YEARS, function(yr) {
-  df <- year_results[[as.character(yr)]]
+# ------------------------------------------------------------------
+# Column 1: Stream Temperature (Blaskey) vs Channel Slope
+# ------------------------------------------------------------------
+plots_col1 <- lapply(seq_along(YEARS), function(i) {
+  df <- filtered_list[[as.character(YEARS[i])]]
+  is_bottom <- (i == length(YEARS))
   
   ggplot(df, aes(mean_summer_temp, Channel_sl)) +
     annotate("rect", xmin = -Inf, xmax = Inf,
              ymin = -Inf, ymax = Inf, fill = "white") +
     
-    stat_density_2d_filled(aes(fill = after_stat(level)), bins = 8, alpha = 0.8) +
+    stat_density_2d_filled(bins = 8) +
     
-    scale_fill_manual(values = fill_colors, name = "Density") +
+    scale_fill_manual(values = fill_colors) +
     
     scale_x_continuous(
       limits = x_lim_temp,
       expand = c(0, 0),
-      name = "Mean Summer Stream Temperature (°C)"
+      labels = if (is_bottom) waiver() else NULL
     ) +
     scale_y_continuous(
       limits = y_lim_slope,
-      expand = c(0, 0),
-      name = "Channel Slope"
+      expand = c(0, 0)
     ) +
     
     coord_cartesian(clip = "off") +
     
-    ggtitle(paste("Year:", yr)) +
-    
-    base_theme
+    base_theme +
+    theme(
+      axis.text.x = if (is_bottom)
+        element_text(size = 8, color = "grey30")
+      else element_blank()
+    )
 })
 
-# Combine plots
-combined_plot <- wrap_plots(plots_list, ncol = 2) +
+# ------------------------------------------------------------------
+# Column 2: SNAP Air Temperature vs Channel Slope
+# ------------------------------------------------------------------
+plots_col2 <- lapply(seq_along(YEARS), function(i) {
+  df <- filtered_list[[as.character(YEARS[i])]]
+  is_bottom <- (i == length(YEARS))
+  
+  ggplot(df, aes(SNAP_temp, Channel_sl)) +
+    annotate("rect", xmin = -Inf, xmax = Inf,
+             ymin = -Inf, ymax = Inf, fill = "white") +
+    
+    stat_density_2d_filled(bins = 8) +
+    
+    scale_fill_manual(values = fill_colors) +
+    
+    scale_x_continuous(
+      limits = x_lim_air,
+      expand = c(0, 0),
+      labels = if (is_bottom) waiver() else NULL
+    ) +
+    scale_y_continuous(
+      limits = y_lim_slope,
+      expand = c(0, 0),
+      labels = NULL
+    ) +
+    
+    coord_cartesian(clip = "off") +
+    
+    base_theme +
+    theme(
+      axis.text.x = if (is_bottom)
+        element_text(size = 8, color = "grey30")
+      else element_blank(),
+      axis.text.y = element_blank()
+    )
+})
+
+# ------------------------------------------------------------------
+# Year label panels — centered text
+# ------------------------------------------------------------------
+year_labels <- lapply(YEARS, function(yr) {
+  ggplot() +
+    annotate(
+      "text",
+      x = 0.5, y = 0.5,
+      label = yr,
+      hjust = 0.5,
+      size = 4,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+    xlim(0, 1) + ylim(0, 1) +
+    theme_void() +
+    theme(plot.margin = margin(0, 0, 0, 0))
+})
+
+# ------------------------------------------------------------------
+# Assemble — flat 3-column grid (year label | col1 | col2)
+# ------------------------------------------------------------------
+flat_list <- list()
+for (i in seq_along(YEARS)) {
+  flat_list <- c(flat_list, list(
+    year_labels[[i]],
+    plots_col1[[i]],
+    plots_col2[[i]]
+  ))
+}
+
+combined_plot <- wrap_plots(flat_list, ncol = 3,
+                            widths = c(0.15, 1, 1)) +
+  plot_layout(heights = rep(1, length(YEARS)))
+
+# ------------------------------------------------------------------
+# Column titles
+# ------------------------------------------------------------------
+combined_plot <- combined_plot +
   plot_annotation(
-    title = "High Productivity Habitat (Production >= 0.7): Temperature vs Slope\nCombined Yukon + Kuskokwim | First 50% CPUE | Temperature sampled every 3 days",
+    title = expression(
+      paste("Stream Temperature vs Slope",
+            "                         ",
+            "Air Temperature vs Slope")
+    ),
     theme = theme(
-      plot.title = element_text(size = 13, face = "bold", hjust = 0.5,
-                                margin = margin(b = 10))
+      plot.title = element_text(
+        size = 12, face = "bold", hjust = 0.5,
+        color = "grey10", margin = margin(b = 4)
+      )
     )
   )
 
+# ------------------------------------------------------------------
+# Shared y-axis label (rotated on left)
+# ------------------------------------------------------------------
+final_plot <- wrap_elements(combined_plot) +
+  labs(tag = "Channel Slope") +
+  theme(
+    plot.tag          = element_text(size = 11, angle = 90, color = "grey20"),
+    plot.tag.position = "left"
+  )
+
+# ------------------------------------------------------------------
+# Shared x-axis label (bottom caption)
+# ------------------------------------------------------------------
+final_with_xlab <- final_plot +
+  plot_annotation(
+    caption = expression(
+      paste("Mean Summer Stream Temperature (\u00B0C)",
+            "                                     ",
+            "SNAP Air Temperature (\u00B0C)")
+    ),
+    theme = theme(
+      plot.caption = element_text(
+        size = 10, hjust = 0.55, color = "grey20",
+        margin = margin(t = 2)
+      )
+    )
+  )
+
+# ------------------------------------------------------------------
 # Save
+# ------------------------------------------------------------------
 dir.create(PATHS$output_figures, recursive = TRUE, showWarnings = FALSE)
 
 ggsave(
-  file.path(PATHS$output_figures, "Combined_Prod0.7_TempVsSlope_2017-2021.png"),
-  plot = combined_plot,
-  width = 12,
-  height = 10,
-  dpi = 300,
-  bg = "white"
+  file.path(PATHS$output_figures,
+            "50pct_BothBasins.png"),
+  plot   = final_with_xlab,
+  width  = 8.5,
+  height = 12,
+  dpi    = 300,
+  bg     = "white"
 )
 
-print(combined_plot)
+print(final_with_xlab)
 
 cat("\n================================================================\n")
 cat("CONTOUR PLOTS COMPLETE\n")
