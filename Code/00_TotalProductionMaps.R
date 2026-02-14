@@ -23,7 +23,7 @@ suppressPackageStartupMessages({
 # ==============================================================================
 PATHS <- list(
   # ── Shapefiles ────────────────────────────────────────────
-  kusko_edges = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges.shp"),
+  kusko_edges = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges2.shp"),
   kusko_basin = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_basin.shp"),
   yukon_edges = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges2.shp"),
   yukon_basin = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_basin.shp"),
