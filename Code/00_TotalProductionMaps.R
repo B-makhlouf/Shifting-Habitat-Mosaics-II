@@ -3,6 +3,7 @@
 # Analysis 1: Kusko (Kuskokwim)
 # Analysis 2: Yuk_Canada (Upper Yukon only)
 # Analysis 3: Yuk_US (Lower & Middle Yukon combined)
+# Analysis 4: Yukon_Full (Entire Yukon basin)
 ################################################################################
 
 # ==============================================================================
@@ -23,7 +24,7 @@ suppressPackageStartupMessages({
 # ==============================================================================
 PATHS <- list(
   # ── Shapefiles ────────────────────────────────────────────
-  kusko_edges = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges2.shp"),
+  kusko_edges = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges.shp"),
   kusko_basin = here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_basin.shp"),
   yukon_edges = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_edges2.shp"),
   yukon_basin = here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_basin.shp"),
@@ -35,12 +36,14 @@ PATHS <- list(
   # ── Outputs ───────────────────────────────────────────────
   output_kusko = here("Outputs", "ProductionData", "Kusko"),
   output_yuk_canada = here("Outputs", "ProductionData", "Yuk_Canada"),
-  output_yuk_us = here("Outputs", "ProductionData", "Yuk_US")
+  output_yuk_us = here("Outputs", "ProductionData", "Yuk_US"),
+  output_yukon_full = here("Outputs", "ProductionData", "Yukon_full")
 )
 
 MAP_OUTPUT_DIR_KUSKO <- here("Figures", "Maps", "Kusko")
 MAP_OUTPUT_DIR_CANADA <- here("Figures", "Maps", "Yuk_Canada")
 MAP_OUTPUT_DIR_US <- here("Figures", "Maps", "Yuk_US")
+MAP_OUTPUT_DIR_YUKON_FULL <- here("Figures", "Maps", "Yukon_full")
 
 # Analysis parameters
 kusko_years <- c(2017, 2018, 2019, 2020, 2021, 2022)
@@ -178,7 +181,7 @@ for (year in kusko_years) {
                                                      ifelse(stream_order >= 4, 2.7,
                                                             ifelse(stream_order >= 3, 1.2, 0)))))))
     
-   # linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
+    # linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
     
     linewidths[stream_order < min_stream_order] <- 0
     
@@ -563,6 +566,187 @@ for (year in yukon_years) {
     
   }, error = function(e) {
     cat("ERROR Yuk_US", year, ":", e$message, "\n")
+  })
+}
+
+# ==============================================================================
+# ANALYSIS 4: YUKON_FULL (ENTIRE YUKON BASIN)
+# ==============================================================================
+
+cat("\n################################################################################\n")
+cat("# ANALYSIS 4: YUKON_FULL (ENTIRE YUKON BASIN)\n")
+cat("################################################################################\n\n")
+
+for (year in yukon_years) {
+  
+  cat(paste("\n=== Processing Yukon_Full", year, "===\n"))
+  
+  tryCatch({
+    
+    # Parameters
+    min_stream_order <- 4
+    min_error <- 0.0035
+    sensitivity_threshold <- 0.7
+    
+    # ── Load spatial data ────────────────────────────────────
+    edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
+    basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
+    edges <- st_transform(edges, st_crs(basin))
+    
+    # No filtering — use entire basin
+    
+    # Identify Lower, Middle, Upper sites for genetic priors
+    LYsites <- which(tolower(edges$GenLMU) == "lower")
+    MYsites <- which(tolower(edges$GenLMU) == "middle")
+    UYsites <- which(tolower(edges$GenLMU) == "upper")
+    
+    cat(paste("  Loaded", nrow(edges), "stream segments (Full basin)\n"))
+    cat(paste("  Lower sites:", length(LYsites), "\n"))
+    cat(paste("  Middle sites:", length(MYsites), "\n"))
+    cat(paste("  Upper sites:", length(UYsites), "\n"))
+    
+    # ── Load natal data ──────────────────────────────────────
+    natal_data <- read_csv(
+      file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
+      show_col_types = FALSE
+    ) %>%
+      filter(!is.na(Lower), !is.na(Middle), !is.na(Upper), !is.na(natal_iso), !is.na(dailyCPUEprop))
+    
+    cat(paste("  Observations:", nrow(natal_data), "\n"))
+    
+    if (nrow(natal_data) == 0) stop("No data available!")
+    
+    # ── Calculate error ──────────────────────────────────────
+    pid_iso <- edges$iso_pred
+    pid_isose <- edges$isose_pred
+    pid_isose_mod <- rep(mean(pid_isose, na.rm = TRUE), length(pid_isose))
+    error <- sqrt(pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
+    
+    # ── Setup priors ─────────────────────────────────────────
+    StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
+    porcpupinepr <- edges$Porc_off
+    
+    # ── Bayesian assignment ──────────────────────────────────
+    cat("  Performing Bayesian assignment (Full basin)...\n")
+    
+    n_basins <- nrow(edges)
+    n_fish <- nrow(natal_data)
+    assignment_matrix <- matrix(0, nrow = n_basins, ncol = n_fish)
+    
+    for (i in 1:n_fish) {
+      fish_iso <- natal_data$natal_iso[i]
+      
+      # Genetic prior for all regions
+      gen_prior <- rep(0, n_basins)
+      gen_prior[LYsites] <- as.numeric(natal_data$Lower[i])
+      gen_prior[MYsites] <- as.numeric(natal_data$Middle[i])
+      gen_prior[UYsites] <- as.numeric(natal_data$Upper[i])
+      
+      assign <- (1/sqrt(2*pi*error^2)) * 
+        exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
+        StreamOrderPrior * gen_prior * PresencePrior * porcpupinepr * newhabitatprior
+      
+      assign_norm <- assign / sum(assign)
+      assign_rescaled <- assign_norm / max(assign_norm)
+      assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
+      
+      assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
+    }
+    
+    # ── Process results ──────────────────────────────────────
+    basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
+    total_sum <- sum(basin_assign_sum, na.rm = TRUE)
+    
+    if (total_sum > 0) {
+      basin_assign_rescale <- basin_assign_sum / total_sum
+      basin_assign_norm <- basin_assign_rescale / max(basin_assign_rescale, na.rm = TRUE)
+      
+      runsizedat <- read_excel(PATHS$runsize_data)
+      runsize <- as.numeric(runsizedat$Total_Run[runsizedat$River == "Yukon" & runsizedat$Year == year])
+      
+      # Full basin — no proportion scaling needed
+      basin_assign_individuals <- basin_assign_rescale * runsize
+    } else {
+      basin_assign_rescale <- basin_assign_norm <- basin_assign_individuals <- rep(0, length(basin_assign_sum))
+    }
+    
+    cat(paste("  Segments with assignment > 0:", sum(basin_assign_sum > 0), "/", nrow(edges), "\n"))
+    
+    # ── Export CSV ───────────────────────────────────────────
+    dir.create(PATHS$output_yukon_full, recursive = TRUE, showWarnings = FALSE)
+    
+    edges_df <- st_drop_geometry(edges)
+    output_data <- data.frame(
+      reachid = edges_df$reachid,
+      Str_Order = edges_df$Str_Order,
+      iso_pred = edges_df$iso_pred,
+      assignment_sum = basin_assign_sum,
+      assignment_rescale = basin_assign_rescale,
+      assignment_norm = basin_assign_norm,
+      assignment_individuals = basin_assign_individuals,
+      GENLMU = edges_df$GenLMU
+    )
+    
+    filepath <- file.path(PATHS$output_yukon_full, paste0(year, "_Yukon_Full_Assignment_Results.csv"))
+    write_csv(output_data, filepath)
+    cat(paste("  ✓ Exported:", filepath, "\n"))
+    
+    # ── Create map ───────────────────────────────────────────
+    palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
+    
+    colcode <- rep("gray90", length(basin_assign_norm))
+    colcode[basin_assign_norm == 0] <- "white"
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+    colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+    colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+    colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+    colcode[basin_assign_norm > 0.9] <- palette[10]
+    
+    legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
+    legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
+    
+    stream_order <- edges$Str_Order
+    stream_order[is.na(stream_order)] <- 1
+    
+    linewidths <- ifelse(stream_order >= 9, 3.7,
+                         ifelse(stream_order >= 8, 5,
+                                ifelse(stream_order >= 7, 2.0,
+                                       ifelse(stream_order >= 6, 1.5,
+                                              ifelse(stream_order >= 5, 1.4,
+                                                     ifelse(stream_order >= 4, 1.0, 0))))))
+    
+    #linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
+    
+    linewidths[stream_order < min_stream_order] <- 0
+    
+    dir.create(MAP_OUTPUT_DIR_YUKON_FULL, recursive = TRUE, showWarnings = FALSE)
+    map_filename <- file.path(MAP_OUTPUT_DIR_YUKON_FULL, paste0("Yukon_Full_", year, ".png"))
+    
+    png(file = map_filename, width = 9, height = 8, units = "in", res = 300, bg = "white")
+    par(mar = c(4, 4, 4, 2), bg = "white")
+    
+    plot(st_geometry(basin), col = "gray60", border = "gray60", 
+         main = paste0("Annual Production - Full Yukon Basin\nYear: ", year), 
+         bg = "white")
+    plot(st_geometry(edges), col = colcode, pch = 16, axes = FALSE, 
+         add = TRUE, lwd = linewidths)
+    legend("topleft", legend = legend_labels, col = legend_colors, lwd = 5,
+           title = "Relative posterior density", bty = "n", bg = "white")
+    
+    dev.off()
+    par(mar = c(5, 4, 4, 2) + 0.1, bg = "white")
+    
+    cat(paste("  ✓ Saved:", map_filename, "\n"))
+    
+  }, error = function(e) {
+    cat("ERROR Yukon_Full", year, ":", e$message, "\n")
   })
 }
 
