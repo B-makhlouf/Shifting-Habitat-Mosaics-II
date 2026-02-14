@@ -141,22 +141,19 @@ library(here)
 # LOAD SPATIAL DATA
 #------------------------------------------------------------------------------
 
-kusk_edges <- st_read(
-  "/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/SpatialData/Kusko_Reachbase_complete2.shp",
+kusk_edges <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Kusko_edges.shp"),
   quiet = TRUE
 )
 
-kusk_basin <- st_read(
-  "/Users/benjaminmakhlouf/Desktop/Research/isoscapes_new/Kusko/Kusko_basin.shp",
-  quiet = TRUE
+kusk_basin <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Kusko_basin.shp"),
+                      quiet = TRUE
 )
-
 #------------------------------------------------------------------------------
 # LOAD NETWORK RELATIONSHIPS
 #------------------------------------------------------------------------------
 
 KuskoNodes <- read.csv(
-  here("/Users/benjaminmakhlouf/Research_repos/05_Shifting-Habitat-Mosaics-II/Data/UpstreamReaches/kusko_noderelationships.csv"),
+  here("Data","UpstreamReaches","kusko_noderelationships.csv"),
   stringsAsFactors = FALSE
 )
 
@@ -173,7 +170,7 @@ KuskoNetwork <- KuskoNodes %>%
 FindUpstreamReachID_Kusk <- function(ReachID) {
   
   # Resolve reachid → rid
-  TribStartRID <- kusk_edges$rid[kusk_edges$reachid == ReachID]
+  TribStartRID <- kusk_edges$rid[kusk_edges$reachid_1 == ReachID]
   
   if (length(TribStartRID) != 1) {
     stop(paste("ReachID", ReachID, "does not resolve to a unique rid"))
