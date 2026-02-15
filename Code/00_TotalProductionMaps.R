@@ -95,7 +95,7 @@ for (year in kusko_years) {
     
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
-    PresencePrior <- ifelse((edges$Str_Order %in% c(6,7)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <- ifelse(edges$SPAWNING_C == 0, 0, 1)
     NewHabitatPrior <- ifelse(edges$Channel_sl > 2.5, 0, 1)
     pid_prior <- edges$UniPh2oNoE
     
@@ -624,7 +624,7 @@ for (year in yukon_years) {
     
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
-    PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <- ifelse( edges$SPAWNING_C == 0, 0, 1)
     newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
     porcpupinepr <- edges$Porc_off
     
@@ -646,7 +646,7 @@ for (year in yukon_years) {
       
       assign <- (1/sqrt(2*pi*error^2)) * 
         exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * gen_prior * PresencePrior * porcpupinepr * newhabitatprior
+        StreamOrderPrior * gen_prior * PresencePrior *  newhabitatprior 
       
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
