@@ -1,14 +1,22 @@
 ### CV Upstream Groups — Kuskokwim & Yukon
 ### Computes CVs of salmon production by upstream group (and cluster for Kuskokwim)
 ### and compares them to basin-wide CV.
+### ADJUSTED: Uses population SD (dividing by n) instead of sample SD (dividing by n-1)
 
 library(tidyverse)
 library(sf)
 library(here)
 library(readxl)
 
+# --- Population SD helper ---
+sd_pop <- function(x) {
+  n <- length(x)
+  sqrt(sum((x - mean(x))^2) / n)
+}
+
 # --- Escapement data (shared) ---
 allEsc <- read_excel(here("Data", "AYKEscapement.xlsx"))
+#
 
 # ============================================================
 # KUSKOKWIM
@@ -53,7 +61,7 @@ kusko_group_summary <- kusko_prod_df %>%
   rowwise() %>%
   mutate(
     mean_prod = mean(c(total_2017, total_2018, total_2019, total_2020, total_2021)),
-    sd_prod   = sd(c(total_2017, total_2018, total_2019, total_2020, total_2021)),
+    sd_prod   = sd_pop(c(total_2017, total_2018, total_2019, total_2020, total_2021)),
     cv_prod   = sd_prod / mean_prod
   ) %>%
   ungroup()
@@ -69,13 +77,26 @@ kusko_cluster_summary <- kusko_prod_df %>%
   rowwise() %>%
   mutate(
     mean_prod = mean(c(total_2017, total_2018, total_2019, total_2020, total_2021)),
-    sd_prod   = sd(c(total_2017, total_2018, total_2019, total_2020, total_2021)),
+    sd_prod   = sd_pop(c(total_2017, total_2018, total_2019, total_2020, total_2021)),
     cv_prod   = sd_prod / mean_prod
   ) %>%
   ungroup()
 
 # Basin-wide CV
-basin_cv_kusko <- sd(kusko_esc_all) / mean(kusko_esc_all)
+basin_cv_kusko <- sd_pop(kusko_esc_all) / mean(kusko_esc_all)
+
+# Weighted mean CV and Portfolio Effect (Schindler et al. 2010)
+# Filter out groups with NaN CV (zero or missing production)
+kusko_valid <- kusko_group_summary %>% filter(!is.nan(cv_prod))
+kusko_weights <- kusko_valid$mean_prod / sum(kusko_valid$mean_prod)
+kusko_weighted_mean_cv <- sum(kusko_weights * kusko_valid$cv_prod)
+kusko_PE <- basin_cv_kusko / kusko_weighted_mean_cv
+sw2cat("--- Kuskokwim ---\n")
+cat("Basin-wide CV:       ", round(basin_cv_kusko, 4), "\n")
+cat("Unweighted mean CV:  ", round(mean(kusko_group_summary$cv_prod), 4), "\n")
+cat("Weighted mean CV:    ", round(kusko_weighted_mean_cv, 4), "\n")
+cat("Portfolio Effect (PE):", round(kusko_PE, 4), "\n")
+cat("  PE = 1: no buffering | PE < 1: portfolio effect present\n\n")
 
 # ============================================================
 # YUKON
@@ -115,13 +136,27 @@ yukon_group_summary <- yukon_prod_df %>%
   rowwise() %>%
   mutate(
     mean_prod = mean(c(total_2015, total_2016, total_2018, total_2021)),
-    sd_prod   = sd(c(total_2015, total_2016, total_2018, total_2021)),
+    sd_prod   = sd_pop(c(total_2015, total_2016, total_2018, total_2021)),
     cv_prod   = sd_prod / mean_prod
   ) %>%
   ungroup()
 
 # Basin-wide CV
-basin_cv_yukon <- sd(yukon_esc_all) / mean(yukon_esc_all)
+basin_cv_yukon <- sd_pop(yukon_esc_all) / mean(yukon_esc_all)
+
+# Weighted mean CV and Portfolio Effect (Schindler et al. 2010)
+# Filter out groups with NaN CV (zero or missing production)
+yukon_valid <- yukon_group_summary %>% filter(!is.nan(cv_prod))
+yukon_weights <- yukon_valid$mean_prod / sum(yukon_valid$mean_prod)
+yukon_weighted_mean_cv <- sum(yukon_weights * yukon_valid$cv_prod)
+yukon_PE <- basin_cv_yukon / yukon_weighted_mean_cv
+
+cat("--- Yukon ---\n")
+cat("Basin-wide CV:       ", round(basin_cv_yukon, 4), "\n")
+cat("Unweighted mean CV:  ", round(mean(yukon_group_summary$cv_prod), 4), "\n")
+cat("Weighted mean CV:    ", round(yukon_weighted_mean_cv, 4), "\n")
+cat("Portfolio Effect (PE):", round(yukon_PE, 4), "\n")
+cat("  PE = 1: no buffering | PE < 1: portfolio effect present\n\n")
 
 
 # ============================================================
@@ -130,117 +165,81 @@ basin_cv_yukon <- sd(yukon_esc_all) / mean(yukon_esc_all)
 
 library(patchwork)
 
-# --- Shared plot theme ---
 cv_theme <- theme_minimal(base_size = 14) +
-  theme(panel.grid.major.x = element_blank())
+  theme(panel.grid.major.y = element_blank())
 
-# --- Plot 1: Kuskokwim Groups vs Basin ---
-
-kusko_plot_df <- data.frame(
-  label = c(rep("Groups", nrow(kusko_group_summary)), "Basin"),
-  cv = c(kusko_group_summary$cv_prod, basin_cv_kusko),
-  mean_prod = c(kusko_group_summary$mean_prod, NA),
-  type = c(rep("group", nrow(kusko_group_summary)), "basin")
-)
-kusko_plot_df$label <- factor(kusko_plot_df$label, levels = c("Groups", "Basin"))
+# --- Plot 1: Kuskokwim ---
 
 kusko_mean_cv <- mean(kusko_group_summary$cv_prod)
 
-p_kusko <- ggplot() +
-  geom_col(data = data.frame(label = factor(c("Groups", "Basin"), levels = c("Groups", "Basin")),
-                             mean_cv = c(kusko_mean_cv, basin_cv_kusko)),
-           aes(x = label, y = mean_cv), fill = "steelblue", alpha = 0.25, width = 0.6) +
-  geom_jitter(data = kusko_plot_df %>% filter(type == "group"),
-              aes(x = label, y = cv, size = mean_prod),
-              color = "steelblue", alpha = 0.7, width = 0.15) +
-  geom_point(data = kusko_plot_df %>% filter(type == "basin"),
-             aes(x = label, y = cv), shape = 18, size = 5, color = "red") +
-  geom_text(data = data.frame(label = factor(c("Groups", "Basin"), levels = c("Groups", "Basin")),
-                              mean_cv = c(kusko_mean_cv, basin_cv_kusko)),
-            aes(x = label, y = mean_cv, label = round(mean_cv, 2)),
-            vjust = -0.5, size = 4) +
+p_kusko <- ggplot(kusko_valid, aes(y = cv_prod)) +
+  geom_boxplot(aes(x = ""), fill = "steelblue", alpha = 0.3, 
+               color = "steelblue", width = 0.4, outlier.shape = NA) +
+  geom_jitter(aes(x = "", size = mean_prod), color = "steelblue", alpha = 0.7, 
+              width = 0.1) +
+  # Weighted mean CV (black diamond)
+  annotate("point", x = 1, y = kusko_weighted_mean_cv, 
+           shape = 18, size = 5, color = "black") +
+  annotate("text", x = 1.35, y = kusko_weighted_mean_cv,
+           label = paste0("Weighted mean CV = ", round(kusko_weighted_mean_cv, 3)),
+           hjust = 0, size = 3.5, fontface = "bold") +
+  # Basin-wide CV
+  geom_hline(yintercept = basin_cv_kusko, linetype = "dashed", 
+             color = "red", linewidth = 0.9) +
+  annotate("text", x = 1.35, y = basin_cv_kusko,
+           label = paste0("Basin CV = ", round(basin_cv_kusko, 3)),
+           hjust = 0, size = 3.5, fontface = "bold", color = "red") +
+  # PE annotation
+  annotate("text", x = 0.6, y = max(kusko_valid$cv_prod),
+           label = paste0("PE = ", round(kusko_PE, 2)),
+           hjust = 1, size = 4, fontface = "italic", color = "grey30") +
+  scale_x_discrete() +
+  coord_flip(clip = "off") +
   scale_size_continuous(name = "Mean Production", range = c(1, 8)) +
-  labs(x = "", y = "Coefficient of Variation",
-       title = "Kuskokwim") +
-  cv_theme
+  labs(x = "", y = "Coefficient of Variation", title = "Kuskokwim") +
+  cv_theme +
+  theme(axis.text.y = element_blank(),
+        plot.margin = margin(5, 80, 5, 5))
 
 p_kusko
 
-# --- Plot 2: Yukon Groups vs Basin ---
-
-yukon_plot_df <- data.frame(
-  label = c(rep("Groups", nrow(yukon_group_summary)), "Basin"),
-  cv = c(yukon_group_summary$cv_prod, basin_cv_yukon),
-  mean_prod = c(yukon_group_summary$mean_prod, NA),
-  type = c(rep("group", nrow(yukon_group_summary)), "basin")
-)
-yukon_plot_df$label <- factor(yukon_plot_df$label, levels = c("Groups", "Basin"))
+# --- Plot 2: Yukon ---
 
 yukon_mean_cv <- mean(yukon_group_summary$cv_prod)
 
-p_yukon <- ggplot() +
-  geom_col(data = data.frame(label = factor(c("Groups", "Basin"), levels = c("Groups", "Basin")),
-                             mean_cv = c(yukon_mean_cv, basin_cv_yukon)),
-           aes(x = label, y = mean_cv), fill = "steelblue", alpha = 0.25, width = 0.6) +
-  geom_jitter(data = yukon_plot_df %>% filter(type == "group"),
-              aes(x = label, y = cv, size = mean_prod),
-              color = "steelblue", alpha = 0.7, width = 0.15) +
-  geom_point(data = yukon_plot_df %>% filter(type == "basin"),
-             aes(x = label, y = cv), shape = 18, size = 5, color = "red") +
-  geom_text(data = data.frame(label = factor(c("Groups", "Basin"), levels = c("Groups", "Basin")),
-                              mean_cv = c(yukon_mean_cv, basin_cv_yukon)),
-            aes(x = label, y = mean_cv, label = round(mean_cv, 2)),
-            vjust = -0.5, size = 4) +
+p_yukon <- ggplot(yukon_valid, aes(y = cv_prod)) +
+  geom_boxplot(aes(x = ""), fill = "darkorange", alpha = 0.3, 
+               color = "darkorange", width = 0.4, outlier.shape = NA) +
+  geom_jitter(aes(x = "", size = mean_prod), color = "darkorange", alpha = 0.7, 
+              width = 0.1) +
+  # Weighted mean CV (black diamond)
+  annotate("point", x = 1, y = yukon_weighted_mean_cv, 
+           shape = 18, size = 5, color = "black") +
+  annotate("text", x = 1.35, y = yukon_weighted_mean_cv,
+           label = paste0("Weighted mean CV = ", round(yukon_weighted_mean_cv, 3)),
+           hjust = 0, size = 3.5, fontface = "bold") +
+  # Basin-wide CV
+  geom_hline(yintercept = basin_cv_yukon, linetype = "dashed", 
+             color = "red", linewidth = 0.9) +
+  annotate("text", x = 1.35, y = basin_cv_yukon,
+           label = paste0("Basin CV = ", round(basin_cv_yukon, 3)),
+           hjust = 0, size = 3.5, fontface = "bold", color = "red") +
+  # PE annotation
+  annotate("text", x = 0.6, y = max(yukon_valid$cv_prod),
+           label = paste0("PE = ", round(yukon_PE, 2)),
+           hjust = 1, size = 4, fontface = "italic", color = "grey30") +
+  scale_x_discrete() +
+  coord_flip(clip = "off") +
   scale_size_continuous(name = "Mean Production", range = c(1, 8)) +
-  labs(x = "", y = "Coefficient of Variation",
-       title = "Yukon") +
-  cv_theme
+  labs(x = "", y = "Coefficient of Variation", title = "Yukon") +
+  cv_theme +
+  theme(axis.text.y = element_blank(),
+        plot.margin = margin(5, 80, 5, 5))
 
 p_yukon
 
+# --- Combined Plot (side by side with patchwork) ---
 
-
-combined_plot_df <- data.frame(
-  label = c(rep("Upstream\nGroups", nrow(kusko_group_summary) + nrow(yukon_group_summary)),
-            rep("Basin-wide", 2)),
-  cv = c(kusko_group_summary$cv_prod, yukon_group_summary$cv_prod,
-         basin_cv_kusko, basin_cv_yukon),
-  mean_prod = c(kusko_group_summary$mean_prod, yukon_group_summary$mean_prod, NA, NA),
-  river = c(rep("Kuskokwim", nrow(kusko_group_summary)),
-            rep("Yukon", nrow(yukon_group_summary)),
-            "Kuskokwim", "Yukon"),
-  type = c(rep("group", nrow(kusko_group_summary) + nrow(yukon_group_summary)),
-           "basin", "basin")
+p_kusko / p_yukon + plot_annotation(
+  title = "CV of Production: Upstream Groups vs Basin-wide"
 )
-combined_plot_df$label <- factor(combined_plot_df$label,
-                                 levels = c("Upstream\nGroups", "Basin-wide"))
-
-
-
-all_group_cvs <- c(kusko_group_summary$cv_prod, yukon_group_summary$cv_prod)
-
-combined_bar_df <- data.frame(
-  label = factor(c("Upstream\nGroups", "Basin-wide"),
-                 levels = c("Upstream\nGroups", "Basin-wide")),
-  mean_cv = c(mean(all_group_cvs), mean(c(basin_cv_kusko, basin_cv_yukon)))
-)
-
-ggplot() +
-  geom_col(data = combined_bar_df, aes(x = label, y = mean_cv),
-           fill = "steelblue", alpha = 0.25, width = 0.6) +
-  geom_jitter(data = combined_plot_df %>% filter(type == "group"),
-              aes(x = label, y = cv, size = mean_prod, color = river),
-              alpha = 0.7, width = 0.15) +
-  geom_point(data = combined_plot_df %>% filter(type == "basin"),
-             aes(x = label, y = cv, color = river),
-             shape = 18, size = 5) +
-  geom_text(data = combined_bar_df,
-            aes(x = label, y = mean_cv, label = round(mean_cv, 2)),
-            vjust = -0.5, size = 4) +
-  scale_color_manual(name = "Watershed", values = c("Kuskokwim" = "steelblue", "Yukon" = "darkorange")) +
-  scale_size_continuous(name = "Mean Production", range = c(1, 8)) +
-  labs(x = "", y = "Coefficient of Variation",
-       title = "CV of Production: Upstream Groups vs Basin-wide") +
-  cv_theme
-
-
