@@ -643,7 +643,7 @@ for (year in yukon_years) {
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     PresencePrior <- ifelse((edges$Str_Order %in% c(6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
     newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
-    porcpupinepr <- ifelse(edges$Porc_off == 0, .90, 1)
+    porcpupinepr <- ifelse(edges$Porc_off == 0, .6, 1)
     
     
     # ── Bayesian assignment ──────────────────────────────────
@@ -664,7 +664,7 @@ for (year in yukon_years) {
       
       assign <- (1/sqrt(2*pi*error^2)) * 
         exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * gen_prior * PresencePrior  *newhabitatprior * porcpupinepr 
+        StreamOrderPrior * gen_prior * PresencePrior  *newhabitatprior 
       
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
@@ -675,6 +675,10 @@ for (year in yukon_years) {
     
     # ── Process results ──────────────────────────────────────
     basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
+    
+    basin_assign_sum <- ifelse(edges$Porc_off == 0, basin_assign_sum * 0.3, basin_assign_sum)
+    
+    
     total_sum <- sum(basin_assign_sum, na.rm = TRUE)
     
     if (total_sum > 0) {
