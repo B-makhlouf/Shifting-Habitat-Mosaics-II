@@ -63,9 +63,12 @@ for (year in kusko_years) {
   
   tryCatch({
     
+    hist(Kusko_edges$isose_pred)
+    
+    
     # Parameters
     min_stream_order <- 3
-    min_error <- 0.00066
+    min_error <- 0.0006
     #max_error <- 0.00089
     sensitivity_threshold <- 0.7
     
@@ -97,7 +100,9 @@ for (year in kusko_years) {
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     PresencePrior <- ifelse((edges$Str_Order %in% c(7,8)) & edges$SPAWNING_C == 0, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Channel_sl > 2.5, 0, 1)
+    #NewHabitatPrior <- ifelse(edges$Channel_sl > 2.5, 0, 1)
+    NewHabitatPrior <- ifelse(edges$Spawner_IP < .3, 0, 1)
+    
     pid_prior <- edges$UniPh2oNoE
     
     # ── Bayesian assignment ──────────────────────────────────
@@ -180,7 +185,7 @@ for (year in kusko_years) {
                                        ifelse(stream_order >= 6, 3.0,
                                               ifelse(stream_order >= 5, 2.7,
                                                      ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 3, 1.2, 0)))))))
+                                                            ifelse(stream_order >= 3, 2.0, 0)))))))
     
     # linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
     
@@ -210,6 +215,8 @@ for (year in kusko_years) {
   })
 }
 
+
+
 # ==============================================================================
 # ANALYSIS 2: YUK_CANADA (UPPER YUKON ONLY)
 # ==============================================================================
@@ -225,7 +232,7 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 4
+    min_stream_order <- 3
     min_error <- 0.0035
     sensitivity_threshold <- 0.7
     
@@ -400,7 +407,7 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 4
+    min_stream_order <- 5
     min_error <- 0.0035
     sensitivity_threshold <- 0.7
     
@@ -443,8 +450,15 @@ for (year in yukon_years) {
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
+    #newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
+    newhabitatprior <- ifelse(edges$Spawner_IP < .3, 0, 1)
     porcpupinepr <- edges$Porc_off
+    
+    loweststr <- edges %>% filter(stream_order == 4)
+    # histogram of the SpawnerIP value
+    ggplot(loweststr, aes(x = loweststr$Spawner_IP)) +
+      geom_histogram()
+    #histogram of the SpawnerIP value 
     
     # ── Bayesian assignment ──────────────────────────────────
     cat("  Performing Bayesian assignment (Lower + Middle)...\n")
@@ -512,20 +526,21 @@ for (year in yukon_years) {
     cat(paste("  ✓ Exported:", filepath, "\n"))
     
     # ── Create map ───────────────────────────────────────────
+
     palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
     
     colcode <- rep("gray90", length(basin_assign_norm))
-    colcode[basin_assign_norm == 0] <- "white"
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
-    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
-    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
+    colcode[basin_assign_norm == 0] <- "grey85"
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette[3]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette[6]
+    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
     colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
     colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
     colcode[basin_assign_norm > 0.9] <- palette[10]
+    colcode[stream_order < min_stream_order] <- NA
     
     legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
     legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
@@ -533,12 +548,13 @@ for (year in yukon_years) {
     stream_order <- edges$Str_Order
     stream_order[is.na(stream_order)] <- 1
     
-    linewidths <- ifelse(stream_order >= 9, 3.7,
-                         ifelse(stream_order >= 8, 5,
-                                ifelse(stream_order >= 7, 2.0,
-                                       ifelse(stream_order >= 6, 1.5,
-                                              ifelse(stream_order >= 5, 1.4,
-                                                     ifelse(stream_order >= 4, 1.0, 0))))))
+    linewidths <- ifelse(stream_order < min_stream_order, 0,
+                         ifelse(stream_order >= 9, 3.7,
+                                ifelse(stream_order >= 8, 3,
+                                       ifelse(stream_order >= 7, 2.0,
+                                              ifelse(stream_order >= 6, 2.0,
+                                                     ifelse(stream_order >= 5, 2.0,
+                                                            ifelse(stream_order >= 4, 1.7, 0)))))))
     
     
     #linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
@@ -625,10 +641,9 @@ for (year in yukon_years) {
     
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
-    PresencePrior <- ifelse( edges$SPAWNING_C == 0, 0, 1)
+    PresencePrior <- ifelse((edges$Str_Order %in% c(6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
     newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
-    porcpupinepr <- ifelse(edges$Porc_off == 0, .5, 1)
-    
+    porcpupinepr <- ifelse(edges$Porc_off == 0, .90, 1)
     
     
     # ── Bayesian assignment ──────────────────────────────────
@@ -649,7 +664,7 @@ for (year in yukon_years) {
       
       assign <- (1/sqrt(2*pi*error^2)) * 
         exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * gen_prior * PresencePrior  * porcpupinepr#*  newhabitatprior
+        StreamOrderPrior * gen_prior * PresencePrior  *newhabitatprior * porcpupinepr 
       
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
@@ -701,27 +716,27 @@ for (year in yukon_years) {
     
     colcode <- rep("gray90", length(basin_assign_norm))
     colcode[basin_assign_norm == 0] <- "grey85"
-    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
-    # colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
-    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
-    # colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
-    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
-    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
-    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
-    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
-    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
-    # colcode[basin_assign_norm > 0.9] <- palette[10]
-
-    
-    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette[3]
-    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette[4]
-    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette[6]
-    colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
+    colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
+    colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
+    colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
+    colcode[basin_assign_norm > 0.3 & basin_assign_norm <= 0.4] <- palette[4]
+    colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.5] <- palette[5]
     colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
     colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
     colcode[basin_assign_norm > 0.9] <- palette[10]
+
+    
+    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette[3]
+    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette[4]
+    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette[6]
+    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
+    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
+    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
+    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
+    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
+    # colcode[basin_assign_norm > 0.9] <- palette[10]
     colcode[stream_order < min_stream_order] <- NA
     
     legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")

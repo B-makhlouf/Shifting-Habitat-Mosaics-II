@@ -30,22 +30,12 @@ kusko_prod2021 <- read.csv(here("Outputs", "ProductionData", "Kusko", "2021_Kusk
 kusko_prod2022 <- read.csv(here("Outputs", "ProductionData", "Kusko", "2022_Kusko_Assignment_Results.csv"))
 
 # Escapement
-# kusko_esc2017 <- allEsc %>% filter(Year == 2017, River == "Kusko") %>% pull(Total_Run)
-# kusko_esc2018 <- allEsc %>% filter(Year == 2018, River == "Kusko") %>% pull(Total_Run)
-# kusko_esc2019 <- allEsc %>% filter(Year == 2019, River == "Kusko") %>% pull(Total_Run)
-# kusko_esc2020 <- allEsc %>% filter(Year == 2020, River == "Kusko") %>% pull(Total_Run)
-# kusko_esc2021 <- allEsc %>% filter(Year == 2021, River == "Kusko") %>% pull(Total_Run)
-# kusko_esc2022 <- allEsc %>% filter(Year == 2022, River == "Kusko") %>% pull(Total_Run)
-# 
-
-kusko_esc2017 <- allEsc %>% filter(Year == 2017, River == "Kusko") %>% pull(Escapement)
-kusko_esc2018 <- allEsc %>% filter(Year == 2018, River == "Kusko") %>% pull(Escapement)
-kusko_esc2019 <- allEsc %>% filter(Year == 2019, River == "Kusko") %>% pull(Escapement)
-kusko_esc2020 <- allEsc %>% filter(Year == 2020, River == "Kusko") %>% pull(Escapement)
-kusko_esc2021 <- allEsc %>% filter(Year == 2021, River == "Kusko") %>% pull(Escapement)
-kusko_esc2022 <- allEsc %>% filter(Year == 2022, River == "Kusko") %>% pull(Escapement)
-
-
+kusko_esc2017 <- allEsc %>% filter(Year == 2017, River == "Kusko") %>% pull(Total_Run)
+kusko_esc2018 <- allEsc %>% filter(Year == 2018, River == "Kusko") %>% pull(Total_Run)
+kusko_esc2019 <- allEsc %>% filter(Year == 2019, River == "Kusko") %>% pull(Total_Run)
+kusko_esc2020 <- allEsc %>% filter(Year == 2020, River == "Kusko") %>% pull(Total_Run)
+kusko_esc2021 <- allEsc %>% filter(Year == 2021, River == "Kusko") %>% pull(Total_Run)
+kusko_esc2022 <- allEsc %>% filter(Year == 2022, River == "Kusko") %>% pull(Total_Run)
 kusko_esc_all <- c(kusko_esc2017, kusko_esc2018, kusko_esc2019, kusko_esc2020, kusko_esc2021, kusko_esc2022)
 
 # ============================================================
@@ -103,8 +93,7 @@ kusko_trib_summary <- kusko_prod_df %>%
       stream_order %in% c(7, 8) ~ "Mainstem (7-8)",
       TRUE ~ paste0("Order ", stream_order)
     )
-  ) %>%
-  mutate(order_label = fct_relevel(order_label, "Mainstem (7-8)", after = Inf))
+  )
 
 # ============================================================
 # BASIN-WIDE CV (for reference line)
@@ -156,6 +145,7 @@ p_strip <- ggplot(kusko_valid, aes(x = order_label, y = cv_prod, color = order_l
   annotate("text", x = 0.5, y = basin_cv_kusko,
            label = paste0("Basin CV = ", round(basin_cv_kusko, 3)),
            hjust = 0, size = 3.5, fontface = "bold", color = "red") +
+  coord_cartesian(ylim = c(0, 0.5)) +
   scale_color_discrete(name = "Stream Order") +
   scale_size_continuous(name = "Mean Production", range = c(1, 8)) +
   labs(x = "Stream Order", y = "Coefficient of Variation",
@@ -165,102 +155,3 @@ p_strip <- ggplot(kusko_valid, aes(x = order_label, y = cv_prod, color = order_l
   guides(color = "none")
 
 p_strip
-
-
-################################################################
-# Same figure but clipped to .6 
-
-p_strip_clipped <- p_strip +
-  coord_cartesian(ylim = c(0, 0.6))
-
-p_strip_clipped
-
-
-
-# ============================================================
-# REACH-SCALE ANALYSIS (no tributary aggregation)
-# ============================================================
-
-# Build reach-level summary (one row per reach)
-kusko_reach_summary <- kusko_prod_df %>%
-  mutate(
-    order_label = case_when(
-      Strahler %in% c(7, 8) ~ "Mainstem (7-8)",
-      TRUE ~ paste0("Order ", Strahler)
-    )
-  ) %>%
-  rowwise() %>%
-  mutate(
-    mean_prod = mean(c(prod_2017, prod_2018, prod_2019, prod_2020, prod_2021, prod_2022)),
-    sd_prod   = sd(c(prod_2017, prod_2018, prod_2019, prod_2020, prod_2021, prod_2022)),
-    cv_prod   = sd_prod / mean_prod
-  ) %>%
-  ungroup() %>%
-  mutate(order_label = fct_relevel(order_label, "Mainstem (7-8)", after = Inf))
-
-# Filter out reaches with NaN CV (zero production)
-kusko_reach_valid <- kusko_reach_summary %>% filter(!is.nan(cv_prod))
-
-cat("--- Kuskokwim (reach-scale) ---\n")
-cat("Basin-wide CV:  ", round(basin_cv_kusko, 4), "\n")
-cat("Total reaches:  ", nrow(kusko_reach_valid), "\n")
-cat("Mean CV:        ", round(mean(kusko_reach_valid$cv_prod), 4), "\n\n")
-
-# Production-weighted mean CV by stream order (reach scale)
-weighted_cv_by_order_reach <- kusko_reach_valid %>%
-  group_by(order_label) %>%
-  summarise(
-    n_reaches   = n(),
-    mean_cv     = mean(cv_prod),
-    median_cv   = median(cv_prod),
-    weighted_cv = sum((mean_prod / sum(mean_prod)) * cv_prod),
-    .groups     = "drop"
-  )
-
-cat("--- Production-weighted mean CV by stream order (reach scale) ---\n")
-print(weighted_cv_by_order_reach)
-cat("\n")
-
-# ============================================================
-# VISUALIZATION — Reach-scale strip chart
-# ============================================================
-
-p_strip_reach <- ggplot(kusko_reach_valid, aes(x = order_label, y = cv_prod, color = order_label)) +
-  geom_jitter(aes(size = mean_prod), alpha = 0.7, width = 0.2) +
-  geom_point(data = weighted_cv_by_order_reach,
-             aes(x = order_label, y = weighted_cv),
-             shape = 18, size = 5, color = "black", inherit.aes = FALSE) +
-  geom_hline(yintercept = basin_cv_kusko, linetype = "dashed",
-             color = "red", linewidth = 0.9) +
-  annotate("text", x = 0.5, y = basin_cv_kusko,
-           label = paste0("Basin CV = ", round(basin_cv_kusko, 3)),
-           hjust = 0, size = 3.5, fontface = "bold", color = "red") +
-  scale_color_discrete(name = "Stream Order") +
-  scale_size_continuous(name = "Mean Production", range = c(1, 8)) +
-  labs(x = "Stream Order", y = "Coefficient of Variation",
-       title = "Kuskokwim — CV of Production by Reach",
-       subtitle = "Black diamonds = production-weighted mean CV per stream order") +
-  cv_theme +
-  guides(color = "none")
-
-p_strip_reach
-
-p_strip_reach <- ggplot(kusko_reach_valid, aes(x = order_label, y = cv_prod, color = order_label)) +
-  geom_jitter(aes(size = mean_prod), alpha = 0.2, width = 0.25) +
-  geom_point(data = weighted_cv_by_order_reach,
-             aes(x = order_label, y = weighted_cv),
-             shape = 18, size = 1, color = "black", inherit.aes = FALSE) +
-  geom_hline(yintercept = basin_cv_kusko, linetype = "dashed",
-             color = "red", linewidth = 0.9) +
-  annotate("text", x = 0.5, y = basin_cv_kusko * 1.15,
-           label = paste0("Basin CV = ", round(basin_cv_kusko, 3)),
-           hjust = 0, size = 3.5, fontface = "bold", color = "red") +
-  scale_y_log10() +
-  scale_color_discrete(name = "Stream Order") +
-  scale_size_continuous(name = "Mean Production", range = c(1, 8)) +
-  labs(x = "Stream Order", y = "Coefficient of Variation (log scale)",
-       title = "Kuskokwim — CV of Production by Reach",
-       subtitle = "Black diamonds = production-weighted mean CV per stream order") +
-  cv_theme +
-  guides(color = "none")
-
