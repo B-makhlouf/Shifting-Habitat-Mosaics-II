@@ -17,6 +17,7 @@ suppressPackageStartupMessages({
   library(RColorBrewer)
   library(readxl)
   library(tibble)
+  library(tidyr)
   library(here)
 })
 
@@ -33,6 +34,7 @@ PATHS <- list(
   # ── Data inputs ───────────────────────────────────────────
   natal_data_dir = here("Data","Natal Origins"),
   runsize_data = here("Data","AYKEscapement.xlsx"),
+  daily_genetics = here("Data", "Genetics", "daily_genetic_proportions.csv"),
   
   # ── Outputs ───────────────────────────────────────────────
   output_kusko = here("Outputs", "ProductionData", "Kusko"),
@@ -49,6 +51,23 @@ MAP_OUTPUT_DIR_YUKON_FULL <- here("Figures", "Maps", "Yukon_full")
 # Analysis parameters
 kusko_years <- c(2017, 2018, 2019, 2020, 2021, 2022)
 yukon_years <- c(2015, 2016, 2018, 2021)
+
+# ==============================================================================
+# LOAD DAILY GENETIC PROPORTIONS LOOKUP (Yukon only)
+# Columns: sampleYear, DOY, genetic_assignment (Lower/Middle/Upper), n, proportion
+# Used to impute genetic values for fish missing individual genetics
+# ==============================================================================
+daily_gen_long <- read_csv(PATHS$daily_genetics, show_col_types = FALSE)
+
+# Pivot to wide format: one row per sampleYear x DOY, columns Lower/Middle/Upper
+daily_gen_wide <- daily_gen_long %>%
+  select(sampleYear, DOY, genetic_assignment, proportion) %>%
+  pivot_wider(names_from = genetic_assignment, values_from = proportion,
+              values_fill = 0) %>%
+  rename(year = sampleYear,
+         avg_Lower  = Lower,
+         avg_Middle = Middle,
+         avg_Upper  = Upper)
 
 # ==============================================================================
 # ANALYSIS 1: KUSKOKWIM
@@ -281,6 +300,15 @@ for (year in yukon_years) {
       show_col_types = FALSE
     )
     
+    # ── Impute missing genetics from daily averages ──────────
+    # Fish missing Upper (NA) get the daily average Upper proportion for that DOY/year
+    daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
+    
+    natal_data_raw <- natal_data_raw %>%
+      left_join(daily_gen_year %>% select(DOY, avg_Upper), by = "DOY") %>%
+      mutate(Upper = ifelse(is.na(Upper), avg_Upper, Upper)) %>%
+      select(-avg_Upper)
+    
     natal_data <- natal_data_raw %>%
       filter(!is.na(Upper), !is.na(natal_iso), !is.na(dailyCPUEprop))
     
@@ -490,6 +518,18 @@ for (year in yukon_years) {
       file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
     )
+    
+    # ── Impute missing genetics from daily averages ──────────
+    # Fish missing Lower or Middle (NA) get the daily average proportions for that DOY/year
+    daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
+    
+    natal_data_raw <- natal_data_raw %>%
+      left_join(daily_gen_year %>% select(DOY, avg_Lower, avg_Middle), by = "DOY") %>%
+      mutate(
+        Lower  = ifelse(is.na(Lower),  avg_Lower,  Lower),
+        Middle = ifelse(is.na(Middle), avg_Middle, Middle)
+      ) %>%
+      select(-avg_Lower, -avg_Middle)
     
     natal_data <- natal_data_raw %>%
       filter(!is.na(Lower), !is.na(Middle), !is.na(natal_iso), !is.na(dailyCPUEprop))
@@ -709,6 +749,19 @@ for (year in yukon_years) {
       file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
     )
+    
+    # ── Impute missing genetics from daily averages ──────────
+    # Fish missing Lower, Middle, or Upper (NA) get the daily average proportions for that DOY/year
+    daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
+    
+    natal_data_raw <- natal_data_raw %>%
+      left_join(daily_gen_year %>% select(DOY, avg_Lower, avg_Middle, avg_Upper), by = "DOY") %>%
+      mutate(
+        Lower  = ifelse(is.na(Lower),  avg_Lower,  Lower),
+        Middle = ifelse(is.na(Middle), avg_Middle, Middle),
+        Upper  = ifelse(is.na(Upper),  avg_Upper,  Upper)
+      ) %>%
+      select(-avg_Lower, -avg_Middle, -avg_Upper)
     
     natal_data <- natal_data_raw %>%
       filter(!is.na(Lower), !is.na(Middle), !is.na(Upper), !is.na(natal_iso), !is.na(dailyCPUEprop))
