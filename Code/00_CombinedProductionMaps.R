@@ -16,6 +16,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(RColorBrewer)
   library(readxl)
+  library(tibble)
   library(here)
 })
 
@@ -80,15 +81,42 @@ for (year in kusko_years) {
     cat(paste("  Loaded", nrow(edges), "stream segments\n"))
     
     # ── Load natal data ──────────────────────────────────────
-    natal_data <- read_csv(
+    natal_data_raw <- read_csv(
       file.path(PATHS$natal_data_dir, paste0(year, "_Kusko_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
-    ) %>%
+    )
+    
+    natal_data <- natal_data_raw %>%
       filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
     
     cat(paste("  Observations:", nrow(natal_data), "\n"))
     
     if (nrow(natal_data) == 0) stop("No data available!")
+    
+    # ── Calculate stratum weights ────────────────────────────
+    unique_days <- sort(unique(natal_data_raw$DOY))
+    ndays       <- length(unique_days)
+    strata_size <- ceiling(ndays / 5)
+    
+    day_strata <- tibble(
+      DOY    = unique_days,
+      strata = rep(1:5, each = strata_size, length.out = ndays)
+    )
+    
+    strata_summary <- natal_data_raw %>%
+      distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+      left_join(day_strata, by = "DOY") %>%
+      group_by(strata) %>%
+      summarise(
+        cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+        oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      mutate(weight = cpue_sum / oto_sum)
+    
+    natal_data <- natal_data %>%
+      left_join(day_strata, by = "DOY") %>%
+      left_join(strata_summary %>% select(strata, weight), by = "strata")
     
     # ── Calculate error ──────────────────────────────────────
     pid_iso <- edges$iso_pred
@@ -120,7 +148,7 @@ for (year in kusko_years) {
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
       assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
-      assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
+      assignment_matrix[,i] <- assign_rescaled * natal_data$weight[i]
     }
     
     # ── Process results ──────────────────────────────────────
@@ -248,15 +276,42 @@ for (year in yukon_years) {
     cat(paste("  Loaded", nrow(edges), "stream segments (Upper only)\n"))
     
     # ── Load natal data ──────────────────────────────────────
-    natal_data <- read_csv(
+    natal_data_raw <- read_csv(
       file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
-    ) %>%
+    )
+    
+    natal_data <- natal_data_raw %>%
       filter(!is.na(Upper), !is.na(natal_iso), !is.na(dailyCPUEprop))
     
     cat(paste("  Observations:", nrow(natal_data), "\n"))
     
     if (nrow(natal_data) == 0) stop("No data available!")
+    
+    # ── Calculate stratum weights ────────────────────────────
+    unique_days <- sort(unique(natal_data_raw$DOY))
+    ndays       <- length(unique_days)
+    strata_size <- ceiling(ndays / 5)
+    
+    day_strata <- tibble(
+      DOY    = unique_days,
+      strata = rep(1:5, each = strata_size, length.out = ndays)
+    )
+    
+    strata_summary <- natal_data_raw %>%
+      distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+      left_join(day_strata, by = "DOY") %>%
+      group_by(strata) %>%
+      summarise(
+        cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+        oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      mutate(weight = cpue_sum / oto_sum)
+    
+    natal_data <- natal_data %>%
+      left_join(day_strata, by = "DOY") %>%
+      left_join(strata_summary %>% select(strata, weight), by = "strata")
     
     # ── Calculate error ──────────────────────────────────────
     pid_iso <- edges$iso_pred
@@ -291,7 +346,7 @@ for (year in yukon_years) {
       assign_rescaled <- assign_norm / max(assign_norm)
       assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
       
-      assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
+      assignment_matrix[,i] <- assign_rescaled * natal_data$weight[i]
     }
     
     # ── Process results ──────────────────────────────────────
@@ -431,15 +486,42 @@ for (year in yukon_years) {
     cat(paste("  Middle sites:", length(MYsites_filtered), "\n"))
     
     # ── Load natal data ──────────────────────────────────────
-    natal_data <- read_csv(
+    natal_data_raw <- read_csv(
       file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
-    ) %>%
+    )
+    
+    natal_data <- natal_data_raw %>%
       filter(!is.na(Lower), !is.na(Middle), !is.na(natal_iso), !is.na(dailyCPUEprop))
     
     cat(paste("  Observations:", nrow(natal_data), "\n"))
     
     if (nrow(natal_data) == 0) stop("No data available!")
+    
+    # ── Calculate stratum weights ────────────────────────────
+    unique_days <- sort(unique(natal_data_raw$DOY))
+    ndays       <- length(unique_days)
+    strata_size <- ceiling(ndays / 5)
+    
+    day_strata <- tibble(
+      DOY    = unique_days,
+      strata = rep(1:5, each = strata_size, length.out = ndays)
+    )
+    
+    strata_summary <- natal_data_raw %>%
+      distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+      left_join(day_strata, by = "DOY") %>%
+      group_by(strata) %>%
+      summarise(
+        cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+        oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      mutate(weight = cpue_sum / oto_sum)
+    
+    natal_data <- natal_data %>%
+      left_join(day_strata, by = "DOY") %>%
+      left_join(strata_summary %>% select(strata, weight), by = "strata")
     
     # ── Calculate error ──────────────────────────────────────
     pid_iso <- edges$iso_pred
@@ -483,7 +565,7 @@ for (year in yukon_years) {
       assign_rescaled <- assign_norm / max(assign_norm)
       assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
       
-      assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
+      assignment_matrix[,i] <- assign_rescaled * natal_data$weight[i]
     }
     
     # ── Process results ──────────────────────────────────────
@@ -526,7 +608,7 @@ for (year in yukon_years) {
     cat(paste("  ✓ Exported:", filepath, "\n"))
     
     # ── Create map ───────────────────────────────────────────
-
+    
     palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
     
     colcode <- rep("gray90", length(basin_assign_norm))
@@ -623,15 +705,42 @@ for (year in yukon_years) {
     cat(paste("  Upper sites:", length(UYsites), "\n"))
     
     # ── Load natal data ──────────────────────────────────────
-    natal_data <- read_csv(
+    natal_data_raw <- read_csv(
       file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
-    ) %>%
+    )
+    
+    natal_data <- natal_data_raw %>%
       filter(!is.na(Lower), !is.na(Middle), !is.na(Upper), !is.na(natal_iso), !is.na(dailyCPUEprop))
     
     cat(paste("  Observations:", nrow(natal_data), "\n"))
     
     if (nrow(natal_data) == 0) stop("No data available!")
+    
+    # ── Calculate stratum weights ────────────────────────────
+    unique_days <- sort(unique(natal_data_raw$DOY))
+    ndays       <- length(unique_days)
+    strata_size <- ceiling(ndays / 5)
+    
+    day_strata <- tibble(
+      DOY    = unique_days,
+      strata = rep(1:5, each = strata_size, length.out = ndays)
+    )
+    
+    strata_summary <- natal_data_raw %>%
+      distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+      left_join(day_strata, by = "DOY") %>%
+      group_by(strata) %>%
+      summarise(
+        cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+        oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      mutate(weight = cpue_sum / oto_sum)
+    
+    natal_data <- natal_data %>%
+      left_join(day_strata, by = "DOY") %>%
+      left_join(strata_summary %>% select(strata, weight), by = "strata")
     
     # ── Calculate error ──────────────────────────────────────
     pid_iso <- edges$iso_pred
@@ -670,7 +779,7 @@ for (year in yukon_years) {
       assign_rescaled <- assign_norm / max(assign_norm)
       assign_rescaled[assign_rescaled < sensitivity_threshold] <- 0
       
-      assignment_matrix[,i] <- assign_rescaled * as.numeric(natal_data$COratio[i])
+      assignment_matrix[,i] <- assign_rescaled * natal_data$weight[i]
     }
     
     # ── Process results ──────────────────────────────────────
@@ -730,7 +839,7 @@ for (year in yukon_years) {
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
     colcode[basin_assign_norm > 0.9] <- palette[10]
-
+    
     
     # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette[3]
     # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette[4]
