@@ -1,8 +1,8 @@
 ################################################################################
 # COMBINED YUKON + KUSKOKWIM — TEMPERATURE vs SLOPE CONTOUR PLOTS
-# 
+#
 # Goal: Create contour plots showing temperature vs slope relationships for
-#       high-productivity habitat (normalized production >= 0.7) from BOTH 
+#       high-productivity habitat (normalized production >= 0.7) from BOTH
 #       basins on the same plot.
 #       Uses first 50% of CPUE run timing.
 #       Temperature sampling every 3 days (Blaskey NetCDF stream temp).
@@ -12,6 +12,11 @@
 #         Column 1 = Stream Temperature (Blaskey) vs Slope
 #         Column 2 = SNAP Air Temperature vs Slope
 #         Years as rows, year labels on left
+#
+# Production calculation matches regional analysis exactly:
+#   - Strata-based CPUE weights (5 strata over full run, applied to 50% subset)
+#   - Kusko: per-reach isose with 0.0006 floor + Spawner_IP prior
+#   - Yukon: mean isose + Porc_off prior + genetic imputation from daily averages
 ################################################################################
 
 
@@ -60,6 +65,7 @@ PATHS <- list(
   # Data inputs
   natal_data_dir = here("Data", "Natal Origins"),
   cpue_data_dir  = here("Data", "CPUE"),
+  daily_genetics = here("Data", "Genetics", "daily_genetic_proportions.csv"),
   
   # Outputs
   output_figures = here("Figures", "ContourPlots")
@@ -76,13 +82,13 @@ PRODUCTION_THRESHOLD <- 0.7
 
 # Basin-specific parameters
 KUSKO_PARAMS <- list(
-  min_stream_order      = 3,
+  min_stream_order      = 4,
+  min_error             = 0.0006,
   sensitivity_threshold = 0.7
 )
 
 YUKON_PARAMS <- list(
-  min_stream_order      = 4,
-  min_error             = 0.0035,
+  min_stream_order      = 5,
   sensitivity_threshold = 0.0
 )
 
@@ -95,7 +101,6 @@ cat("\n================================================================\n")
 cat("PART 1: EXTRACTING DAILY STREAM TEMPERATURE\n")
 cat("================================================================\n")
 
-# Function to extract temperature data for a basin
 extract_temp_data <- function(nc_dir, basin_name) {
   nc_temp_files <- list.files(
     nc_dir,
@@ -135,7 +140,7 @@ extract_temp_data <- function(nc_dir, basin_name) {
     )
   }
   
-  temp_daily <- bind_rows(temp_daily_list) %>% 
+  temp_daily <- bind_rows(temp_daily_list) %>%
     distinct(COMID, date, .keep_all = TRUE)
   
   cat("  ", basin_name, "temperature rows:", nrow(temp_daily), "\n")
@@ -143,7 +148,6 @@ extract_temp_data <- function(nc_dir, basin_name) {
   return(temp_daily)
 }
 
-# Extract temperature for both basins
 kusko_temp_daily <- extract_temp_data(PATHS$kusko_nc_temp_dir, "Kuskokwim")
 yukon_temp_daily <- extract_temp_data(PATHS$yukon_nc_temp_dir, "Yukon")
 
@@ -160,7 +164,6 @@ cat("================================================================\n")
 kusko_edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
 kusko_basin <- st_read(PATHS$kusko_basin, quiet = TRUE)
 kusko_edges <- st_transform(kusko_edges, st_crs(kusko_basin))
-kusko_shp   <- st_drop_geometry(kusko_edges)
 
 cat("  Kuskokwim stream segments:", nrow(kusko_edges), "\n")
 
@@ -168,7 +171,6 @@ cat("  Kuskokwim stream segments:", nrow(kusko_edges), "\n")
 yukon_edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
 yukon_basin <- st_read(PATHS$yukon_basin, quiet = TRUE)
 yukon_edges <- st_transform(yukon_edges, st_crs(yukon_basin))
-yukon_shp   <- st_drop_geometry(yukon_edges)
 
 # Load genetic regions
 ly_gen <- st_read(PATHS$yukon_ly_gen, quiet = TRUE)
@@ -185,8 +187,24 @@ MYsites <- which(yukon_edges$GenLMU == "middle")
 UYsites <- which(yukon_edges$GenLMU == "upper")
 
 cat("  Yukon stream segments:", nrow(yukon_edges), "\n")
-cat("    Lower:", length(LYsites), "| Middle:", length(MYsites), 
+cat("    Lower:", length(LYsites), "| Middle:", length(MYsites),
     "| Upper:", length(UYsites), "\n")
+
+# ==============================================================================
+# Load daily genetic proportions for Yukon imputation
+# (computed on full run; applied before 50% CPUE filter)
+# ==============================================================================
+daily_gen_long <- read_csv(PATHS$daily_genetics, show_col_types = FALSE)
+
+daily_gen_wide <- daily_gen_long %>%
+  select(sampleYear, DOY, genetic_assignment, proportion) %>%
+  pivot_wider(names_from  = genetic_assignment,
+              values_from = proportion,
+              values_fill = 0) %>%
+  rename(year       = sampleYear,
+         avg_Lower  = Lower,
+         avg_Middle = Middle,
+         avg_Upper  = Upper)
 
 
 ################################################################################
@@ -209,44 +227,76 @@ for (yr in YEARS) {
   
   cat("\n  KUSKOKWIM:\n")
   
-  # Load natal data
+  # ── Load natal data ──────────────────────────────────────────────────────────
   kusko_natal_raw <- read_csv(
-    file.path(PATHS$natal_data_dir, paste0(yr, "_Kusko_Natal_Origins_Genetics_CPUE.csv")),
+    file.path(PATHS$natal_data_dir,
+              paste0(yr, "_Kusko_Natal_Origins_Genetics_CPUE.csv")),
     show_col_types = FALSE
   ) %>%
     filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
   
-  # Apply 50% CPUE cutoff
+  # ── 50% CPUE cutoff ──────────────────────────────────────────────────────────
   kusko_cpue_raw <- read_csv(
     file.path(PATHS$cpue_data_dir, paste0("Kusko_CPUE_", yr, ".csv")),
     show_col_types = FALSE
   ) %>%
     filter(!is.na(Date), !is.na(cumCPUE))
   
-  kusko_total_cpue <- max(kusko_cpue_raw$cumCPUE, na.rm = TRUE)
-  kusko_cutoff_date <- max(kusko_cpue_raw$Date[kusko_cpue_raw$cumCPUE <= kusko_total_cpue/2])
-  kusko_cutoff_doy <- as.numeric(format(as.Date(kusko_cutoff_date), "%j"))
-  
-  kusko_natal <- kusko_natal_raw %>% filter(DOY <= kusko_cutoff_doy)
+  kusko_total_cpue  <- max(kusko_cpue_raw$cumCPUE, na.rm = TRUE)
+  kusko_cutoff_date <- max(kusko_cpue_raw$Date[kusko_cpue_raw$cumCPUE <= kusko_total_cpue / 2])
+  kusko_cutoff_doy  <- as.numeric(format(as.Date(kusko_cutoff_date), "%j"))
   
   cat("    50% CPUE cutoff DOY:", kusko_cutoff_doy, "\n")
-  cat("    Natal observations:", nrow(kusko_natal), "\n")
   
-  # Calculate error and priors
-  kusko_pid_iso <- kusko_edges$iso_pred
-  kusko_pid_isose <- kusko_edges$isose_pred
-  kusko_pid_isose_mod <- rep(mean(kusko_pid_isose, na.rm = TRUE), length(kusko_pid_isose))
-  kusko_error <- sqrt(kusko_pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
+  # ── Strata weights (built from FULL run, then applied to 50% subset) ─────────
+  kusko_unique_days <- sort(unique(kusko_natal_raw$DOY))
+  kusko_ndays       <- length(kusko_unique_days)
+  kusko_strata_size <- ceiling(kusko_ndays / 5)
   
+  kusko_day_strata <- tibble(
+    DOY    = kusko_unique_days,
+    strata = rep(1:5, each = kusko_strata_size, length.out = kusko_ndays)
+  )
+  
+  kusko_strata_summary <- kusko_natal_raw %>%
+    distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+    left_join(kusko_day_strata, by = "DOY") %>%
+    group_by(strata) %>%
+    summarise(
+      cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+      oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+      .groups  = "drop"
+    ) %>%
+    mutate(weight = cpue_sum / oto_sum)
+  
+  # Apply 50% cutoff and join weights
+  kusko_natal <- kusko_natal_raw %>%
+    filter(DOY <= kusko_cutoff_doy) %>%
+    left_join(kusko_day_strata,                              by = "DOY") %>%
+    left_join(kusko_strata_summary %>% select(strata, weight), by = "strata")
+  
+  cat("    Natal observations (50% window):", nrow(kusko_natal), "\n")
+  
+  # ── Error (per-reach isose with floor) ───────────────────────────────────────
+  kusko_pid_iso       <- kusko_edges$iso_pred
+  kusko_pid_isose     <- kusko_edges$isose_pred
+  kusko_pid_isose_mod <- ifelse(kusko_pid_isose < KUSKO_PARAMS$min_error,
+                                KUSKO_PARAMS$min_error,
+                                kusko_pid_isose)
+  kusko_error <- sqrt(kusko_pid_isose_mod^2 +
+                        (0.0003133684 / 1.96)^2 +
+                        (0.00011 / 2)^2)
+  
+  # ── Priors ───────────────────────────────────────────────────────────────────
   kusko_StreamOrderPrior <- ifelse(kusko_edges$Str_Order >= KUSKO_PARAMS$min_stream_order, 1, 0)
-  kusko_PresencePrior <- ifelse((kusko_edges$Str_Order %in% c(6, 7)) & 
-                                  kusko_edges$SPAWNING_C == 0, 0, 1)
-  kusko_NewHabitatPrior <- ifelse(kusko_edges$Channel_sl > 2.5, 0, 1)
-  kusko_pid_prior <- kusko_edges$UniPh2oNoE
+  kusko_PresencePrior    <- ifelse((kusko_edges$Str_Order %in% c(6, 7)) &
+                                     kusko_edges$SPAWNING_C == 0, 0, 1)
+  kusko_NewHabitatPrior  <- ifelse(kusko_edges$Spawner_IP < 0.3, 0, 1)   # Spawner_IP, not Channel_sl
+  kusko_pid_prior        <- kusko_edges$UniPh2oNoE
   
-  # Bayesian assignment
-  n_kusko_segments <- nrow(kusko_edges)
-  n_kusko_fish <- nrow(kusko_natal)
+  # ── Bayesian assignment ──────────────────────────────────────────────────────
+  n_kusko_segments        <- nrow(kusko_edges)
+  n_kusko_fish            <- nrow(kusko_natal)
   kusko_assignment_matrix <- matrix(0, nrow = n_kusko_segments, ncol = n_kusko_fish)
   
   for (i in 1:n_kusko_fish) {
@@ -257,46 +307,45 @@ for (yr in YEARS) {
       kusko_StreamOrderPrior * kusko_PresencePrior *
       kusko_pid_prior * kusko_NewHabitatPrior
     
-    assign_norm <- assign / sum(assign)
+    assign_norm     <- assign / sum(assign)
     assign_rescaled <- assign_norm / max(assign_norm)
     assign_rescaled[assign_rescaled < KUSKO_PARAMS$sensitivity_threshold] <- 0
     
-    kusko_assignment_matrix[, i] <- assign_rescaled * as.numeric(kusko_natal$COratio[i])
+    kusko_assignment_matrix[, i] <- assign_rescaled * kusko_natal$weight[i]
   }
   
   kusko_basin_assign_sum <- apply(kusko_assignment_matrix, 1, sum, na.rm = TRUE)
-  kusko_assign_norm <- kusko_basin_assign_sum / max(kusko_basin_assign_sum, na.rm = TRUE)
+  kusko_assign_norm      <- kusko_basin_assign_sum / max(kusko_basin_assign_sum, na.rm = TRUE)
   
-  n_above_threshold <- sum(kusko_assign_norm >= PRODUCTION_THRESHOLD)
-  cat("    Segments with production >= 0.7:", n_above_threshold, "\n")
+  cat("    Segments with production >= 0.7:",
+      sum(kusko_assign_norm >= PRODUCTION_THRESHOLD), "\n")
   
-  # Temperature matching (every 3 days)
-  date_col <- if ("date" %in% names(kusko_natal)) "date" else "Date"
-  kusko_natal[[date_col]] <- as.Date(kusko_natal[[date_col]])
-  kusko_date_range <- range(kusko_natal[[date_col]], na.rm = TRUE)
-  kusko_date_seq <- seq(kusko_date_range[1], kusko_date_range[2], by = TEMP_INTERVAL_DAYS)
+  # ── Temperature matching (every 3 days, within 50% window dates) ─────────────
+  date_col_k            <- if ("date" %in% names(kusko_natal)) "date" else "Date"
+  kusko_natal[[date_col_k]] <- as.Date(kusko_natal[[date_col_k]])
+  kusko_date_range      <- range(kusko_natal[[date_col_k]], na.rm = TRUE)
+  kusko_date_seq        <- seq(kusko_date_range[1], kusko_date_range[2],
+                               by = TEMP_INTERVAL_DAYS)
   
-  kusko_temp_subset <- kusko_temp_daily %>%
-    filter(date %in% kusko_date_seq)
-  
-  kusko_mean_temp <- kusko_temp_subset %>%
+  kusko_mean_temp <- kusko_temp_daily %>%
+    filter(date %in% kusko_date_seq) %>%
     group_by(COMID) %>%
     summarise(mean_summer_temp = mean(value, na.rm = TRUE), .groups = "drop")
   
-  # Build Kusko results — include SNAP temp from shapefile
+  # ── Build result ─────────────────────────────────────────────────────────────
   kusko_snap_col <- paste0("SnapTp", yr)
   
   kusko_result <- st_drop_geometry(kusko_edges) %>%
     mutate(
       Production = kusko_assign_norm,
-      Basin = "Kuskokwim",
-      year = yr
+      Basin      = "Kuskokwim",
+      year       = yr
     ) %>%
     left_join(kusko_mean_temp, by = "COMID") %>%
     rename(SNAP_temp = !!sym(kusko_snap_col)) %>%
     filter(Production >= PRODUCTION_THRESHOLD)
   
-  cat("    Reaches with production >= 0.7 and temperature:", nrow(kusko_result), "\n")
+  cat("    Reaches in final dataset:", nrow(kusko_result), "\n")
   
   
   # ============================================================================
@@ -305,43 +354,89 @@ for (yr in YEARS) {
   
   cat("\n  YUKON:\n")
   
-  # Load natal data
+  # ── Load natal data ──────────────────────────────────────────────────────────
   yukon_natal_raw <- read_csv(
-    file.path(PATHS$natal_data_dir, paste0(yr, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
+    file.path(PATHS$natal_data_dir,
+              paste0(yr, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
     show_col_types = FALSE
   ) %>%
-    filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
+    filter(!is.na(natal_iso), !is.na(dailyCPUEprop))
   
-  # Apply 50% CPUE cutoff
+  # ── Impute missing genetics BEFORE applying 50% cutoff ──────────────────────
+  # (so strata weights also see the imputed full-run data)
+  daily_gen_year <- daily_gen_wide %>% filter(year == yr)
+  
+  yukon_natal_raw <- yukon_natal_raw %>%
+    left_join(daily_gen_year %>% select(DOY, avg_Lower, avg_Middle, avg_Upper),
+              by = "DOY") %>%
+    mutate(
+      Lower  = ifelse(is.na(Lower),  avg_Lower,  Lower),
+      Middle = ifelse(is.na(Middle), avg_Middle, Middle),
+      Upper  = ifelse(is.na(Upper),  avg_Upper,  Upper)
+    ) %>%
+    select(-avg_Lower, -avg_Middle, -avg_Upper)
+  
+  # ── 50% CPUE cutoff ──────────────────────────────────────────────────────────
   yukon_cpue_raw <- read_csv(
     file.path(PATHS$cpue_data_dir, paste0("Yukon_CPUE_", yr, ".csv")),
     show_col_types = FALSE
   ) %>%
     filter(!is.na(Date), !is.na(cumCPUE))
   
-  yukon_total_cpue <- max(yukon_cpue_raw$cumCPUE, na.rm = TRUE)
-  yukon_cutoff_date <- max(yukon_cpue_raw$Date[yukon_cpue_raw$cumCPUE <= yukon_total_cpue/2])
-  yukon_cutoff_doy <- as.numeric(format(as.Date(yukon_cutoff_date), "%j"))
-  
-  yukon_natal <- yukon_natal_raw %>% filter(DOY <= yukon_cutoff_doy)
+  yukon_total_cpue  <- max(yukon_cpue_raw$cumCPUE, na.rm = TRUE)
+  yukon_cutoff_date <- max(yukon_cpue_raw$Date[yukon_cpue_raw$cumCPUE <= yukon_total_cpue / 2])
+  yukon_cutoff_doy  <- as.numeric(format(as.Date(yukon_cutoff_date), "%j"))
   
   cat("    50% CPUE cutoff DOY:", yukon_cutoff_doy, "\n")
-  cat("    Natal observations:", nrow(yukon_natal), "\n")
   
-  # Calculate error and priors
-  yukon_pid_iso <- yukon_edges$iso_pred
-  yukon_pid_isose <- yukon_edges$isose_pred
-  yukon_pid_isose_mod <- ifelse(yukon_pid_isose < YUKON_PARAMS$min_error,
-                                YUKON_PARAMS$min_error, yukon_pid_isose)
-  yukon_error <- sqrt(yukon_pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
+  # ── Strata weights (built from FULL run after imputation) ────────────────────
+  yukon_unique_days <- sort(unique(yukon_natal_raw$DOY))
+  yukon_ndays       <- length(yukon_unique_days)
+  yukon_strata_size <- ceiling(yukon_ndays / 5)
   
+  yukon_day_strata <- tibble(
+    DOY    = yukon_unique_days,
+    strata = rep(1:5, each = yukon_strata_size, length.out = yukon_ndays)
+  )
+  
+  yukon_strata_summary <- yukon_natal_raw %>%
+    distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+    left_join(yukon_day_strata, by = "DOY") %>%
+    group_by(strata) %>%
+    summarise(
+      cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+      oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+      .groups  = "drop"
+    ) %>%
+    mutate(weight = cpue_sum / oto_sum)
+  
+  # Apply 50% cutoff, drop rows still missing genetics after imputation, join weights
+  yukon_natal <- yukon_natal_raw %>%
+    filter(!is.na(Lower), !is.na(Middle), !is.na(Upper),
+           DOY <= yukon_cutoff_doy) %>%
+    left_join(yukon_day_strata,                              by = "DOY") %>%
+    left_join(yukon_strata_summary %>% select(strata, weight), by = "strata")
+  
+  cat("    Natal observations (50% window):", nrow(yukon_natal), "\n")
+  
+  # ── Error (mean isose across all reaches — matches Yukon regional analyses) ───
+  yukon_pid_iso       <- yukon_edges$iso_pred
+  yukon_pid_isose     <- yukon_edges$isose_pred
+  yukon_pid_isose_mod <- rep(mean(yukon_pid_isose, na.rm = TRUE),
+                             length(yukon_pid_isose))
+  yukon_error <- sqrt(yukon_pid_isose_mod^2 +
+                        (0.0003133684 / 1.96)^2 +
+                        (0.00011 / 2)^2)
+  
+  # ── Priors ───────────────────────────────────────────────────────────────────
   yukon_StreamOrderPrior <- ifelse(yukon_edges$Str_Order >= YUKON_PARAMS$min_stream_order, 1, 0)
-  yukon_PresencePrior <- ifelse((yukon_edges$Str_Order %in% c(7, 8, 9)) &
-                                  yukon_edges$SPAWNING_C == 0, 0, 1)
+  yukon_PresencePrior    <- ifelse((yukon_edges$Str_Order %in% c(7, 8, 9)) &
+                                     yukon_edges$SPAWNING_C == 0, 0, 1)
+  yukon_porcpupinepr     <- yukon_edges$Porc_off
   
-  # Bayesian assignment
-  n_yukon_segments <- nrow(yukon_edges)
-  n_yukon_fish <- nrow(yukon_natal)
+  # ── Bayesian assignment ──────────────────────────────────────────────────────
+  n_yukon_segments        <- nrow(yukon_edges)
+  n_yukon_fish            <- nrow(yukon_natal)
   yukon_assignment_matrix <- matrix(0, nrow = n_yukon_segments, ncol = n_yukon_fish)
   
   for (i in 1:n_yukon_fish) {
@@ -354,55 +449,55 @@ for (yr in YEARS) {
     
     assign <- (1 / sqrt(2 * pi * yukon_error^2)) *
       exp(-1 * (fish_iso - yukon_pid_iso)^2 / (2 * yukon_error^2)) *
-      yukon_StreamOrderPrior * gen_prior * yukon_PresencePrior
+      yukon_StreamOrderPrior * gen_prior * yukon_PresencePrior *
+      yukon_porcpupinepr
     
-    assign_norm <- assign / sum(assign)
+    assign_norm     <- assign / sum(assign)
     assign_rescaled <- assign_norm / max(assign_norm)
     assign_rescaled[assign_rescaled < YUKON_PARAMS$sensitivity_threshold] <- 0
     
-    yukon_assignment_matrix[, i] <- assign_rescaled * as.numeric(yukon_natal$COratio[i])
+    yukon_assignment_matrix[, i] <- assign_rescaled * yukon_natal$weight[i]
   }
   
   yukon_basin_assign_sum <- apply(yukon_assignment_matrix, 1, sum, na.rm = TRUE)
-  yukon_assign_norm <- yukon_basin_assign_sum / max(yukon_basin_assign_sum, na.rm = TRUE)
+  yukon_assign_norm      <- yukon_basin_assign_sum / max(yukon_basin_assign_sum, na.rm = TRUE)
   
-  n_above_threshold <- sum(yukon_assign_norm >= PRODUCTION_THRESHOLD)
-  cat("    Segments with production >= 0.7:", n_above_threshold, "\n")
+  cat("    Segments with production >= 0.7:",
+      sum(yukon_assign_norm >= PRODUCTION_THRESHOLD), "\n")
   
-  # Temperature matching (every 3 days)
-  date_col <- if ("date" %in% names(yukon_natal)) "date" else "Date"
-  yukon_natal[[date_col]] <- as.Date(yukon_natal[[date_col]])
-  yukon_date_range <- range(yukon_natal[[date_col]], na.rm = TRUE)
-  yukon_date_seq <- seq(yukon_date_range[1], yukon_date_range[2], by = TEMP_INTERVAL_DAYS)
+  # ── Temperature matching (every 3 days, within 50% window dates) ─────────────
+  date_col_y            <- if ("date" %in% names(yukon_natal)) "date" else "Date"
+  yukon_natal[[date_col_y]] <- as.Date(yukon_natal[[date_col_y]])
+  yukon_date_range      <- range(yukon_natal[[date_col_y]], na.rm = TRUE)
+  yukon_date_seq        <- seq(yukon_date_range[1], yukon_date_range[2],
+                               by = TEMP_INTERVAL_DAYS)
   
-  yukon_temp_subset <- yukon_temp_daily %>%
-    filter(date %in% yukon_date_seq)
-  
-  yukon_mean_temp <- yukon_temp_subset %>%
+  yukon_mean_temp <- yukon_temp_daily %>%
+    filter(date %in% yukon_date_seq) %>%
     group_by(COMID) %>%
     summarise(mean_summer_temp = mean(value, na.rm = TRUE), .groups = "drop")
   
-  # Build Yukon results — include SNAP temp from shapefile
+  # ── Build result ─────────────────────────────────────────────────────────────
   yukon_snap_col <- paste0("SnapTp", yr)
   
   yukon_result <- st_drop_geometry(yukon_edges) %>%
     mutate(
       Production = yukon_assign_norm,
-      Basin = "Yukon",
-      year = yr
+      Basin      = "Yukon",
+      year       = yr
     ) %>%
     left_join(yukon_mean_temp, by = "COMID") %>%
     rename(SNAP_temp = !!sym(yukon_snap_col)) %>%
     filter(Production >= PRODUCTION_THRESHOLD)
   
-  cat("    Reaches with production >= 0.7 and temperature:", nrow(yukon_result), "\n")
+  cat("    Reaches in final dataset:", nrow(yukon_result), "\n")
   
   
   # ============================================================================
   # COMBINE BASINS
   # ============================================================================
   
-  combined_result <- bind_rows(kusko_result, yukon_result)
+  combined_result           <- bind_rows(kusko_result, yukon_result)
   year_results[[as.character(yr)]] <- combined_result
   
   cat("\n  Combined reaches with production >= 0.7:", nrow(combined_result), "\n")
@@ -423,9 +518,7 @@ cat("================================================================\n")
 # ------------------------------------------------------------------
 # Prepare filtered data list
 # ------------------------------------------------------------------
-filtered_list <- lapply(YEARS, function(yr) {
-  year_results[[as.character(yr)]]
-})
+filtered_list        <- lapply(YEARS, function(yr) year_results[[as.character(yr)]])
 names(filtered_list) <- as.character(YEARS)
 
 # ------------------------------------------------------------------
@@ -445,32 +538,29 @@ fill_colors <- brewer.pal(9, "YlOrRd")[-1]
 # ------------------------------------------------------------------
 base_theme <- theme_minimal() +
   theme(
-    axis.text       = element_text(size = 8, color = "grey30"),
-    axis.title      = element_blank(),
-    legend.position = "none",
+    axis.text        = element_text(size = 8, color = "grey30"),
+    axis.title       = element_blank(),
+    legend.position  = "none",
     panel.grid.major = element_line(color = alpha("grey50", 0.3), linewidth = 0.3),
     panel.grid.minor = element_blank(),
     panel.ontop      = TRUE,
     panel.background = element_rect(fill = NA, color = NA),
-    plot.margin     = margin(1, 2, 1, 2),
-    plot.title      = element_blank()
+    plot.margin      = margin(1, 2, 1, 2),
+    plot.title       = element_blank()
   )
 
 # ------------------------------------------------------------------
 # Column 1: Stream Temperature (Blaskey) vs Channel Slope
 # ------------------------------------------------------------------
 plots_col1 <- lapply(seq_along(YEARS), function(i) {
-  df <- filtered_list[[as.character(YEARS[i])]]
+  df        <- filtered_list[[as.character(YEARS[i])]]
   is_bottom <- (i == length(YEARS))
   
   ggplot(df, aes(mean_summer_temp, Channel_sl)) +
     annotate("rect", xmin = -Inf, xmax = Inf,
              ymin = -Inf, ymax = Inf, fill = "white") +
-    
     stat_density_2d_filled(bins = 8) +
-    
     scale_fill_manual(values = fill_colors) +
-    
     scale_x_continuous(
       limits = x_lim_temp,
       expand = c(0, 0),
@@ -480,14 +570,13 @@ plots_col1 <- lapply(seq_along(YEARS), function(i) {
       limits = y_lim_slope,
       expand = c(0, 0)
     ) +
-    
     coord_cartesian(clip = "off") +
-    
     base_theme +
     theme(
       axis.text.x = if (is_bottom)
         element_text(size = 8, color = "grey30")
-      else element_blank()
+      else
+        element_blank()
     )
 })
 
@@ -495,17 +584,14 @@ plots_col1 <- lapply(seq_along(YEARS), function(i) {
 # Column 2: SNAP Air Temperature vs Channel Slope
 # ------------------------------------------------------------------
 plots_col2 <- lapply(seq_along(YEARS), function(i) {
-  df <- filtered_list[[as.character(YEARS[i])]]
+  df        <- filtered_list[[as.character(YEARS[i])]]
   is_bottom <- (i == length(YEARS))
   
   ggplot(df, aes(SNAP_temp, Channel_sl)) +
     annotate("rect", xmin = -Inf, xmax = Inf,
              ymin = -Inf, ymax = Inf, fill = "white") +
-    
     stat_density_2d_filled(bins = 8) +
-    
     scale_fill_manual(values = fill_colors) +
-    
     scale_x_continuous(
       limits = x_lim_air,
       expand = c(0, 0),
@@ -516,31 +602,30 @@ plots_col2 <- lapply(seq_along(YEARS), function(i) {
       expand = c(0, 0),
       labels = NULL
     ) +
-    
     coord_cartesian(clip = "off") +
-    
     base_theme +
     theme(
       axis.text.x = if (is_bottom)
         element_text(size = 8, color = "grey30")
-      else element_blank(),
+      else
+        element_blank(),
       axis.text.y = element_blank()
     )
 })
 
 # ------------------------------------------------------------------
-# Year label panels — centered text
+# Year label panels
 # ------------------------------------------------------------------
 year_labels <- lapply(YEARS, function(yr) {
   ggplot() +
     annotate(
       "text",
       x = 0.5, y = 0.5,
-      label = yr,
-      hjust = 0.5,
-      size = 4,
+      label    = yr,
+      hjust    = 0.5,
+      size     = 4,
       fontface = "bold",
-      color = "grey20"
+      color    = "grey20"
     ) +
     xlim(0, 1) + ylim(0, 1) +
     theme_void() +
@@ -548,7 +633,7 @@ year_labels <- lapply(YEARS, function(yr) {
 })
 
 # ------------------------------------------------------------------
-# Assemble — flat 3-column grid (year label | col1 | col2)
+# Assemble flat 3-column grid: year label | col1 | col2
 # ------------------------------------------------------------------
 flat_list <- list()
 for (i in seq_along(YEARS)) {
@@ -615,8 +700,7 @@ final_with_xlab <- final_plot +
 dir.create(PATHS$output_figures, recursive = TRUE, showWarnings = FALSE)
 
 ggsave(
-  file.path(PATHS$output_figures,
-            "50pct_BothBasins.png"),
+  file.path(PATHS$output_figures, "50pct_BothBasins.png"),
   plot   = final_with_xlab,
   width  = 8.5,
   height = 12,

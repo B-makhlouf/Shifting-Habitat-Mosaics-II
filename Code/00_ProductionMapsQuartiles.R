@@ -244,7 +244,3 @@ results_2019 <- run_kusko_analysis_quartiles(2019)
 results_2020 <- run_kusko_analysis_quartiles(2020)
 results_2021 <- run_kusko_analysis_quartiles(2021)
 results_2022 <- run_kusko_analysis_quartiles(2022)
-
-
-
-

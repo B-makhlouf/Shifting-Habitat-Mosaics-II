@@ -1,0 +1,3 @@
+year,river,total_segments,top30_segments,top30_threshold,max_assignment,cpue_cutoff_doy,fish_retained,temp_samples_3day
+2018,Kuskokwim,4384,695,0.48125183510545744,39.00608443984323,175,120,0
+2018,Yukon,20989,3047,0.5941306654275215,38.583436172547444,174,142,0

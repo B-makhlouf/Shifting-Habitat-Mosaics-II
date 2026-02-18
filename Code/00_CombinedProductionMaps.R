@@ -83,11 +83,10 @@ for (year in kusko_years) {
   
   tryCatch({
     
-    hist(Kusko_edges$isose_pred)
-    
+  
     
     # Parameters
-    min_stream_order <- 3
+    min_stream_order <- 4
     min_error <- 0.0006
     #max_error <- 0.00089
     sensitivity_threshold <- 0.7
@@ -219,6 +218,9 @@ for (year in kusko_years) {
     colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
     colcode[basin_assign_norm > 0.9] <- palette[10]
+    
+    
+    colcode[StreamOrderPrior == 0 ] <- NA
     
     legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
     legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
@@ -916,7 +918,7 @@ for (year in yukon_years) {
                                 ifelse(stream_order >= 8, 3,
                                        ifelse(stream_order >= 7, 2.0,
                                               ifelse(stream_order >= 6, 2.0,
-                                                     ifelse(stream_order >= 5, 2.0,
+                                                     ifelse(stream_order >= 5, 1.7,
                                                             ifelse(stream_order >= 4, 1.7, 0)))))))
     
     #linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
