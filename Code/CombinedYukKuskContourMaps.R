@@ -619,22 +619,29 @@ fill_colors_blue <- brewer.pal(9, "Blues")[-1]      # discharge / precip columns
 # ------------------------------------------------------------------
 base_theme <- theme_minimal() +
   theme(
-    axis.text        = element_text(size = 8, color = "grey30"),
+    axis.text        = element_text(size = 16, color = "grey30"),
     axis.title       = element_blank(),
     legend.position  = "none",
     panel.grid.major = element_line(color = alpha("grey50", 0.3), linewidth = 0.3),
     panel.grid.minor = element_blank(),
     panel.ontop      = TRUE,
     panel.background = element_rect(fill = NA, color = NA),
-    plot.margin      = margin(1, 2, 1, 2),
-    plot.title       = element_blank()
+    plot.margin      = margin(2, 8, 2, 8),
+    plot.title       = element_text(size = 18, face = "bold", hjust = 0.5,
+                                    color = "grey10", margin = margin(b = 4))
   )
 
 # ------------------------------------------------------------------
 # Helper: build one contour panel
 # ------------------------------------------------------------------
 make_panel <- function(df, x_var, x_lim, fill_colors,
-                       show_x_labels, show_y_labels = TRUE) {
+                       show_x_labels, show_y_labels = TRUE,
+                       is_top_row = FALSE, col_title = NULL,
+                       is_bottom_row = FALSE) {
+  
+  # Y breaks: suppress 0 on all but bottom row to avoid overlap
+  y_breaks <- if (is_bottom_row) c(0, 1, 2, 3) else c(1, 2, 3)
+  
   p <- ggplot(df, aes(.data[[x_var]], Channel_sl)) +
     annotate("rect", xmin = -Inf, xmax = Inf,
              ymin = -Inf, ymax = Inf, fill = "white") +
@@ -648,18 +655,25 @@ make_panel <- function(df, x_var, x_lim, fill_colors,
     scale_y_continuous(
       limits = y_lim_slope,
       expand = c(0, 0),
+      breaks = y_breaks,
       labels = if (show_y_labels) waiver() else NULL
     ) +
     coord_cartesian(clip = "off") +
     base_theme +
     theme(
       axis.text.x = if (show_x_labels)
-        element_text(size = 8, color = "grey30")
+        element_text(size = 16, color = "grey30")
       else element_blank(),
       axis.text.y = if (show_y_labels)
-        element_text(size = 8, color = "grey30")
+        element_text(size = 16, color = "grey30")
       else element_blank()
     )
+  
+  # Add column title on top row panels
+  if (is_top_row && !is.null(col_title)) {
+    p <- p + ggtitle(col_title)
+  }
+  
   p
 }
 
@@ -680,22 +694,38 @@ filtered_list <- lapply(filtered_list, function(df) {
 plots_col1 <- lapply(seq_along(YEARS), function(i)
   make_panel(filtered_list[[i]], "mean_summer_temp", x_lim_temp,
              fill_colors_warm,
-             show_x_labels = (i == length(YEARS)), show_y_labels = TRUE))
+             show_x_labels  = (i == length(YEARS)),
+             show_y_labels  = TRUE,
+             is_top_row     = (i == 1),
+             col_title      = "Stream Temp vs Slope",
+             is_bottom_row  = (i == length(YEARS))))
 
 plots_col2 <- lapply(seq_along(YEARS), function(i)
   make_panel(filtered_list[[i]], "SNAP_temp", x_lim_air,
              fill_colors_warm,
-             show_x_labels = (i == length(YEARS)), show_y_labels = FALSE))
+             show_x_labels  = (i == length(YEARS)),
+             show_y_labels  = FALSE,
+             is_top_row     = (i == 1),
+             col_title      = "Air Temp vs Slope",
+             is_bottom_row  = (i == length(YEARS))))
 
 plots_col3 <- lapply(seq_along(YEARS), function(i)
   make_panel(filtered_list[[i]], "log_disch", x_lim_disch,
              fill_colors_blue,
-             show_x_labels = (i == length(YEARS)), show_y_labels = FALSE))
+             show_x_labels  = (i == length(YEARS)),
+             show_y_labels  = FALSE,
+             is_top_row     = (i == 1),
+             col_title      = "Log Discharge vs Slope",
+             is_bottom_row  = (i == length(YEARS))))
 
 plots_col4 <- lapply(seq_along(YEARS), function(i)
   make_panel(filtered_list[[i]], "log_prec", x_lim_prec,
              fill_colors_blue,
-             show_x_labels = (i == length(YEARS)), show_y_labels = FALSE))
+             show_x_labels  = (i == length(YEARS)),
+             show_y_labels  = FALSE,
+             is_top_row     = (i == 1),
+             col_title      = "Log Precip vs Slope",
+             is_bottom_row  = (i == length(YEARS))))
 
 # ------------------------------------------------------------------
 # Year label panels
@@ -703,7 +733,7 @@ plots_col4 <- lapply(seq_along(YEARS), function(i)
 year_labels <- lapply(YEARS, function(yr) {
   ggplot() +
     annotate("text", x = 0.5, y = 0.5, label = yr,
-             hjust = 0.5, size = 4, fontface = "bold", color = "grey20") +
+             hjust = 0.5, size = 8, fontface = "bold", color = "grey20") +
     xlim(0, 1) + ylim(0, 1) +
     theme_void() +
     theme(plot.margin = margin(0, 0, 0, 0))
@@ -724,20 +754,8 @@ for (i in seq_along(YEARS)) {
 }
 
 combined_plot <- wrap_plots(flat_list, ncol = 5,
-                            widths = c(0.15, 1, 1, 1, 1)) +
+                            widths = c(0.25, 1, 1, 1, 1)) +
   plot_layout(heights = rep(1, length(YEARS)))
-
-# ------------------------------------------------------------------
-# Column titles
-# ------------------------------------------------------------------
-combined_plot <- combined_plot +
-  plot_annotation(
-    title = "Stream Temp vs Slope        Air Temp vs Slope        Log Discharge vs Slope        Log Precip vs Slope",
-    theme = theme(
-      plot.title = element_text(size = 10, face = "bold", hjust = 0.5,
-                                color = "grey10", margin = margin(b = 4))
-    )
-  )
 
 # ------------------------------------------------------------------
 # Shared y-axis label
@@ -745,7 +763,8 @@ combined_plot <- combined_plot +
 final_plot <- wrap_elements(combined_plot) +
   labs(tag = "Channel Slope") +
   theme(
-    plot.tag          = element_text(size = 11, angle = 90, color = "grey20"),
+    plot.tag          = element_text(size = 18, angle = 90, color = "grey20",
+                                     face = "bold"),
     plot.tag.position = "left"
   )
 
@@ -754,10 +773,10 @@ final_plot <- wrap_elements(combined_plot) +
 # ------------------------------------------------------------------
 final_with_xlab <- final_plot +
   plot_annotation(
-    caption = "Mean Summer Stream Temp (\u00B0C)          SNAP Air Temp (\u00B0C)          Log\u2081\u2080 Discharge (m\u00B3/s)          Log\u2081\u2080 SNAP Precip (mm)",
+    caption = "Mean Summer Stream Temp (\u00B0C)                    SNAP Air Temp (\u00B0C)                    Log\u2081\u2080 Discharge (m\u00B3/s)                    Log\u2081\u2080 SNAP Precip (mm)",
     theme = theme(
-      plot.caption = element_text(size = 9, hjust = 0.55, color = "grey20",
-                                  margin = margin(t = 2))
+      plot.caption = element_text(size = 16, hjust = 0.55, color = "grey20",
+                                  margin = margin(t = 4))
     )
   )
 
@@ -769,7 +788,7 @@ dir.create(PATHS$output_figures, recursive = TRUE, showWarnings = FALSE)
 ggsave(
   file.path(PATHS$output_figures, "50pct_BothBasins.png"),
   plot   = final_with_xlab,
-  width  = 14,
+  width  = 16,
   height = 12,
   dpi    = 300,
   bg     = "white"
