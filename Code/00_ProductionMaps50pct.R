@@ -20,6 +20,8 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(readr)
   library(readxl)
+  library(tibble)
+  library(tidyr)
   library(here)
 })
 
@@ -44,6 +46,7 @@ PATHS <- list(
   natal_data_dir = here("Data", "Natal Origins"),
   cpue_data_dir  = here("Data", "CPUE"),
   runsize_data   = here("Data", "AYKEscapement.xlsx"),
+  daily_genetics = here("Data", "Genetics", "daily_genetic_proportions.csv"),
   
   # -- Outputs --
   output_dir = here("Outputs", "ProductionData", "Combined_50pct")
@@ -54,7 +57,8 @@ YEARS <- c(2017, 2018, 2019, 2021)
 
 # Kuskokwim-specific parameters
 KUSKO_PARAMS <- list(
-  min_stream_order      = 3,
+  min_stream_order      = 4,
+  min_error             = 0.0006,
   sensitivity_threshold = 0.7
 )
 
@@ -62,8 +66,26 @@ KUSKO_PARAMS <- list(
 YUKON_PARAMS <- list(
   min_stream_order      = 4,
   min_error             = 0.0035,
-  sensitivity_threshold = 0.0
+  sensitivity_threshold = 0.7
 )
+
+
+# ==============================================================================
+# LOAD DAILY GENETIC PROPORTIONS LOOKUP (Yukon only)
+# Columns: sampleYear, DOY, genetic_assignment (Lower/Middle/Upper), n, proportion
+# Used to impute genetic values for fish missing individual genetics
+# ==============================================================================
+daily_gen_long <- read_csv(PATHS$daily_genetics, show_col_types = FALSE)
+
+# Pivot to wide format: one row per sampleYear x DOY, columns Lower/Middle/Upper
+daily_gen_wide <- daily_gen_long %>%
+  select(sampleYear, DOY, genetic_assignment, proportion) %>%
+  pivot_wider(names_from = genetic_assignment, values_from = proportion,
+              values_fill = 0) %>%
+  rename(year      = sampleYear,
+         avg_Lower  = Lower,
+         avg_Middle = Middle,
+         avg_Upper  = Upper)
 
 
 # ==============================================================================
@@ -130,7 +152,7 @@ for (year in YEARS) {
     kusko_cpue_at_cutoff  <- kusko_cpue_raw$cumCPUE[kusko_cpue_raw$Date == kusko_cutoff_date]
     kusko_cpue_proportion <- kusko_cpue_at_cutoff / kusko_total_cpue
     
-    # Filter natal data
+    # Filter natal data to first 50% of run
     kusko_natal <- kusko_natal_raw %>%
       filter(DOY <= kusko_cutoff_doy)
     
@@ -143,19 +165,48 @@ for (year in YEARS) {
     if (nrow(kusko_natal) == 0) stop("No Kusko data after 50% CPUE filter!")
     
     
+    # -- A3b. Calculate stratum weights ---------------------------------------
+    
+    unique_days_k <- sort(unique(kusko_natal_raw$DOY))
+    ndays_k       <- length(unique_days_k)
+    strata_size_k <- ceiling(ndays_k / 5)
+    
+    day_strata_k <- tibble(
+      DOY    = unique_days_k,
+      strata = rep(1:5, each = strata_size_k, length.out = ndays_k)
+    )
+    
+    strata_summary_k <- kusko_natal_raw %>%
+      distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+      left_join(day_strata_k, by = "DOY") %>%
+      group_by(strata) %>%
+      summarise(
+        cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+        oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      mutate(weight = cpue_sum / oto_sum)
+    
+    kusko_natal <- kusko_natal %>%
+      left_join(day_strata_k, by = "DOY") %>%
+      left_join(strata_summary_k %>% select(strata, weight), by = "strata")
+    
+    
     # -- A4. Calculate Kuskokwim prediction error -----------------------------
     
     kusko_pid_iso       <- kusko_edges$iso_pred
     kusko_pid_isose     <- kusko_edges$isose_pred
-    kusko_pid_isose_mod <- rep(mean(kusko_pid_isose, na.rm = TRUE), length(kusko_pid_isose))
+    kusko_pid_isose_mod <- ifelse(kusko_pid_isose < KUSKO_PARAMS$min_error,
+                                  KUSKO_PARAMS$min_error,
+                                  kusko_pid_isose)
     kusko_error         <- sqrt(kusko_pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
     
     
     # -- A5. Setup Kuskokwim priors -------------------------------------------
     
     kusko_StreamOrderPrior <- ifelse(kusko_edges$Str_Order >= KUSKO_PARAMS$min_stream_order, 1, 0)
-    kusko_PresencePrior    <- ifelse((kusko_edges$Str_Order %in% c(6, 7)) & kusko_edges$SPAWNING_C == 0, 0, 1)
-    kusko_NewHabitatPrior  <- ifelse(kusko_edges$Channel_sl > 2.5, 0, 1)
+    kusko_PresencePrior    <- ifelse((kusko_edges$Str_Order %in% c(7, 8)) & kusko_edges$SPAWNING_C == 0, 0, 1)
+    kusko_NewHabitatPrior  <- ifelse(kusko_edges$Spawner_IP < 0.3, 0, 1)
     kusko_pid_prior        <- kusko_edges$UniPh2oNoE
     
     
@@ -178,7 +229,7 @@ for (year in YEARS) {
       assign_rescaled <- assign_norm / max(assign_norm)
       assign_rescaled[assign_rescaled < KUSKO_PARAMS$sensitivity_threshold] <- 0
       
-      kusko_assignment_matrix[, i] <- assign_rescaled * as.numeric(kusko_natal$COratio[i])
+      kusko_assignment_matrix[, i] <- assign_rescaled * kusko_natal$weight[i]
     }
     
     
@@ -232,10 +283,28 @@ for (year in YEARS) {
     yukon_natal_raw <- read_csv(
       file.path(PATHS$natal_data_dir, paste0(year, "_Yukon_Natal_Origins_Genetics_CPUE.csv")),
       show_col_types = FALSE
-    ) %>%
-      filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
+    )
     
     cat(paste("  Yukon observations (raw):", nrow(yukon_natal_raw), "\n"))
+    
+    
+    # -- B2b. Impute missing genetics from daily averages --------------------
+    # Fish missing Lower, Middle, or Upper get the daily average proportions
+    # for that DOY/year from the lookup table
+    
+    daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
+    
+    yukon_natal_raw <- yukon_natal_raw %>%
+      left_join(daily_gen_year %>% select(DOY, avg_Lower, avg_Middle, avg_Upper), by = "DOY") %>%
+      mutate(
+        Lower  = ifelse(is.na(Lower),  avg_Lower,  Lower),
+        Middle = ifelse(is.na(Middle), avg_Middle, Middle),
+        Upper  = ifelse(is.na(Upper),  avg_Upper,  Upper)
+      ) %>%
+      select(-avg_Lower, -avg_Middle, -avg_Upper)
+    
+    yukon_natal_filtered <- yukon_natal_raw %>%
+      filter(!is.na(Lower), !is.na(natal_iso), !is.na(dailyCPUEprop))
     
     
     # -- B3. Apply 50% CPUE cutoff to Yukon -----------------------------------
@@ -259,34 +328,60 @@ for (year in YEARS) {
     yukon_cpue_at_cutoff  <- yukon_cpue_raw$cumCPUE[yukon_cpue_raw$Date == yukon_cutoff_date]
     yukon_cpue_proportion <- yukon_cpue_at_cutoff / yukon_total_cpue
     
-    # Filter natal data
-    yukon_natal <- yukon_natal_raw %>%
+    # Filter natal data to first 50% of run
+    yukon_natal <- yukon_natal_filtered %>%
       filter(DOY <= yukon_cutoff_doy)
     
     cat(paste("  Yukon total CPUE:", round(yukon_total_cpue, 2), "\n"))
     cat(paste("  Yukon 50% cutoff date:", yukon_cutoff_date, "(DOY:", yukon_cutoff_doy, ")\n"))
     cat(paste("  Yukon actual CPUE proportion at cutoff:", round(yukon_cpue_proportion, 4), "\n"))
     cat(paste("  Yukon observations retained:", nrow(yukon_natal),
-              "(", round(nrow(yukon_natal) / nrow(yukon_natal_raw) * 100, 1), "%)\n"))
+              "(", round(nrow(yukon_natal) / nrow(yukon_natal_filtered) * 100, 1), "%)\n"))
     
     if (nrow(yukon_natal) == 0) stop("No Yukon data after 50% CPUE filter!")
+    
+    
+    # -- B3b. Calculate stratum weights ---------------------------------------
+    
+    unique_days_y <- sort(unique(yukon_natal_raw$DOY))
+    ndays_y       <- length(unique_days_y)
+    strata_size_y <- ceiling(ndays_y / 5)
+    
+    day_strata_y <- tibble(
+      DOY    = unique_days_y,
+      strata = rep(1:5, each = strata_size_y, length.out = ndays_y)
+    )
+    
+    strata_summary_y <- yukon_natal_raw %>%
+      distinct(DOY, dailyCPUEprop, OtoPropDaily) %>%
+      left_join(day_strata_y, by = "DOY") %>%
+      group_by(strata) %>%
+      summarise(
+        cpue_sum = sum(dailyCPUEprop, na.rm = TRUE),
+        oto_sum  = sum(OtoPropDaily,  na.rm = TRUE),
+        .groups  = "drop"
+      ) %>%
+      mutate(weight = cpue_sum / oto_sum)
+    
+    yukon_natal <- yukon_natal %>%
+      left_join(day_strata_y, by = "DOY") %>%
+      left_join(strata_summary_y %>% select(strata, weight), by = "strata")
     
     
     # -- B4. Calculate Yukon prediction error ---------------------------------
     
     yukon_pid_iso       <- yukon_edges$iso_pred
     yukon_pid_isose     <- yukon_edges$isose_pred
-    yukon_pid_isose_mod <- ifelse(yukon_pid_isose < YUKON_PARAMS$min_error,
-                                  YUKON_PARAMS$min_error,
-                                  yukon_pid_isose)
+    yukon_pid_isose_mod <- rep(mean(yukon_pid_isose, na.rm = TRUE), length(yukon_pid_isose))
     yukon_error <- sqrt(yukon_pid_isose_mod^2 + (0.0003133684/1.96)^2 + (0.00011/2)^2)
     
     
     # -- B5. Setup Yukon priors -----------------------------------------------
     
     yukon_StreamOrderPrior <- ifelse(yukon_edges$Str_Order >= YUKON_PARAMS$min_stream_order, 1, 0)
-    yukon_PresencePrior    <- ifelse((yukon_edges$Str_Order %in% c(7, 8, 9)) &
+    yukon_PresencePrior    <- ifelse((yukon_edges$Str_Order %in% c(6, 7, 8, 9)) &
                                        yukon_edges$SPAWNING_C == 0, 0, 1)
+    yukon_newhabitatprior  <- ifelse(yukon_edges$Channel_sl > 2.3, 0, 1)
     
     
     # -- B6. Yukon Bayesian assignment ----------------------------------------
@@ -308,21 +403,26 @@ for (year in YEARS) {
       # Assignment probability
       assign <- (1 / sqrt(2 * pi * yukon_error^2)) *
         exp(-1 * (fish_iso - yukon_pid_iso)^2 / (2 * yukon_error^2)) *
-        yukon_StreamOrderPrior * gen_prior * yukon_PresencePrior
+        yukon_StreamOrderPrior * gen_prior * yukon_PresencePrior * yukon_newhabitatprior
       
       # Normalize and rescale
       assign_norm     <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
       assign_rescaled[assign_rescaled < YUKON_PARAMS$sensitivity_threshold] <- 0
       
-      # Weight by CPUE
-      yukon_assignment_matrix[, i] <- assign_rescaled * as.numeric(yukon_natal$COratio[i])
+      # Weight by stratum weight
+      yukon_assignment_matrix[, i] <- assign_rescaled * yukon_natal$weight[i]
     }
     
     
     # -- B7. Sum across fish -> one value per Yukon segment -------------------
     
     yukon_basin_assign_sum <- apply(yukon_assignment_matrix, 1, sum, na.rm = TRUE)
+    
+    # Downweight Porcupine drainage segments post-hoc (matches Yukon_Full)
+    yukon_basin_assign_sum <- ifelse(yukon_edges$Porc_off == 0,
+                                     yukon_basin_assign_sum * 0.3,
+                                     yukon_basin_assign_sum)
     
     cat(paste("  Yukon segments with assignment > 0:",
               sum(yukon_basin_assign_sum > 0), "/", n_yukon_segments, "\n\n"))
