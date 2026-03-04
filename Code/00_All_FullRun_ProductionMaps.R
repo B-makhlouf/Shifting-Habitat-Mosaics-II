@@ -53,6 +53,23 @@ kusko_years <- c(2017, 2018, 2019, 2020, 2021, 2022)
 yukon_years <- c(2015, 2016, 2018, 2021)
 
 # ==============================================================================
+# !! ANALYSIS PARAMETERS — EDIT HERE !!
+# ==============================================================================
+
+# Kuskokwim
+kusko_min_stream_order      <- 3
+kusko_min_error             <- 0.0006
+kusko_sensitivity_threshold <- 0.7
+kusko_channel_slope_cutoff  <- 2.5      # NewHabitatPrior: Channel_sl > this -> excluded
+
+# Yukon (shared across ALL three Yukon analyses)
+yukon_min_stream_order      <- 3
+yukon_min_error             <- 0.0035
+yukon_sensitivity_threshold <- 0.7
+yukon_channel_slope_cutoff  <- 2.5      # NewHabitatPrior: Channel_sl > this -> excluded
+yukon_porcupine_penalty     <- 0.2      # Post-hoc downweight multiplier for Porc_off == 0 segments
+
+# ==============================================================================
 # LOAD DAILY GENETIC PROPORTIONS LOOKUP (Yukon only)
 # Columns: sampleYear, DOY, genetic_assignment (Lower/Middle/Upper), n, proportion
 # Used to impute genetic values for fish missing individual genetics
@@ -83,13 +100,11 @@ for (year in kusko_years) {
   
   tryCatch({
     
-  
     
     # Parameters
-    min_stream_order <- 4
-    min_error <- 0.0006
-    #max_error <- 0.00089
-    sensitivity_threshold <- 0.7
+    min_stream_order <- kusko_min_stream_order
+    min_error <- kusko_min_error
+    sensitivity_threshold <- kusko_sensitivity_threshold
     
     # ── Load spatial data ────────────────────────────────────
     edges <- st_read(PATHS$kusko_edges, quiet = TRUE)
@@ -145,9 +160,8 @@ for (year in kusko_years) {
     
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
+    NewHabitatPrior <- ifelse(edges$Channel_sl > kusko_channel_slope_cutoff, 0, 1)
     PresencePrior <- ifelse((edges$Str_Order %in% c(7,8)) & edges$SPAWNING_C == 0, 0, 1)
-    #NewHabitatPrior <- ifelse(edges$Channel_sl > 2.5, 0, 1)
-    NewHabitatPrior <- ifelse(edges$Spawner_IP < .3, 0, 1)
     
     pid_prior <- edges$UniPh2oNoE
     
@@ -207,7 +221,7 @@ for (year in kusko_years) {
     palette <- colorRampPalette(brewer.pal(9, "YlOrRd"))(10)
     
     colcode <- rep("gray90", length(basin_assign_norm))
-    colcode[basin_assign_norm == 0] <- "white"
+    colcode[basin_assign_norm == 0] <- "gray80"
     colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.1] <- palette[1]
     colcode[basin_assign_norm > 0.1 & basin_assign_norm <= 0.2] <- palette[2]
     colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.3] <- palette[3]
@@ -220,7 +234,7 @@ for (year in kusko_years) {
     colcode[basin_assign_norm > 0.9] <- palette[10]
     
     
-    colcode[StreamOrderPrior == 0 ] <- NA
+    colcode[StreamOrderPrior == 0 ] <- "gray70"
     
     legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
     legend_colors <- palette[c(2, 5, 7, 8, 9, 10)]
@@ -234,11 +248,9 @@ for (year in kusko_years) {
                                        ifelse(stream_order >= 6, 3.0,
                                               ifelse(stream_order >= 5, 2.7,
                                                      ifelse(stream_order >= 4, 2.7,
-                                                            ifelse(stream_order >= 3, 2.0, 0)))))))
+                                                            ifelse(stream_order >= 3, 2.0, .7)))))))
     
-    # linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
-    
-    linewidths[stream_order < min_stream_order] <- 0
+    linewidths[stream_order < min_stream_order] <- 1.5
     
     
     dir.create(MAP_OUTPUT_DIR_KUSKO, recursive = TRUE, showWarnings = FALSE)
@@ -281,9 +293,9 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 3
-    min_error <- 0.0035
-    sensitivity_threshold <- 0.7
+    min_stream_order <- yukon_min_stream_order
+    min_error <- yukon_min_error
+    sensitivity_threshold <- yukon_sensitivity_threshold
     
     # ── Load spatial data ────────────────────────────────────
     edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
@@ -303,7 +315,6 @@ for (year in yukon_years) {
     )
     
     # ── Impute missing genetics from daily averages ──────────
-    # Fish missing Upper (NA) get the daily average Upper proportion for that DOY/year
     daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
     
     natal_data_raw <- natal_data_raw %>%
@@ -352,8 +363,8 @@ for (year in yukon_years) {
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
-    porcpupinepr <- edges$Porc_off
+    newhabitatprior <- ifelse(edges$Channel_sl > yukon_channel_slope_cutoff, 0, 1)
+    # porcupine downweighting applied post-hoc after summed assignments (see below)
     
     # ── Bayesian assignment ──────────────────────────────────
     cat("  Performing Bayesian assignment (Upper)...\n")
@@ -370,7 +381,7 @@ for (year in yukon_years) {
       
       assign <- (1/sqrt(2*pi*error^2)) * 
         exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * gen_prior * PresencePrior * porcpupinepr * newhabitatprior
+        StreamOrderPrior * gen_prior * PresencePrior * newhabitatprior
       
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
@@ -381,6 +392,10 @@ for (year in yukon_years) {
     
     # ── Process results ──────────────────────────────────────
     basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
+    
+    # ── Post-hoc porcupine downweighting ─────────────────────
+    basin_assign_sum <- ifelse(edges$Porc_off == 0, basin_assign_sum * yukon_porcupine_penalty, basin_assign_sum)
+    
     total_sum <- sum(basin_assign_sum, na.rm = TRUE)
     
     if (total_sum > 0) {
@@ -447,9 +462,6 @@ for (year in yukon_years) {
                                               ifelse(stream_order >= 5, 1.4,
                                                      ifelse(stream_order >= 4, 1.0, 0))))))
     
-    #linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
-    
-    
     linewidths[stream_order < min_stream_order] <- 0
     
     
@@ -492,9 +504,9 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 5
-    min_error <- 0.0035
-    sensitivity_threshold <- 0.7
+    min_stream_order <- yukon_min_stream_order
+    min_error <- yukon_min_error
+    sensitivity_threshold <- yukon_sensitivity_threshold
     
     # ── Load spatial data ────────────────────────────────────
     edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
@@ -522,7 +534,6 @@ for (year in yukon_years) {
     )
     
     # ── Impute missing genetics from daily averages ──────────
-    # Fish missing Lower or Middle (NA) get the daily average proportions for that DOY/year
     daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
     
     natal_data_raw <- natal_data_raw %>%
@@ -574,15 +585,13 @@ for (year in yukon_years) {
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     PresencePrior <- ifelse((edges$Str_Order %in% c(7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    #newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
-    newhabitatprior <- ifelse(edges$Spawner_IP < .3, 0, 1)
-    porcpupinepr <- edges$Porc_off
+    newhabitatprior <- ifelse(edges$Channel_sl > yukon_channel_slope_cutoff, 0, 1)
+    # porcupine downweighting applied post-hoc after summed assignments (see below)
     
     loweststr <- edges %>% filter(stream_order == 4)
     # histogram of the SpawnerIP value
     ggplot(loweststr, aes(x = loweststr$Spawner_IP)) +
       geom_histogram()
-    #histogram of the SpawnerIP value 
     
     # ── Bayesian assignment ──────────────────────────────────
     cat("  Performing Bayesian assignment (Lower + Middle)...\n")
@@ -601,7 +610,7 @@ for (year in yukon_years) {
       
       assign <- (1/sqrt(2*pi*error^2)) * 
         exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * gen_prior * PresencePrior * porcpupinepr * newhabitatprior
+        StreamOrderPrior * gen_prior * PresencePrior * newhabitatprior
       
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
@@ -612,6 +621,10 @@ for (year in yukon_years) {
     
     # ── Process results ──────────────────────────────────────
     basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
+    
+    # ── Post-hoc porcupine downweighting ─────────────────────
+    basin_assign_sum <- ifelse(edges$Porc_off == 0, basin_assign_sum * yukon_porcupine_penalty, basin_assign_sum)
+    
     total_sum <- sum(basin_assign_sum, na.rm = TRUE)
     
     if (total_sum > 0) {
@@ -680,10 +693,6 @@ for (year in yukon_years) {
                                                      ifelse(stream_order >= 5, 2.0,
                                                             ifelse(stream_order >= 4, 1.7, 0)))))))
     
-    
-    #linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
-    
-    ## Turn the linewidth below the lowest stream order to 0 so it doesnt plot 
     linewidths[stream_order < min_stream_order] <- 0
     
     dir.create(MAP_OUTPUT_DIR_US, recursive = TRUE, showWarnings = FALSE)
@@ -725,9 +734,9 @@ for (year in yukon_years) {
   tryCatch({
     
     # Parameters
-    min_stream_order <- 4
-    min_error <- 0.0035
-    sensitivity_threshold <- 0.7
+    min_stream_order <- yukon_min_stream_order
+    min_error <- yukon_min_error
+    sensitivity_threshold <- yukon_sensitivity_threshold
     
     # ── Load spatial data ────────────────────────────────────
     edges <- st_read(PATHS$yukon_edges, quiet = TRUE)
@@ -753,7 +762,6 @@ for (year in yukon_years) {
     )
     
     # ── Impute missing genetics from daily averages ──────────
-    # Fish missing Lower, Middle, or Upper (NA) get the daily average proportions for that DOY/year
     daily_gen_year <- daily_gen_wide %>% filter(year == !!year)
     
     natal_data_raw <- natal_data_raw %>%
@@ -806,9 +814,8 @@ for (year in yukon_years) {
     # ── Setup priors ─────────────────────────────────────────
     StreamOrderPrior <- ifelse(edges$Str_Order >= min_stream_order, 1, 0)
     PresencePrior <- ifelse((edges$Str_Order %in% c(6,7,8,9)) & edges$SPAWNING_C == 0, 0, 1)
-    newhabitatprior <- ifelse(edges$Channel_sl > 2.3, 0, 1)
-    porcpupinepr <- ifelse(edges$Porc_off == 0, .6, 1)
-    
+    newhabitatprior <- ifelse(edges$Channel_sl > yukon_channel_slope_cutoff, 0, 1)
+    # porcupine downweighting applied post-hoc after summed assignments (see below)
     
     # ── Bayesian assignment ──────────────────────────────────
     cat("  Performing Bayesian assignment (Full basin)...\n")
@@ -828,7 +835,7 @@ for (year in yukon_years) {
       
       assign <- (1/sqrt(2*pi*error^2)) * 
         exp(-1*(fish_iso - pid_iso)^2/(2*error^2)) * 
-        StreamOrderPrior * gen_prior * PresencePrior  *newhabitatprior 
+        StreamOrderPrior * gen_prior * PresencePrior * newhabitatprior
       
       assign_norm <- assign / sum(assign)
       assign_rescaled <- assign_norm / max(assign_norm)
@@ -840,8 +847,8 @@ for (year in yukon_years) {
     # ── Process results ──────────────────────────────────────
     basin_assign_sum <- apply(assignment_matrix, 1, sum, na.rm = TRUE)
     
-    basin_assign_sum <- ifelse(edges$Porc_off == 0, basin_assign_sum * 0.3, basin_assign_sum)
-    
+    # ── Post-hoc porcupine downweighting ─────────────────────
+    basin_assign_sum <- ifelse(edges$Porc_off == 0, basin_assign_sum * yukon_porcupine_penalty, basin_assign_sum)
     
     total_sum <- sum(basin_assign_sum, na.rm = TRUE)
     
@@ -895,16 +902,6 @@ for (year in yukon_years) {
     colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
     colcode[basin_assign_norm > 0.9] <- palette[10]
     
-    
-    # colcode[basin_assign_norm > 0.0 & basin_assign_norm <= 0.2] <- palette[3]
-    # colcode[basin_assign_norm > 0.2 & basin_assign_norm <= 0.4] <- palette[4]
-    # colcode[basin_assign_norm > 0.4 & basin_assign_norm <= 0.6] <- palette[6]
-    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[5]
-    # colcode[basin_assign_norm > 0.5 & basin_assign_norm <= 0.6] <- palette[6]
-    # colcode[basin_assign_norm > 0.6 & basin_assign_norm <= 0.7] <- palette[7]
-    # colcode[basin_assign_norm > 0.7 & basin_assign_norm <= 0.8] <- palette[8]
-    # colcode[basin_assign_norm > 0.8 & basin_assign_norm <= 0.9] <- palette[9]
-    # colcode[basin_assign_norm > 0.9] <- palette[10]
     colcode[stream_order < min_stream_order] <- NA
     
     legend_labels <- c("0.0-0.4", "0.4-0.7", "0.7-0.8", "0.8-0.9", "0.9-0.95", "0.95-1.0")
@@ -920,8 +917,6 @@ for (year in yukon_years) {
                                               ifelse(stream_order >= 6, 2.0,
                                                      ifelse(stream_order >= 5, 1.7,
                                                             ifelse(stream_order >= 4, 1.7, 0)))))))
-    
-    #linewidths[basin_assign_norm > 0.8] <- linewidths[basin_assign_norm > 0.8] * 1.5
     
     
     dir.create(MAP_OUTPUT_DIR_YUKON_FULL, recursive = TRUE, showWarnings = FALSE)

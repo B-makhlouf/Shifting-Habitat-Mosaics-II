@@ -12,26 +12,20 @@
 #   For each ReachBase reach (the mouth of a tributary system at a given stream
 #   order), we sum cumulative production across all upstream reaches and compute
 #   year-to-year % change across all 15 year pairs (2017-2022). We then compare
-#   the spread of that variability at each stream order against four null
-#   simulations run at different CV levels:
+#   the spread of that variability at each stream order against two null
+#   simulations run at empirically derived CV levels:
 #
 #     cv_short  = empirical CV from the 2017-2022 production years
 #     cv_long   = empirical CV from 2010-present (all available Kusko years)
-#     cv_50     = fixed CV = 0.50
-#     cv_100    = fixed CV = 1.00
 #
-#   Each simulation produces an independent-population envelope. All four are
+#   Each simulation produces an independent-population envelope. Both are
 #   overlaid on a single plot, distinguished by color and linetype.
 #
-# TWO SHAPEFILES BRIDGED BY SPATIAL JOIN:
-#
-#   kusk_edges     = Kusko_upstream.shp  (NETWORK shapefile)
-#     Has rid, reachid, and the network topology needed by the traversal.
-#
-#   kusko_analysis = Kusko_edges.shp  (ANALYSIS shapefile)
-#     Has Reachbase, Str_Order, geometry, and reachids matching the CSVs.
-#
-#   Bridged via st_equals spatial join -> network_reachid <-> analysis_reachid.
+# SINGLE SHAPEFILE:
+#   kusk_edges = Kusko_edges.shp
+#     Has reachid, up_reachid, up_rid, Reachbase, Str_Order, geometry.
+#     Upstream traversal uses up_reachid / up_rid fields directly —
+#     no secondary network shapefile or spatial bridge needed.
 ################################################################################
 
 
@@ -49,17 +43,12 @@ library(readxl)
 
 
 # ==============================================================================
-# SECTION 2: LOAD SPATIAL DATA
+# SECTION 2: LOAD SPATIAL AND NETWORK DATA
 # ==============================================================================
 
 cat("Loading spatial data...\n")
 
 kusk_edges <- st_read(
-  here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_upstream.shp"),
-  quiet = TRUE
-)
-
-kusko_analysis <- st_read(
   here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_edges.shp"),
   quiet = TRUE
 )
@@ -72,23 +61,49 @@ KuskoNodes <- read.csv(
 KuskoNetwork <- KuskoNodes %>%
   rename(child_s = fromnode, parent_s = tonode)
 
-kusko_analysis <- kusko_analysis %>%
+kusk_edges <- kusk_edges %>%
   mutate(reach_length_m = as.numeric(st_length(geometry)))
 
-total_basin_length_m <- sum(kusko_analysis$reach_length_m, na.rm = TRUE)
+total_basin_length_m <- sum(kusk_edges$reach_length_m, na.rm = TRUE)
 
-cat("  Network shapefile:", nrow(kusk_edges), "reaches\n")
-cat("  Analysis shapefile:", nrow(kusko_analysis), "reaches\n")
+cat("  Reaches loaded:", nrow(kusk_edges), "\n")
 cat("  Total basin length:", round(total_basin_length_m / 1000, 1), "km\n")
 
 
 # ==============================================================================
-# SECTION 3: LOAD ESCAPEMENT AND COMPUTE CV VALUES
+# SECTION 3: UPSTREAM TRAVERSAL FUNCTION
+#
+# Uses up_rid and up_reachid fields on kusk_edges directly.
+# Returns all upstream reachids for a given mouth reachid.
+# ==============================================================================
+
+FindUpstreamReachID_Kusk <- function(ReachID) {
+  
+  TribStartRID <- kusk_edges$up_rid[kusk_edges$up_reachid == ReachID]
+  
+  if (length(TribStartRID) != 1) {
+    stop(paste("ReachID", ReachID, "does not resolve to a unique up_rid"))
+  }
+  
+  TRIBindex <- KuskoNetwork$child_s[KuskoNetwork$rid == TribStartRID]
+  ChildList  <- KuskoNetwork$child_s[KuskoNetwork$parent_s %in% TRIBindex]
+  
+  while (length(ChildList) > 0) {
+    TRIBindex <- c(TRIBindex, ChildList)
+    ChildList <- KuskoNetwork$child_s[KuskoNetwork$parent_s %in% ChildList]
+  }
+  
+  upstream_rids     <- KuskoNetwork$rid[match(TRIBindex, KuskoNetwork$child_s)]
+  upstream_reachids <- kusk_edges$up_reachid[match(upstream_rids, kusk_edges$up_rid)]
+  return(upstream_reachids[!is.na(upstream_reachids)])
+}
+
+
+# ==============================================================================
+# SECTION 4: LOAD ESCAPEMENT AND COMPUTE CV VALUES
 #
 # cv_short = CV from the 2017-2022 analysis years
 # cv_long  = CV from 2010 to the most recent available Kusko year
-# cv_50    = 0.50 (fixed scenario)
-# cv_100   = 1.00 (fixed scenario)
 # ==============================================================================
 
 cat("\nLoading escapement data and computing CV values...\n")
@@ -105,54 +120,18 @@ esc_short <- kusko_all_esc %>% filter(Year %in% years) %>% pull(Total_Run)
 cv_short  <- sd(esc_short) / mean(esc_short)
 
 # Long-term CV: 2010 to most recent available year
-esc_long <- kusko_all_esc %>% filter(Year >= 2010) %>% pull(Total_Run)
-cv_long  <- sd(esc_long) / mean(esc_long)
-
+esc_long        <- kusko_all_esc %>% filter(Year >= 2010) %>% pull(Total_Run)
+cv_long         <- sd(esc_long) / mean(esc_long)
 long_term_years <- kusko_all_esc %>% filter(Year >= 2010) %>% pull(Year)
-
-# Fixed CV scenarios
-cv_50  <- 0.50
-cv_100 <- 1.00
 
 cat("  Short-term CV (2017-2022):", round(cv_short, 3), "\n")
 cat("  Long-term CV (", min(long_term_years), "-", max(long_term_years), "):",
     round(cv_long, 3), "\n", sep = "")
-cat("  Fixed CV = 0.50\n")
-cat("  Fixed CV = 1.00\n")
 
-# Named list for loop-based simulation
 cv_scenarios <- list(
   short_term = cv_short,
-  long_term  = cv_long,
-  cv_50      = cv_50,
-  cv_100     = cv_100
+  long_term  = cv_long
 )
-
-
-# ==============================================================================
-# SECTION 4: BUILD SPATIAL LOOKUP TABLE (network <-> analysis reachids)
-#
-# Bridges the two shapefiles via st_equals (identical geometry).
-# Result: network_reachid <-> analysis_reachid lookup for all translation steps.
-# ==============================================================================
-
-cat("\nBuilding spatial lookup table...\n")
-
-kusko_analysis <- st_transform(kusko_analysis, st_crs(kusk_edges))
-
-network_to_analysis <- kusk_edges %>%
-  select(network_reachid = reachid) %>%
-  st_join(
-    kusko_analysis %>% select(analysis_reachid = reachid),
-    join = st_equals,
-    left = TRUE
-  ) %>%
-  st_drop_geometry() %>%
-  filter(!is.na(analysis_reachid)) %>%
-  distinct(network_reachid, analysis_reachid)
-
-cat("  Reaches matched:", nrow(network_to_analysis), "\n")
-cat("  Network reaches unmatched:", nrow(kusk_edges) - nrow(network_to_analysis), "\n")
 
 
 # ==============================================================================
@@ -164,9 +143,9 @@ cat("  Network reaches unmatched:", nrow(kusk_edges) - nrow(network_to_analysis)
 
 cat("\nIdentifying ReachBase reaches...\n")
 
-reachbase_reaches <- kusko_analysis %>%
+reachbase_reaches <- kusk_edges %>%
   st_drop_geometry() %>%
-  filter(Reachbase >= 4, Reachbase <= 7, !is.na(Str_Order)) %>%
+  filter(Reachbase >= 3, Reachbase <= 7, !is.na(Str_Order)) %>%
   select(reachid, stream_order = Str_Order, Reachbase)
 
 n_reachbases <- nrow(reachbase_reaches)
@@ -179,7 +158,7 @@ print(table(reachbase_reaches$stream_order))
 # SECTION 6: LOAD PRODUCTION DATA (2017-2022)
 #
 # Each CSV has one row per reach with assignment_rescale (sums to 1 basin-wide).
-# Reachids match kusko_analysis.
+# Reachids match kusk_edges.
 # ==============================================================================
 
 cat("\nLoading production data...\n")
@@ -209,10 +188,9 @@ cat("  Loaded:", nrow(prod_wide_all), "reaches x", length(years), "years\n")
 # SECTION 7: ACCUMULATE PRODUCTION PER REACHBASE DRAINAGE
 #
 # For each ReachBase reach:
-#   1. Translate analysis reachid -> network reachid
-#   2. Walk upstream via KuskoNetwork to collect all upstream network reachids
-#   3. Translate back to analysis reachids
-#   4. Sum production (proportion) across all matched reaches per year
+#   1. Call FindUpstreamReachID_Kusk to collect all upstream reachids
+#   2. Include the mouth reach itself
+#   3. Sum production across all matched reaches per year
 # ==============================================================================
 
 cat("\nAccumulating production per drainage...\n")
@@ -221,56 +199,31 @@ accumulated_prod <- data.frame()
 
 for (i in 1:n_reachbases) {
   
-  rb_analysis_id <- reachbase_reaches$reachid[i]
-  rb_order       <- reachbase_reaches$stream_order[i]
+  rb_reachid <- reachbase_reaches$reachid[i]
+  rb_order   <- reachbase_reaches$stream_order[i]
   
   if (i %% 50 == 0) cat("  Processing", i, "of", n_reachbases, "...\n")
   
-  # Step 1: analysis -> network
-  rb_network_id <- network_to_analysis %>%
-    filter(analysis_reachid == rb_analysis_id) %>%
-    pull(network_reachid)
+  upstream_ids <- tryCatch(
+    as.character(FindUpstreamReachID_Kusk(rb_reachid)),
+    error = function(e) character(0)
+  )
   
-  if (length(rb_network_id) != 1) next
+  all_ids <- unique(c(as.character(rb_reachid), upstream_ids))
+  all_ids <- all_ids[all_ids %in% prod_wide_all$reachid]
   
-  # Step 2: upstream traversal
-  start_rid  <- kusk_edges$rid[kusk_edges$reachid == rb_network_id]
-  trib_index <- KuskoNetwork$child_s[KuskoNetwork$rid == start_rid]
+  if (length(all_ids) == 0) next
   
-  if (length(trib_index) > 0) {
-    children <- KuskoNetwork$child_s[KuskoNetwork$parent_s %in% trib_index]
-    while (length(children) > 0) {
-      trib_index <- c(trib_index, children)
-      children   <- KuskoNetwork$child_s[KuskoNetwork$parent_s %in% children]
-    }
-    upstream_rids    <- KuskoNetwork$rid[match(trib_index, KuskoNetwork$child_s)]
-    upstream_net_ids <- kusk_edges$reachid[match(upstream_rids, kusk_edges$rid)]
-    upstream_net_ids <- upstream_net_ids[!is.na(upstream_net_ids)]
-  } else {
-    upstream_net_ids <- character(0)
-  }
-  
-  all_network_ids <- unique(c(rb_network_id, upstream_net_ids))
-  
-  # Step 3: network -> analysis
-  analysis_ids <- network_to_analysis %>%
-    filter(network_reachid %in% all_network_ids) %>%
-    pull(analysis_reachid) %>%
-    unique()
-  
-  if (length(analysis_ids) == 0) next
-  
-  # Step 4: sum production
   drainage_prod <- prod_wide_all %>%
-    filter(reachid %in% analysis_ids) %>%
+    filter(reachid %in% all_ids) %>%
     summarise(across(starts_with("prod_"), ~ sum(.x, na.rm = TRUE)))
   
   accumulated_prod <- bind_rows(
     accumulated_prod,
     data.frame(
-      reachbase_id       = rb_analysis_id,
+      reachbase_id       = rb_reachid,
       stream_order       = rb_order,
-      n_analysis_reaches = length(analysis_ids),
+      n_analysis_reaches = length(all_ids),
       drainage_prod
     )
   )
@@ -325,29 +278,27 @@ cat("  Total observations:", nrow(pairwise_all), "\n")
 
 
 # ==============================================================================
-# SECTION 9: NULL SIMULATIONS — FOUR CV SCENARIOS
+# SECTION 9: NULL SIMULATIONS — TWO EMPIRICAL CV SCENARIOS
 #
 # For each CV scenario, simulates 20 years of independent-population production
 # using a log-normal with mean = l/L (reach length fraction) and the given CV.
 # Each year is normalized to sum to 1. The same downstream accumulation is
 # applied. Whisker bounds (Q1 - 1.5*IQR, Q3 + 1.5*IQR) per stream order
 # become the envelope for that scenario.
-#
-# All four envelopes are combined into a single long data frame for plotting.
 # ==============================================================================
 
-cat("\nRunning null simulations for all CV scenarios...\n")
+cat("\nRunning null simulations for empirical CV scenarios...\n")
 
 set.seed(42)
 n_sim_years <- 20
 
-reach_length_fractions <- kusko_analysis %>%
+reach_length_fractions <- kusk_edges %>%
   st_drop_geometry() %>%
   select(reachid, reach_length_m) %>%
   mutate(length_fraction = reach_length_m / total_basin_length_m)
 
-n_sim_reaches  <- nrow(reach_length_fractions)
-all_envelopes  <- data.frame()
+n_sim_reaches <- nrow(reach_length_fractions)
+all_envelopes <- data.frame()
 
 for (scenario_name in names(cv_scenarios)) {
   
@@ -380,47 +331,26 @@ for (scenario_name in names(cv_scenarios)) {
   
   for (i in 1:n_reachbases) {
     
-    rb_analysis_id <- reachbase_reaches$reachid[i]
-    rb_order       <- reachbase_reaches$stream_order[i]
+    rb_reachid <- reachbase_reaches$reachid[i]
+    rb_order   <- reachbase_reaches$stream_order[i]
     
-    rb_network_id <- network_to_analysis %>%
-      filter(analysis_reachid == rb_analysis_id) %>%
-      pull(network_reachid)
+    upstream_ids <- tryCatch(
+      as.character(FindUpstreamReachID_Kusk(rb_reachid)),
+      error = function(e) character(0)
+    )
     
-    if (length(rb_network_id) != 1) next
+    all_ids <- unique(c(as.character(rb_reachid), upstream_ids))
+    all_ids <- all_ids[all_ids %in% sim_df$reachid]
     
-    start_rid  <- kusk_edges$rid[kusk_edges$reachid == rb_network_id]
-    trib_index <- KuskoNetwork$child_s[KuskoNetwork$rid == start_rid]
-    
-    if (length(trib_index) > 0) {
-      children <- KuskoNetwork$child_s[KuskoNetwork$parent_s %in% trib_index]
-      while (length(children) > 0) {
-        trib_index <- c(trib_index, children)
-        children   <- KuskoNetwork$child_s[KuskoNetwork$parent_s %in% children]
-      }
-      upstream_rids    <- KuskoNetwork$rid[match(trib_index, KuskoNetwork$child_s)]
-      upstream_net_ids <- kusk_edges$reachid[match(upstream_rids, kusk_edges$rid)]
-      upstream_net_ids <- upstream_net_ids[!is.na(upstream_net_ids)]
-    } else {
-      upstream_net_ids <- character(0)
-    }
-    
-    all_network_ids <- unique(c(rb_network_id, upstream_net_ids))
-    
-    analysis_ids <- network_to_analysis %>%
-      filter(network_reachid %in% all_network_ids) %>%
-      pull(analysis_reachid) %>%
-      unique()
-    
-    if (length(analysis_ids) == 0) next
+    if (length(all_ids) == 0) next
     
     drainage_sim <- sim_df %>%
-      filter(reachid %in% analysis_ids) %>%
+      filter(reachid %in% all_ids) %>%
       summarise(across(starts_with("simyr_"), ~ sum(.x, na.rm = TRUE)))
     
     sim_accumulated <- bind_rows(
       sim_accumulated,
-      data.frame(reachbase_id = rb_analysis_id, stream_order = rb_order, drainage_sim)
+      data.frame(reachbase_id = rb_reachid, stream_order = rb_order, drainage_sim)
     )
   }
   
@@ -458,130 +388,176 @@ cat("  All simulations complete.\n")
 
 
 # ==============================================================================
-# SECTION 10: PLOT AND EXPORT
-#
-# Each dot = one ReachBase drainage's inter-annual % change, sized by mean
-# basin proportion. Transparent boxplot shows distribution shape.
-# Four envelope pairs distinguished by color and linetype.
+# SECTION 10: PLOT AND EXPORT — PUBLICATION QUALITY
 # ==============================================================================
 
 cat("\nBuilding figure...\n")
+
+library(ggplot2)
+library(scales)
 
 y_limit <- 100
 
 plot_points <- pairwise_all %>%
   mutate(interannual_pct = pmax(pmin(interannual_pct, y_limit), -y_limit))
 
-# Scenario display labels (include CV values in legend)
+# --- Scenario labels ----------------------------------------------------------
 scenario_labels <- c(
   short_term = paste0("Short-term CV (2017\u20132022, CV = ", round(cv_short, 2), ")"),
   long_term  = paste0("Long-term CV (", min(long_term_years), "\u2013",
-                      max(long_term_years), ", CV = ", round(cv_long, 2), ")"),
-  cv_50      = "Fixed CV = 0.50",
-  cv_100     = "Fixed CV = 1.00"
+                      max(long_term_years), ", CV = ", round(cv_long, 2), ")")
 )
 
-scenario_colors   <- c(short_term = "#2C7BB6", long_term = "#1A9641",
-                       cv_50 = "#D7191C", cv_100 = "#7B2D8B")
-scenario_linetypes <- c(short_term = "dotted", long_term = "dashed",
-                        cv_50 = "dotdash", cv_100 = "longdash")
+scenario_colors    <- c(short_term = "#2166AC", long_term = "#4DAC26")
+scenario_linetypes <- c(short_term = "dotted",  long_term = "dashed")
 
 all_envelopes <- all_envelopes %>%
   mutate(scenario = factor(scenario, levels = names(scenario_labels)))
 
+# --- Build plot ---------------------------------------------------------------
 p <- ggplot() +
   
-  # Transparent boxplot
+  # Soft ribbon between whiskers
+  geom_ribbon(
+    data = all_envelopes %>% filter(scenario == "short_term"),
+    aes(x = stream_order, ymin = lower_whisker, ymax = upper_whisker),
+    fill = "#2166AC", alpha = 0.07
+  ) +
+  geom_ribbon(
+    data = all_envelopes %>% filter(scenario == "long_term"),
+    aes(x = stream_order, ymin = lower_whisker, ymax = upper_whisker),
+    fill = "#4DAC26", alpha = 0.07
+  ) +
+  
+  # Boxplot
   geom_boxplot(
     data          = plot_points,
     aes(x = stream_order, y = interannual_pct, group = stream_order),
-    fill          = "#AF7A6D",
-    color         = "#AF7A6D",
-    alpha         = 0.15,
+    fill          = "grey85",
+    color         = "grey50",
+    alpha         = 0.6,
     linewidth     = 0.4,
-    width         = 0.5,
-    outlier.shape = NA
+    width         = 0.45,
+    outlier.shape = NA,
+    staplewidth   = 0.3
   ) +
   
-  # Empirical points sized by mean basin proportion
+  # Jittered empirical points — uniform size
   geom_jitter(
-    data  = plot_points,
-    aes(x = stream_order, y = interannual_pct, size = mean_proportion),
-    color = "#AF7A6D",
-    alpha = 0.25,
-    width = 0.15
+    data   = plot_points,
+    aes(x = stream_order, y = interannual_pct),
+    color  = "#8C4A3C",
+    fill   = "#C97D6E",
+    size   = 1.2,
+    alpha  = 0.30,
+    width  = 0.18,
+    height = 0,
+    shape  = 21,
+    stroke = 0.2
   ) +
   
-  # Upper envelope lines — all four scenarios
+  # Zero reference line
+  geom_hline(
+    yintercept = 0,
+    color      = "black",
+    linewidth  = 0.4,
+    linetype   = "solid"
+  ) +
+  
+  # Envelope lines — upper and lower
   geom_line(
-    data     = all_envelopes,
+    data      = all_envelopes,
     aes(x = stream_order, y = upper_whisker,
         color = scenario, linetype = scenario),
-    linewidth = 0.9
+    linewidth = 0.85
   ) +
-  
-  # Lower envelope lines — all four scenarios
   geom_line(
-    data     = all_envelopes,
+    data      = all_envelopes,
     aes(x = stream_order, y = lower_whisker,
         color = scenario, linetype = scenario),
-    linewidth = 0.9
+    linewidth = 0.85
   ) +
   
-  geom_hline(yintercept = 0, color = "black", linewidth = 0.4) +
-  
-  scale_x_continuous(breaks = 4:7, labels = 4:7) +
+  # --- Scales -----------------------------------------------------------------
+scale_x_continuous(
+  breaks = 4:7,
+  labels = as.character(4:7),
+  expand = expansion(add = 0.5)
+) +
   scale_y_continuous(
     limits = c(-y_limit, y_limit),
-    breaks = seq(-100, 100, by = 50)
-  ) +
-  scale_size_continuous(
-    name   = "Mean basin\nshare",
-    range  = c(0.5, 6),
-    labels = scales::percent_format(accuracy = 0.1)
+    breaks = seq(-100, 100, by = 25),
+    expand = expansion(mult = 0.02),
+    labels = function(x) paste0(x, "%")
   ) +
   scale_color_manual(
-    name   = "Null simulation",
+    name   = "Null simulation (independent populations)",
     values = scenario_colors,
     labels = scenario_labels
   ) +
   scale_linetype_manual(
-    name   = "Null simulation",
+    name   = "Null simulation (independent populations)",
     values = scenario_linetypes,
     labels = scenario_labels
   ) +
   
-  labs(
-    title    = "Kuskokwim Chinook \u2014 Variance Dampening Across Spatial Scales",
-    subtitle = paste0(
-      "Each point = one ReachBase drainage's inter-annual % change in cumulative production\n",
-      "(15 year-pairs, 2017\u20132022) | Point size = mean basin share | ",
-      "Lines = null simulation envelopes (independent populations)"
-    ),
-    x = "Stream Order",
-    y = "Inter-annual variability (% difference)"
+  # --- Labels -----------------------------------------------------------------
+labs(
+  title    = "Variance Dampening Across Spatial Scales \u2014 Kuskokwim Chinook",
+  subtitle = "Each point = one ReachBase drainage's inter-annual % change in cumulative production (15 year-pairs, 2017\u20132022)\nLines = whisker bounds of null simulation under independent-population assumption",
+  x        = "Stream order",
+  y        = "Inter-annual variability (% difference)"
+) +
+  
+  # --- Theme ------------------------------------------------------------------
+theme_classic(base_size = 12) +
+  theme(
+    # Titles
+    plot.title    = element_text(size = 12, face = "bold",
+                                 margin = margin(b = 4)),
+    plot.subtitle = element_text(size = 8.5, color = "grey40",
+                                 lineheight = 1.4, margin = margin(b = 12)),
+    plot.margin   = margin(14, 16, 12, 14),
+    
+    # Axes
+    axis.title    = element_text(size = 11),
+    axis.text     = element_text(size = 10, color = "black"),
+    axis.line     = element_line(color = "black", linewidth = 0.4),
+    axis.ticks    = element_line(color = "black", linewidth = 0.4),
+    
+    # Panel
+    panel.grid.major.y = element_line(color = "grey92", linewidth = 0.35),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor   = element_blank(),
+    
+    # Legend
+    legend.position   = "bottom",
+    legend.direction  = "horizontal",
+    legend.title      = element_text(size = 9, face = "bold"),
+    legend.text       = element_text(size = 9),
+    legend.key.width  = unit(1.8, "cm"),
+    legend.key.height = unit(0.5, "cm"),
+    legend.margin     = margin(t = 6)
   ) +
   
-  theme_classic(base_size = 13) +
-  theme(
-    plot.title    = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(color = "gray40", size = 9),
-    panel.grid    = element_blank(),
-    legend.position   = "right",
-    legend.key.width  = unit(1.5, "cm")
+  guides(
+    color    = guide_legend(override.aes = list(linewidth = 1.2)),
+    linetype = guide_legend(override.aes = list(linewidth = 1.2))
   )
 
 print(p)
 
+# --- Export ------------------------------------------------------------------
 out_path <- here("Figures", "Kusko_VarianceDampening.png")
 dir.create(here("Figures"), showWarnings = FALSE)
 
 ggsave(
   filename = out_path,
   plot     = p,
-  width    = 10,
+  width    = 9,
   height   = 6,
-  dpi      = 300
+  dpi      = 320,
+  bg       = "white"
 )
 
 cat("\nFigure saved to:", out_path, "\n")
