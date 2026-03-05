@@ -277,195 +277,102 @@ FindUpstreamReachID_Kusk <- function(ReachID) {
 # # 3. Assign a up_grp ID to each upstream reach
 # # 4. Spatial join up_grp back to Yukon_edges3.shp → save as Yukon_new.shp
 # ################################################################################
-# 
-# library(sf)
-# library(dplyr)
-# library(here)
-# 
-# #------------------------------------------------------------------------------
-# # LOAD DATA
-# #------------------------------------------------------------------------------
-# yuk_edges <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Yukon_edges_up.shp"),
-#                      quiet = TRUE)
-# 
-# yuk_basin <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Yukon_basin.shp"),
-#                      quiet = TRUE)
-# 
-# # Working shapefile with TouchingMs column (equivalent of Kusko_edges3.shp)
-# # UPDATE THIS FILENAME if yours is named differently
-# yuk_edges_working <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Yukon_edges.shp"),
-#                              quiet = TRUE)
-# 
-# YukonNodes <- read.csv(
-#   here("Data","UpstreamReaches","yukon_noderelationships.csv"),
-#   stringsAsFactors = FALSE
-# )
-# 
-# YukonNetwork <- YukonNodes %>%
-#   rename(child_s = fromnode, parent_s = tonode)
-# 
-# #------------------------------------------------------------------------------
-# # FUNCTION: FIND ALL UPSTREAM REACH IDS FOR A GIVEN REACH (YUKON)
-# #------------------------------------------------------------------------------
-# FindUpstreamReachID_Yuk <- function(ReachID) {
-#   TribStartRID <- yuk_edges$rid[yuk_edges$reachid == ReachID]
-#   if (length(TribStartRID) != 1) {
-#     stop(paste("ReachID", ReachID, "does not resolve to a unique rid"))
-#   }
-#   TRIBindex <- YukonNetwork$child_s[YukonNetwork$rid == TribStartRID]
-#   ChildList  <- YukonNetwork$child_s[YukonNetwork$parent_s %in% TRIBindex]
-#   while (length(ChildList) > 0) {
-#     TRIBindex <- c(TRIBindex, ChildList)
-#     ChildList <- YukonNetwork$child_s[YukonNetwork$parent_s %in% ChildList]
-#   }
-#   upstream_rids     <- YukonNetwork$rid[match(TRIBindex, YukonNetwork$child_s)]
-#   upstream_reachids <- yuk_edges$reachid[match(upstream_rids, yuk_edges$rid)]
-#   return(upstream_reachids)
-# }
-# 
-# #------------------------------------------------------------------------------
-# # STEP 1: SPATIAL JOIN — Transfer TouchingMs to yuk_edges (upstream network)
-# #------------------------------------------------------------------------------
-# # Ensure matching CRS
-# yuk_edges_working <- st_transform(yuk_edges_working, st_crs(yuk_edges))
-# 
-# # Join TouchingMs from working shapefile to upstream shapefile
-# yuk_edges <- yuk_edges %>%
-#   st_join(
-#     yuk_edges_working %>% select(TouchingMs),
-#     join   = st_equals,
-#     left   = TRUE
-#   )
-# 
-# # Identify mainstem-touching mouth segments
-# mouth_segments <- yuk_edges %>%
-#   filter(TouchingMs == 1) %>%
-#   pull(reachid)
-# 
-# cat("Found", length(mouth_segments), "mainstem-touching mouth segments\n")
-# 
-# #------------------------------------------------------------------------------
-# # STEP 2: COLLECT UPSTREAM REACHES FOR EACH MOUTH & ASSIGN GROUP IDS
-# #------------------------------------------------------------------------------
-# # Initialize up_grp column
-# yuk_edges$up_grp <- NA_integer_
-# 
-# for (i in seq_along(mouth_segments)) {
-#   mouth_id   <- mouth_segments[i]
-#   upstream   <- FindUpstreamReachID_Yuk(mouth_id)
-#   all_in_group <- unique(c(mouth_id, upstream))
-#   
-#   # Assign group — only to reaches not yet claimed
-#   unclaimed <- yuk_edges$reachid %in% all_in_group & is.na(yuk_edges$up_grp)
-#   yuk_edges$up_grp[unclaimed] <- i
-#   
-#   if (i %% 50 == 0) cat("  Processed", i, "/", length(mouth_segments), "mouths\n")
-# }
-# 
-# cat("Processed all", length(mouth_segments), "mouths\n")
-# cat("Reaches assigned to a group:",
-#     sum(!is.na(yuk_edges$up_grp)), "/", nrow(yuk_edges), "\n")
-# cat("Unique tributary groups:",
-#     length(unique(na.omit(yuk_edges$up_grp))), "\n")
-# 
-# #------------------------------------------------------------------------------
-# # STEP 3: SPATIAL JOIN — Transfer up_grp back to Yukon_edges3.shp
-# #------------------------------------------------------------------------------
-# # Keep only up_grp + geometry from yuk_edges to avoid column clashes
-# group_sf <- yuk_edges %>%
-#   select(up_grp)
-# 
-# # Drop any existing up_grp column from working shapefile before joining
-# yuk_edges_working <- yuk_edges_working %>%
-#   select(-any_of("up_grp"))
-# 
-# yuk_edges_grouped <- yuk_edges_working %>%
-#   st_join(group_sf, join = st_equals, left = TRUE)
-# 
-# # If the join created duplicates (up_grp.x / .y), clean them up
-# ug_cols <- grep("^up_grp", names(yuk_edges_grouped), value = TRUE)
-# if (length(ug_cols) > 1) {
-#   yuk_edges_grouped <- yuk_edges_grouped %>%
-#     mutate(up_grp = coalesce(up_grp.y, up_grp.x)) %>%
-#     select(-any_of(c("up_grp.x", "up_grp.y")))
-# }
-# 
-# #------------------------------------------------------------------------------
-# # STEP 3b: SAVE
-# #------------------------------------------------------------------------------
-# out_path <- here("Data","Spatial Data","AnalysisShapefiles","Yukon_new.shp")
-# 
-# st_write(
-#   st_zm(yuk_edges_grouped, drop = TRUE, what = "ZM"),
-#   out_path,
-#   quiet = TRUE
-# )
-# 
-# cat("Saved:", out_path, "\n")
-# 
-# #------------------------------------------------------------------------------
-# # STEP 4: INTERACTIVE LEAFLET MAP — Click to identify groups
-# #------------------------------------------------------------------------------
-# library(leaflet)
-# library(RColorBrewer)
-# library(htmlwidgets)
-# 
-# # Transform to WGS84 for leaflet
-# yuk_leaf   <- yuk_edges_grouped %>% st_transform(4326)
-# basin_leaf <- yuk_basin %>% st_transform(4326)
-# 
-# # Assign colors: one per up_grp, gray for unassigned
-# n_groups <- length(unique(na.omit(yuk_leaf$up_grp)))
-# palette  <- colorFactor(
-#   palette = sample(colors(distinct = TRUE), n_groups),
-#   domain  = na.omit(unique(yuk_leaf$up_grp))
-# )
-# 
-# yuk_leaf$color <- ifelse(
-#   is.na(yuk_leaf$up_grp),
-#   "#999999",
-#   palette(yuk_leaf$up_grp)
-# )
-# 
-# # Flag mouth segments
-# yuk_leaf$is_mouth <- yuk_leaf$reachid %in% mouth_segments
-# 
-# # Build popup labels
-# yuk_leaf$label <- paste0(
-#   "ReachID: ",    yuk_leaf$reachid, "<br>",
-#   "up_grp: ",     ifelse(is.na(yuk_leaf$up_grp), "None",
-#                          yuk_leaf$up_grp), "<br>",
-#   "Mouth segment: ", ifelse(yuk_leaf$is_mouth, "YES", "no")
-# )
-# 
-# # Create map
-# m <- leaflet() %>%
-#   addProviderTiles(providers$CartoDB.Positron) %>%
-#   # Basin outline
-#   addPolygons(data = basin_leaf,
-#               fillColor = "transparent", color = "black",
-#               weight = 1, opacity = 0.4) %>%
-#   # Unassigned reaches (gray, thin)
-#   addPolylines(data  = yuk_leaf %>% filter(is.na(up_grp)),
-#                color = "#CCCCCC", weight = 1, opacity = 0.4,
-#                popup = ~label, group = "Unassigned") %>%
-#   # Grouped reaches (colored by up_grp)
-#   addPolylines(data  = yuk_leaf %>% filter(!is.na(up_grp)),
-#                color = ~color, weight = 2, opacity = 0.8,
-#                popup = ~label, group = "Tributary Groups") %>%
-#   # Mouth segments highlighted
-#   addPolylines(data  = yuk_leaf %>% filter(is_mouth),
-#                color = "black", weight = 4, opacity = 1,
-#                popup = ~label, group = "Mouth Segments") %>%
-#   # Layer control
-#   addLayersControl(
-#     overlayGroups = c("Tributary Groups", "Mouth Segments", "Unassigned"),
-#     options       = layersControlOptions(collapsed = FALSE)
-#   )
-# 
-# # Display
-# m
-# 
-# # Save to HTML
-# saveWidget(m, here("YukonUpstreamGroup_Map.html"), selfcontained = TRUE)
-# cat("Interactive map saved to:", here("YukonUpstreamGroup_Map.html"), "\n")
+
+library(sf)
+library(dplyr)
+library(here)
+
+#------------------------------------------------------------------------------
+# LOAD DATA
+#------------------------------------------------------------------------------
+yuk_edges <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Yukon_edges.shp"),
+                     quiet = TRUE)
+
+yuk_basin <- st_read(here("Data","Spatial Data","AnalysisShapefiles","Yukon_basin.shp"),
+                     quiet = TRUE)
+
+
+YukonNodes <- read.csv(
+  here("Data","UpstreamReaches","yukon_noderelationships.csv"),
+  stringsAsFactors = FALSE
+)
+
+YukonNetwork <- YukonNodes %>%
+  rename(child_s = fromnode, parent_s = tonode)
+
+#------------------------------------------------------------------------------
+# FUNCTION: FIND ALL UPSTREAM REACH IDS FOR A GIVEN REACH (YUKON)
+#------------------------------------------------------------------------------
+FindUpstreamReachID_Yuk <- function(ReachID) {
+  TribStartRID <- yuk_edges$up_rid[yuk_edges$reachid == ReachID]
+  
+  if (length(TribStartRID) != 1) {
+    stop(paste("ReachID", ReachID, "does not resolve to a unique rid"))
+  }
+  
+  TRIBindex <- YukonNetwork$child_s[YukonNetwork$rid == TribStartRID]
+  
+  ChildList  <- YukonNetwork$child_s[YukonNetwork$parent_s %in% TRIBindex]
+  
+  while (length(ChildList) > 0) {
+    TRIBindex <- c(TRIBindex, ChildList)
+    ChildList <- YukonNetwork$child_s[YukonNetwork$parent_s %in% ChildList]
+  }
+  
+  upstream_rids     <- YukonNetwork$rid[match(TRIBindex, YukonNetwork$child_s)]
+  
+  upstream_reachids <- yuk_edges$reachid[match(upstream_rids, yuk_edges$up_rid)]
+  return(upstream_reachids)
+}
+
+
+################################################################################
+# DIAGNOSTIC: TEST UPSTREAM FUNCTION + EXPORT PNG MAP
+# Usage: Set WATERSHED and TEST_REACHID, then source this block
+################################################################################
+
+# --- CONFIGURATION ---
+WATERSHED    <- "Yukon"   # "Kusko" or "Yukon"
+TEST_REACHID <- 16319    # Replace with your test reach ID
+
+# --- RUN & PLOT ---
+if (WATERSHED == "Kusko") {
+  upstream_ids <- FindUpstreamReachID_Kusk(TEST_REACHID)
+  edges_plot   <- kusk_edges
+  basin_plot   <- kusk_basin
+  reach_col    <- "up_reachid"   # column name used in Kusko edges
+} else {
+  upstream_ids <- FindUpstreamReachID_Yuk(TEST_REACHID)
+  edges_plot   <- yuk_edges
+  basin_plot   <- yuk_basin
+  reach_col    <- "reachid"      # column name used in Yukon edges
+}
+
+cat("Test ReachID:    ", TEST_REACHID, "\n")
+cat("Upstream reaches:", length(upstream_ids), "\n")
+
+# Build color + line width vectors
+colcode <- rep("gray80", nrow(edges_plot))
+colcode[edges_plot[[reach_col]] %in% upstream_ids] <- "red"
+colcode[edges_plot[[reach_col]] == TEST_REACHID]   <- "blue"
+
+lwds <- rep(0.5, nrow(edges_plot))
+lwds[edges_plot[[reach_col]] %in% upstream_ids] <- 1.5
+lwds[edges_plot[[reach_col]] == TEST_REACHID]   <- 3
+
+# Export PNG
+out_png <- here(paste0("Upstream_Test_", WATERSHED, "_", TEST_REACHID, ".png"))
+png(out_png, width = 2400, height = 1800, res = 200)
+
+plot(st_geometry(basin_plot),
+     col    = "gray95",
+     border = "gray40",
+     main   = paste0(WATERSHED, " — Upstream of ReachID: ", TEST_REACHID,
+                     "\n(blue = seed reach, red = upstream, n = ",
+                     length(upstream_ids), ")"))
+plot(st_geometry(edges_plot),
+     col = colcode, lwd = lwds, add = TRUE)
+
+dev.off()
+cat("PNG saved to:", out_png, "\n")
+
