@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHM II — Parameter Explorer</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#171e26; --panel2:#1e2732; --line:#2b3947;
+    --ink:#e7edf3; --muted:#8ea3b5; --accent:#4aa3df; --accent2:#f0a53d;
+    --ok:#4cc38a; --err:#f2555a; --dirty:#f0a53d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink)}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;
+         position:sticky;top:0;background:var(--bg);z-index:5}
+  header h1{font-size:16px;margin:0;font-weight:650}
+  .badge{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .badge.ok{color:var(--ok);border-color:var(--ok)}
+  .badge.err{color:var(--err);border-color:var(--err)}
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:0;align-items:start}
+  /* ---- sidebar ---- */
+  aside{border-right:1px solid var(--line);padding:16px;position:sticky;top:53px;
+        height:calc(100vh - 53px);overflow-y:auto}
+  .group{margin-bottom:18px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .group h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+  .ctrl{margin-bottom:14px}
+  .ctrl:last-child{margin-bottom:4px}
+  .ctrl .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ctrl label{font-weight:600;font-size:13px}
+  .ctrl .val{font-variant-numeric:tabular-nums;font-size:13px;color:var(--accent);cursor:text}
+  .ctrl .val.dirty{color:var(--dirty)}
+  .ctrl input[type=range]{width:100%;margin:6px 0 2px;accent-color:var(--accent)}
+  .ctrl input[type=number]{width:92px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+       border-radius:6px;padding:2px 6px;font-size:12px}
+  .ctrl .help{font-size:11px;color:var(--muted)}
+  .affects{font-size:10px;color:var(--muted);margin-top:2px}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent2);margin-left:6px}
+  .actions{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);
+         background:var(--panel2);color:var(--ink);padding:9px 12px;transition:.12s}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#04121d;font-weight:650}
+  button.primary:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{background:transparent}
+  button.sm{padding:5px 9px;font-size:12px}
+  /* ---- main ---- */
+  main{padding:16px 20px 60px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .card.stale{outline:1px solid var(--dirty)}
+  .card .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .card .hd .t{font-weight:650;font-size:13px}
+  .card .hd .scripts{font-size:10px;color:var(--muted)}
+  .card .body{padding:10px;min-height:120px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+  .card img{max-width:100%;border-radius:6px;background:#fff;cursor:zoom-in}
+  .card .body.gallery img{max-width:calc(50% - 4px)}
+  .status{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .status.running{color:var(--accent2);border-color:var(--accent2)}
+  .status.done{color:var(--ok);border-color:var(--ok)}
+  .status.stale{color:var(--dirty);border-color:var(--dirty)}
+  .empty{color:var(--muted);font-size:12px;text-align:center;padding:24px}
+  .spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;
+        animation:sp .8s linear infinite;display:inline-block;vertical-align:middle}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  /* ---- console ---- */
+  #console{position:fixed;right:0;bottom:0;width:min(560px,45vw);max-height:42vh;background:#0a0e12;
+    border:1px solid var(--line);border-radius:10px 0 0 0;display:none;flex-direction:column;z-index:20;box-shadow:0 -6px 30px #0008}
+  #console.show{display:flex}
+  #console .chd{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}
+  #console .chd b{font-size:12px}
+  #console pre{margin:0;padding:8px 10px;overflow:auto;font:11px/1.45 "SF Mono",Menlo,Consolas,monospace;color:#b8c7d6;flex:1}
+  #console .line-hd{color:var(--accent2)}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:var(--panel2);
+    border:1px solid var(--line);padding:10px 16px;border-radius:8px;z-index:30;display:none}
+  .toast.err{border-color:var(--err);color:var(--err)}
+  .lightbox{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+  .lightbox.show{display:flex}
+  .lightbox img{max-width:96vw;max-height:94vh;background:#fff;border-radius:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Shifting Habitat Mosaics II — Parameter Explorer</h1>
+  <span id="rstatus" class="badge">checking R…</span>
+  <span style="flex:1"></span>
+  <button id="consoleToggle" class="ghost sm">R console</button>
+</header>
+
+<div class="layout">
+  <aside>
+    <div id="controls"></div>
+    <div class="actions">
+      <button id="regenAffected" class="primary">Regenerate affected figures</button>
+      <button id="regenAll" class="ghost">Regenerate all six</button>
+      <button id="resetBtn" class="ghost sm">Reset to file defaults</button>
+    </div>
+    <p class="help" style="margin-top:14px;color:var(--muted)">
+      Map-driven figures (1, 3, 4) re-run the full assignment computation and can take
+      several minutes. Fig 2 depends only on the contour threshold and is quicker.
+    </p>
+  </aside>
+
+  <main>
+    <div id="grid" class="grid"></div>
+  </main>
+</div>
+
+<div id="console">
+  <div class="chd"><b>R console</b>
+    <span><button id="clearLog" class="ghost sm">clear</button>
+    <button id="closeLog" class="ghost sm">close</button></span>
+  </div>
+  <pre id="log"></pre>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="lightbox" class="lightbox"><img id="lbimg" alt=""></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let STATE = null;          // server state
+let current = {};          // live control values
+let applied = {};          // last-applied (saved) values
+let running = false;
+
+async function boot(){
+  const r = await fetch('/api/state'); STATE = await r.json();
+  applied = Object.assign({}, STATE.params);
+  current = Object.assign({}, STATE.params);
+  renderRStatus();
+  renderControls();
+  renderGrid(STATE.figures);
+}
+function renderRStatus(){
+  const b = $('#rstatus');
+  if(STATE.rscript_ok){ b.textContent='R ready'; b.className='badge ok'; }
+  else { b.textContent='Rscript not found'; b.className='badge err'; }
+}
+
+/* ---------- controls ---------- */
+function groups(){
+  const g = {};
+  STATE.schema.forEach(p => { (g[p.group] ||= []).push(p); });
+  return g;
+}
+function fmt(p,v){
+  if(p.type==='int') return String(Math.round(v));
+  return Number(v).toFixed(p.decimals ?? 3);
+}
+function renderControls(){
+  const host = $('#controls'); host.innerHTML='';
+  const g = groups();
+  for(const gname of Object.keys(g)){
+    const box = document.createElement('div'); box.className='group';
+    box.innerHTML = `<h2>${gname}</h2>`;
+    g[gname].forEach(p => box.appendChild(controlEl(p)));
+    host.appendChild(box);
+  }
+}
+function controlEl(p){
+  const wrap = document.createElement('div'); wrap.className='ctrl';
+  const affTxt = p.affects.map(k=>k.replace('fig','Fig ').replace('_',' ')).join(', ');
+  wrap.innerHTML = `
+    <div class="top">
+      <label>${p.label}</label>
+      <span class="val" id="val_${p.id}" title="click to type a value">${fmt(p,current[p.id])}</span>
+    </div>
+    <input type="range" id="rng_${p.id}" min="${p.min}" max="${p.max}" step="${p.step}" value="${current[p.id]}">
+    <div class="help">${p.help}</div>
+    <div class="affects">affects: ${affTxt}</div>`;
+  const rng = wrap.querySelector('input');
+  const val = wrap.querySelector('.val');
+  rng.addEventListener('input', ()=>{ setVal(p, parseFloat(rng.value)); });
+  // click value to type precisely
+  val.addEventListener('click', ()=>{
+    const inp = document.createElement('input'); inp.type='number';
+    inp.step=p.step; inp.min=p.min; inp.max=p.max; inp.value=current[p.id];
+    val.replaceWith(inp); inp.focus(); inp.select();
+    const commit=()=>{ let v=parseFloat(inp.value); if(isNaN(v)) v=current[p.id];
+      v=Math.min(p.max,Math.max(p.min,v)); setVal(p,v); renderControls(); };
+    inp.addEventListener('blur',commit);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();});
+  });
+  return wrap;
+}
+function setVal(p,v){
+  current[p.id]=v;
+  const val=$('#val_'+p.id); if(val) { val.textContent=fmt(p,v);
+    val.classList.toggle('dirty', v!==applied[p.id]); }
+  const rng=$('#rng_'+p.id); if(rng) rng.value=v;
+  markStale();
+}
+function dirtyParams(){ return STATE.schema.filter(p=>current[p.id]!==applied[p.id]); }
+function affectedFigures(){
+  const set=new Set();
+  dirtyParams().forEach(p=>p.affects.forEach(f=>set.add(f)));
+  return [...set];
+}
+function markStale(){
+  const aff=new Set(affectedFigures());
+  STATE.figure_defs.forEach(fd=>{
+    const card=$('#card_'+fd.key);
+    if(card) card.classList.toggle('stale', aff.has(fd.key));
+    const st=$('#st_'+fd.key);
+    if(st && aff.has(fd.key) && !running){ st.textContent='stale'; st.className='status stale'; }
+  });
+  $('#regenAffected').disabled = running || aff.size===0;
+  $('#regenAffected').textContent = aff.size
+     ? `Regenerate ${aff.size} affected figure${aff.size>1?'s':''}` : 'No changes';
+}
+
+/* ---------- figure grid ---------- */
+function renderGrid(figs){
+  const grid=$('#grid'); grid.innerHTML='';
+  STATE.figure_defs.forEach(fd=>{
+    const card=document.createElement('div'); card.className='card'; card.id='card_'+fd.key;
+    card.innerHTML=`
+      <div class="hd">
+        <div><div class="t">${fd.title}</div>
+             <div class="scripts">${fd.scripts.join(' → ')}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span class="status" id="st_${fd.key}">—</span>
+          <button class="sm ghost" data-fig="${fd.key}">run</button>
+        </div>
+      </div>
+      <div class="body ${figs[fd.key]&&figs[fd.key].length>1?'gallery':''}" id="body_${fd.key}"></div>`;
+    grid.appendChild(card);
+    fillBody(fd.key, figs[fd.key]||[]);
+    card.querySelector('button[data-fig]').addEventListener('click',()=>regenerate([fd.key]));
+  });
+}
+function fillBody(key, entries){
+  const body=$('#body_'+key); body.className='body '+(entries.length>1?'gallery':'');
+  if(!entries.length){ body.innerHTML='<div class="empty">not generated yet</div>'; return; }
+  body.innerHTML='';
+  entries.forEach(e=>{
+    const img=document.createElement('img'); img.src=e.url; img.alt=e.name; img.title=e.name;
+    img.addEventListener('click',()=>openLB(e.url));
+    body.appendChild(img);
+  });
+}
+
+/* ---------- run ---------- */
+async function regenerate(targets){
+  if(running) return;
+  if(!STATE.rscript_ok){ toast('Rscript not found — cannot regenerate. See README.',true); return; }
+  running=true; setBusy(targets,true); showConsole(); logLine('\n>>> starting run for: '+targets.join(', '),true);
+
+  const res = await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({params:current, targets})});
+  const reader = res.body.getReader(); const dec=new TextDecoder(); let buf='';
+  while(true){
+    const {value,done}=await reader.read(); if(done) break;
+    buf+=dec.decode(value,{stream:true});
+    let idx;
+    while((idx=buf.indexOf('\n\n'))>=0){
+      const chunk=buf.slice(0,idx); buf=buf.slice(idx+2);
+      handleSSE(chunk, targets);
+    }
+  }
+  running=false; setBusy(targets,false);
+}
+function handleSSE(chunk, targets){
+  let ev='message', data='';
+  chunk.split('\n').forEach(l=>{
+    if(l.startsWith('event:')) ev=l.slice(6).trim();
+    else if(l.startsWith('data:')) data+=l.slice(5).trim();
+  });
+  let obj={}; try{obj=JSON.parse(data||'{}');}catch(e){return;}
+  if(ev==='log') logLine(obj.line);
+  else if(ev==='plan') logLine('scripts to run: '+obj.scripts.join(', '),true);
+  else if(ev==='script_start') setScriptStatus(obj.script,'running');
+  else if(ev==='script_done'){}
+  else if(ev==='done'){
+    applied=Object.assign({},obj.params); current=Object.assign({},obj.params);
+    renderControls(); STATE.figures=obj.figures;
+    targets.forEach(k=>{ fillBody(k, obj.figures[k]||[]);
+       const st=$('#st_'+k); if(st){st.textContent='updated';st.className='status done';}
+       const c=$('#card_'+k); if(c)c.classList.remove('stale'); });
+    markStale(); toast('Done — figures updated.');
+    logLine('\n>>> complete.',true);
+  }
+  else if(ev==='error'){ toast('Error: '+obj.message,true); logLine('\nERROR: '+obj.message,true); }
+}
+function setBusy(targets,on){
+  $('#regenAffected').disabled=on; $('#regenAll').disabled=on;
+  targets.forEach(k=>{ const st=$('#st_'+k);
+    if(st && on){ st.innerHTML='<span class="spin"></span>'; st.className='status running'; }});
+  document.querySelectorAll('button[data-fig]').forEach(b=>b.disabled=on);
+  if(!on) markStale();
+}
+function setScriptStatus(_,__){ /* reserved for finer-grained UI */ }
+
+/* ---------- misc UI ---------- */
+function logLine(t,hd){ const pre=$('#log'); const span=document.createElement('span');
+  if(hd) span.className='line-hd'; span.textContent=(t||'')+'\n'; pre.appendChild(span);
+  pre.scrollTop=pre.scrollHeight; }
+function showConsole(){ $('#console').classList.add('show'); }
+$('#consoleToggle').onclick=()=>$('#console').classList.toggle('show');
+$('#closeLog').onclick=()=>$('#console').classList.remove('show');
+$('#clearLog').onclick=()=>$('#log').innerHTML='';
+function toast(msg,err){ const t=$('#toast'); t.textContent=msg; t.className='toast show'+(err?' err':'');
+  clearTimeout(t._t); t.style.display='block'; t._t=setTimeout(()=>t.style.display='none',err?6000:3000); }
+function openLB(src){ $('#lbimg').src=src; $('#lightbox').classList.add('show'); }
+$('#lightbox').onclick=()=>$('#lightbox').classList.remove('show');
+
+$('#regenAffected').onclick=()=>{ const a=affectedFigures(); if(a.length) regenerate(a); };
+$('#regenAll').onclick=()=>regenerate(STATE.figure_defs.map(f=>f.key));
+$('#resetBtn').onclick=async()=>{ await boot(); toast('Reset to values in params.R'); };
+
+boot();
+</script>
+</body>
+</html>

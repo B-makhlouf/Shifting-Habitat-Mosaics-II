@@ -51,3 +51,11 @@ rsconnect/
 #DS Store 
 .DS_Store
 
+
+# Local dependencies and generated temporary files
+.r-library/
+tmp/
+node_modules/
+.RDataTmp*
+Rplots.pdf
+__pycache__/
