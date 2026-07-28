@@ -1,18 +1,22 @@
 ################################################################################
-# CONTOUR FIGURES — canonical contour script for all contour analysis
+# CONTOUR AND EMPIRICAL CHANGE FIGURES
 #
-# Reads pre-computed assignment CSVs from Outputs/SensitivitySweep/t0.9/,
-# filters to assignment_norm > FILT_THRESH, then plots Watershed Slope (log₁₀)
-# on x against Distance Upstream on y, weighted by assignment_norm.
+# Produces only:
+#   01_annual_contours
+#   02_change_from_average
+#   Figures 1-2 manuscript composites (map + contour + change heatmap)
 #
-# Produces:
-#   One contour figure per year per watershed (quantiles method):
-#        Figures/02_Contours/{basin}_{year}_thresh{FILT}.png
-#
-# USAGE (from project root):
-#   source("Code/Analysis/01_DensityContours/ContourThreshnew.R")
-#   Rscript Code/Analysis/01_DensityContours/ContourThreshnew.R
+# Annual contours use the production assignments made by step 01, retain
+# reaches with assignment_norm > CONTOUR_FILT_THRESH, and weight the KDE by
+# assignment_rescale. The empirical heatmaps use unsmoothed annual population
+# shares and show each year's percentage-point departure from the equal-year
+# basin average.
 ################################################################################
+
+project_library <- file.path(getwd(), ".r-library")
+if (dir.exists(project_library)) {
+  .libPaths(c(project_library, .libPaths()))
+}
 
 library(sf)
 library(dplyr)
@@ -22,380 +26,635 @@ library(here)
 library(ks)
 library(scales)
 
-# Shared parameters (single source of truth — edit values in params.R)
 source(here("Code", "Analysis", "params.R"))
 
-# ==============================================================================
-# Config
-# ==============================================================================
-CSV_THRESH   <- "0.9"          # folder under SensitivitySweep (data source)
-FILT_THRESH  <- as.numeric(Sys.getenv(
-  "CONTOUR_FILTER_THRESHOLD",
-  unset = as.character(CONTOUR_FILT_THRESH)
-))
-QUANTILES    <- c(0, .2, .4, .6, .8 )
-REFERENCE_STYLE <- "cross"     # "cross" or "outline"
-CONTOUR_PALETTE <- Sys.getenv("CONTOUR_PALETTE", "YlOrRd")
-
-csv_root <- here("Outputs", "SensitivitySweep", paste0("t", CSV_THRESH))
-fig_dir <- if (CONTOUR_PALETTE == "magma") {
-  here("Figures", "02_Contours", "MagmaPalette_Preview")
-} else {
-  here("Figures", "02_Contours")
+# ---- Configuration -----------------------------------------------------------
+FILT_THRESH <- as.numeric(CONTOUR_FILT_THRESH)
+if (length(FILT_THRESH) != 1L || !is.finite(FILT_THRESH) ||
+    FILT_THRESH < 0 || FILT_THRESH > 1) {
+  stop(
+    "CONTOUR_FILT_THRESH in params.R must be one finite value from 0 to 1.",
+    call. = FALSE
+  )
 }
-dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
 
-# ==============================================================================
-# Load shapefiles
-# ==============================================================================
-cat("Loading shapefiles...\n")
-yukon_attr <- sf::st_read(
+THRESH_LABEL <- format(
+  FILT_THRESH, scientific = FALSE, trim = TRUE, digits = 10
+)
+QUANTILES <- c(0, 0.2, 0.4, 0.6, 0.8)
+
+fig_root <- here("Figures", "02_Contours")
+annual_dir <- file.path(fig_root, "01_annual_contours")
+for (path in annual_dir) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+}
+
+csv_root <- here("Outputs", "ProductionData")
+
+# ---- Load spatial attributes and annual assignments --------------------------
+cat("Loading spatial attributes and production assignments...\n")
+yukon_attr <- st_read(
   here("Data", "Spatial Data", "AnalysisShapefiles", "Yukon_GEO2.shp"),
   quiet = TRUE
 ) %>%
   st_drop_geometry() %>%
-  dplyr::select(reachid, WtrshdSlp, DistUpstre)
+  select(reachid, WtrshdSlp, DistUpstre)
 
-kusko_attr <- sf::st_read(
+kusko_attr <- st_read(
   here("Data", "Spatial Data", "AnalysisShapefiles", "Kusko_GEO.shp"),
   quiet = TRUE
 ) %>%
   st_drop_geometry() %>%
-  dplyr::select(reachid, WtrshdSlp, DistUpstre)
+  select(reachid, WtrshdSlp, DistUpstre)
 
-# ==============================================================================
-# Load CSVs, join attributes, filter to assignment_norm > FILT_THRESH
-# ==============================================================================
-cat(sprintf("Loading CSVs and filtering to assignment_norm > %.1f...\n", FILT_THRESH))
-
-load_filtered <- function(basin_subdir, pattern, attr_df) {
-  years <- if (basin_subdir == "Yukon") YUKON_YEARS else KUSKO_YEARS
-  setNames(lapply(years, function(yr) {
+load_annual_data <- function(basin_subdir, file_pattern, years, attributes) {
+  setNames(lapply(years, function(year) {
     read_csv(
-      file.path(csv_root, basin_subdir, sprintf(pattern, yr)),
+      file.path(csv_root, basin_subdir, sprintf(file_pattern, year)),
       show_col_types = FALSE
     ) %>%
-      dplyr::select(reachid, assignment_norm) %>%
-      left_join(attr_df, by = "reachid") %>%
-      dplyr::filter(
+      select(reachid, assignment_rescale, assignment_norm) %>%
+      left_join(attributes, by = "reachid") %>%
+      filter(
         assignment_norm > FILT_THRESH,
-        !is.na(WtrshdSlp), WtrshdSlp > 0,
-        !is.na(DistUpstre)
+        is.finite(assignment_rescale),
+        is.finite(assignment_norm),
+        is.finite(WtrshdSlp), WtrshdSlp > 0,
+        is.finite(DistUpstre)
       ) %>%
       mutate(log_slope = log10(WtrshdSlp))
   }), years)
 }
 
-yukon_data <- load_filtered("Yukon", "%d_Yukon_Full_Assignment_Results.csv", yukon_attr)
-kusko_data <- load_filtered("Kusko", "%d_Kusko_Assignment_Results.csv",      kusko_attr)
+yukon_data <- load_annual_data(
+  "Yukon_full", "%d_Yukon_Full_Assignment_Results.csv",
+  YUKON_YEARS, yukon_attr
+)
+kusko_data <- load_annual_data(
+  "Kusko", "%d_Kusko_Assignment_Results.csv",
+  KUSKO_YEARS, kusko_attr
+)
 
-# ==============================================================================
-# Reference portfolio — weighted distribution pooled across all
-# years for each basin. Each year is given equal total weight, and the average
-# portfolio's 80% highest-density boundary is drawn as a fixed reference.
-# ==============================================================================
-average_portfolio_data <- function(yr_data) {
-  valid_years <- yr_data[vapply(yr_data, nrow, integer(1)) >= 5]
-  if (length(valid_years) == 0) return(NULL)
-
-  dplyr::bind_rows(lapply(valid_years, function(df) {
-    df %>%
-      mutate(reference_weight = assignment_norm / sum(assignment_norm))
-  }))
-}
-
-yukon_reference_data <- average_portfolio_data(yukon_data)
-kusko_reference_data <- average_portfolio_data(kusko_data)
-
-# ==============================================================================
-# Fixed axis limits (from full spatial data, not the filtered subset)
-# ==============================================================================
+# ---- Axes and shared visual style --------------------------------------------
 YUKON_DIST_LIM <- range(yukon_attr$DistUpstre, na.rm = TRUE)
-# Cap the Kuskokwim panels at displayed value 8 (= 800 km).
 KUSKO_DIST_LIM <- c(0, 8e5)
 
-yukon_log_all       <- log10(yukon_attr$WtrshdSlp[yukon_attr$WtrshdSlp > 0])
-kusko_log_all       <- log10(kusko_attr$WtrshdSlp[kusko_attr$WtrshdSlp > 0])
-YUKON_LOG_LIM       <- quantile(yukon_log_all, c(0.01, 0.99), na.rm = TRUE)
-KUSKO_LOG_LIM       <- quantile(kusko_log_all, c(0.01, 0.99), na.rm = TRUE)
-# The annual Kuskokwim portfolios end near slope 50; align the panel edge with
-# that intuitive labelled value rather than leaving empty space toward 100.
-KUSKO_LOG_LIM[2]    <- log10(50)
+YUKON_LOG_LIM <- quantile(
+  log10(yukon_attr$WtrshdSlp[yukon_attr$WtrshdSlp > 0]),
+  c(0.01, 0.99), na.rm = TRUE
+)
+KUSKO_LOG_LIM <- quantile(
+  log10(kusko_attr$WtrshdSlp[kusko_attr$WtrshdSlp > 0]),
+  c(0.01, 0.99), na.rm = TRUE
+)
+KUSKO_LOG_LIM[2] <- log10(50)
 
-SLOPE_BREAKS <- c(0.1, 0.2, 0.5, 1, 2, 5, 10, 50, 100)
-KUSKO_SLOPE_BREAKS <- c(1, 2.5, 7, 20, 50)
-make_slope_breaks <- function(log_lim) {
-  values <- SLOPE_BREAKS[
-    log10(SLOPE_BREAKS) >= log_lim[1] &
-      log10(SLOPE_BREAKS) <= log_lim[2]
-  ]
-  list(position = log10(values), label = format(values, trim = TRUE))
-}
-
-make_fixed_slope_breaks <- function(values, log_lim) {
-  values <- values[
-    log10(values) >= log_lim[1] & log10(values) <= log_lim[2]
+SLOPE_BREAK_VALUES <- c(1, 2.5, 7, 20, 50)
+make_slope_breaks <- function(log_limits) {
+  values <- SLOPE_BREAK_VALUES[
+    log10(SLOPE_BREAK_VALUES) >= log_limits[1] &
+      log10(SLOPE_BREAK_VALUES) <= log_limits[2]
   ]
   list(
-    position = log10(values),
-    label = format(values, trim = TRUE, scientific = FALSE,
-                   drop0trailing = TRUE)
+    positions = log10(values),
+    labels = format(
+      values, trim = TRUE, scientific = FALSE, drop0trailing = TRUE
+    )
+  )
+}
+yukon_slope_breaks <- make_slope_breaks(YUKON_LOG_LIM)
+kusko_slope_breaks <- make_slope_breaks(KUSKO_LOG_LIM)
+
+make_distance_scale <- function(distance_limits) {
+  breaks <- pretty(distance_limits, n = 5)
+  breaks <- breaks[
+    breaks >= distance_limits[1] & breaks <= distance_limits[2]
+  ]
+  scale_y_continuous(
+    breaks = breaks,
+    labels = round(breaks / 1e5, 1)
   )
 }
 
 X_AXIS_LABEL <- "Watershed Slope (log10 scale)"
-
-yukon_slope_breaks <- make_fixed_slope_breaks(
-  KUSKO_SLOPE_BREAKS, YUKON_LOG_LIM
-)
-kusko_slope_breaks <- make_fixed_slope_breaks(
-  KUSKO_SLOPE_BREAKS, KUSKO_LOG_LIM
-)
-yukon_log_break_pos <- yukon_slope_breaks$position
-kusko_log_break_pos <- kusko_slope_breaks$position
-yukon_log_break_lab <- yukon_slope_breaks$label
-kusko_log_break_lab <- kusko_slope_breaks$label
-
-make_dist_y_scale <- function(dist_lim) {
-  brks <- pretty(dist_lim, n = 5)
-  brks <- brks[brks >= dist_lim[1] & brks <= dist_lim[2]]
-  scale_y_continuous(breaks = brks, labels = round(brks / 1e5, 1))
-}
-
-# ==============================================================================
-# Shared theme — white background throughout
-# ==============================================================================
 base_theme <- theme_bw() +
   theme(
-    axis.text        = element_text(size = 44, face = "bold",
-                                    color = "grey20"),
-    axis.title       = element_text(size = 52, face = "bold",
-                                    color = "grey15"),
-    axis.title.x     = element_text(margin = margin(t = 10)),
-    axis.title.y     = element_text(margin = margin(r = 10)),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    plot.title       = element_text(size = 44, face = "bold", hjust = 0.5,
-                                    margin = margin(b = 10)),
-    legend.title     = element_text(size = 42, face = "bold"),
-    legend.text      = element_text(size = 38, face = "bold"),
-    legend.key.size  = unit(1.2, "cm"),
-    panel.background = element_rect(fill = "white", color = NA),
-    plot.background  = element_rect(fill = "white", color = NA),
-    plot.margin      = margin(16, 16, 16, 16)
-  )
-
-# ==============================================================================
-# Panel helper — ggplot (geom_density_2d_filled)
-# x = log_slope, y = DistUpstre, weighted by assignment_norm
-# ==============================================================================
-# Start breaks at 0.05 so cells with density < 5 % of max get na.value = "white"
-# and blend into the background instead of showing as a hard rectangular border.
-GG_BREAKS <- c(0.05, seq(0.1, 1, by = 0.1))
-
-# The fixed reference outline is added after the annual filled contours so it
-# remains visible while staying visually subordinate to the annual portfolio.
-gg_panel <- function(df, x_lim_log, x_break_pos, x_break_lab, dist_lim, yr,
-                     reference_contour = NULL, reference_point = NULL) {
-  y_fmt <- make_dist_y_scale(dist_lim)
-  if (nrow(df) < 5) {
-    return(ggplot() +
-      annotate("text", x = mean(x_lim_log), y = mean(dist_lim),
-               label = sprintf("n = %d\n(too few)", nrow(df)),
-               color = "firebrick", size = 4, hjust = 0.5) +
-      scale_x_continuous(breaks = x_break_pos, labels = x_break_lab) +
-      y_fmt +
-      coord_cartesian(xlim = x_lim_log, ylim = dist_lim) +
-      labs(x = X_AXIS_LABEL,
-           y = "Distance upstream (100 km)") +
-      base_theme + ggtitle(yr))
-  }
-  ggplot(df, aes(x = log_slope, y = DistUpstre, weight = assignment_norm)) +
-    geom_density_2d_filled(contour_var = "ndensity", breaks = GG_BREAKS) +
-    scale_fill_viridis_d("Norm.\ndensity", direction = 1, na.value = "white") +
-    reference_layer(reference_contour, reference_point) +
-    scale_x_continuous(breaks = x_break_pos, labels = x_break_lab) +
-    y_fmt +
-    coord_cartesian(xlim = x_lim_log, ylim = dist_lim) +
-    labs(x = X_AXIS_LABEL,
-         y = "Distance upstream (100 km)") +
-    base_theme + ggtitle(yr)
-}
-
-# ==============================================================================
-# Panel helper — quantiles (ks::kde, weighted by assignment_norm)
-# ==============================================================================
-kde_breaks <- function(x, y, w) {
-  w_norm  <- w / sum(w) * length(w)
-  H       <- ks::Hpi(x = cbind(x, y))
-  H       <- (H + t(H)) / 2
-  fit     <- ks::kde(x = cbind(x, y), H = H, w = w_norm, gridsize = c(200, 200))
-  pt_dens <- predict(fit, x = cbind(x, y))
-  ord     <- order(-pt_dens)
-  cum_w   <- cumsum((w_norm / sum(w_norm))[ord])
-  breaks  <- sort(unique(approx(cum_w, pt_dens[ord], xout = QUANTILES, rule = 2)$y))
-  list(fit = fit, breaks = breaks)
-}
-
-quantile_fill_scale <- function() {
-  labels <- scales::percent(rev(QUANTILES[-1]))
-
-  if (CONTOUR_PALETTE == "magma") {
-    return(scale_fill_viridis_d(
-      "Quantiles", labels = labels, option = "magma", direction = 1
-    ))
-  }
-
-  scale_fill_brewer(
-    "Quantiles", labels = labels, palette = "YlOrRd", direction = -1
-  )
-}
-
-reference_80_contour <- function(reference_df) {
-  if (is.null(reference_df) || nrow(reference_df) < 5) return(NULL)
-
-  x <- reference_df$log_slope
-  y <- reference_df$DistUpstre
-  w <- reference_df$reference_weight
-  w_norm <- w / sum(w) * length(w)
-  H <- ks::Hpi(x = cbind(x, y))
-  H <- (H + t(H)) / 2
-  fit <- ks::kde(
-    x = cbind(x, y), H = H, w = w_norm, gridsize = c(200, 200)
-  )
-
-  point_density <- predict(fit, x = cbind(x, y))
-  ord <- order(-point_density)
-  cumulative_weight <- cumsum((w_norm / sum(w_norm))[ord])
-  level_80 <- approx(
-    cumulative_weight, point_density[ord], xout = 0.8, rule = 2
-  )$y
-
-  grid_df <- expand.grid(x = fit$eval.points[[1]], y = fit$eval.points[[2]])
-  grid_df$z <- as.vector(fit$estimate)
-  list(grid = grid_df, level = level_80)
-}
-
-reference_center <- function(reference_df) {
-  if (is.null(reference_df) || nrow(reference_df) == 0) return(NULL)
-
-  c(
-    x = weighted.mean(
-      reference_df$log_slope, reference_df$reference_weight, na.rm = TRUE
+    axis.text = element_text(
+      size = 44, face = "bold", colour = "grey20"
     ),
-    y = weighted.mean(
-      reference_df$DistUpstre, reference_df$reference_weight, na.rm = TRUE
+    axis.title = element_text(
+      size = 52, face = "bold", colour = "grey15"
+    ),
+    axis.title.x = element_text(margin = margin(t = 10)),
+    axis.title.y = element_text(margin = margin(r = 10)),
+    panel.grid = element_blank(),
+    plot.title = element_text(
+      size = 44, face = "bold", hjust = 0.5, margin = margin(b = 10)
+    ),
+    legend.title = element_text(size = 32, face = "bold"),
+    legend.text = element_text(size = 24, face = "bold"),
+    legend.key.size = unit(1.2, "cm"),
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background = element_rect(fill = "white", colour = NA),
+    plot.margin = margin(16, 16, 16, 16)
+  )
+
+# ---- KDE utilities ------------------------------------------------------------
+normalise_kde_weights <- function(weights) {
+  total <- sum(weights)
+  if (!length(weights) || any(!is.finite(weights)) || total <= 0) {
+    stop("KDE weights must be finite and have a positive sum.", call. = FALSE)
+  }
+  weights / total * length(weights)
+}
+
+kde_mass_levels <- function(fit, probabilities) {
+  density <- as.vector(fit$estimate)
+  density <- density[is.finite(density) & density >= 0]
+  ordered <- sort(density, decreasing = TRUE)
+  cumulative <- cumsum(ordered) / sum(ordered)
+
+  vapply(probabilities, function(probability) {
+    if (probability <= 0) {
+      return(max(ordered) * (1 + sqrt(.Machine$double.eps)))
+    }
+    ordered[which(cumulative >= probability)[1]]
+  }, numeric(1))
+}
+
+fit_annual_kde <- function(data) {
+  xy <- cbind(data$log_slope, data$DistUpstre)
+  bandwidth <- Hpi(x = xy)
+  bandwidth <- (bandwidth + t(bandwidth)) / 2
+  fit <- kde(
+    x = xy,
+    H = bandwidth,
+    w = normalise_kde_weights(data$assignment_rescale),
+    gridsize = c(200, 200)
+  )
+  # ks::kde returns a regular rectangular grid. Therefore equal-area grid-cell
+  # sums correctly recover highest-density-region probability mass.
+  if (any(!is.finite(fit$estimate)) || sum(fit$estimate) <= 0) {
+    stop("Annual KDE produced an invalid density grid.", call. = FALSE)
+  }
+  list(
+    fit = fit,
+    breaks = sort(unique(kde_mass_levels(fit, QUANTILES)))
+  )
+}
+
+kde_grid <- function(fit, value_name = "density") {
+  grid <- expand.grid(
+    x = fit$eval.points[[1]],
+    y = fit$eval.points[[2]]
+  )
+  grid[[value_name]] <- as.vector(fit$estimate)
+  grid
+}
+
+# ---- Fixed reference cross ----------------------------------------------------
+reference_center <- function(annual_data) {
+  valid <- annual_data[vapply(annual_data, nrow, integer(1)) >= 5]
+  pooled <- bind_rows(lapply(valid, function(data) {
+    data %>%
+      mutate(weight = assignment_norm / sum(assignment_norm))
+  }))
+  c(
+    x = weighted.mean(pooled$log_slope, pooled$weight),
+    y = weighted.mean(pooled$DistUpstre, pooled$weight)
+  )
+}
+
+reference_cross <- function(point) {
+  list(
+    geom_vline(
+      xintercept = unname(point["x"]),
+      colour = "grey15", linewidth = 1.4, alpha = 0.3
+    ),
+    geom_hline(
+      yintercept = unname(point["y"]),
+      colour = "grey15", linewidth = 1.4, alpha = 0.3
     )
   )
 }
 
-reference_layer <- function(reference_contour, reference_point) {
-  if (REFERENCE_STYLE == "cross") {
-    if (is.null(reference_point) || anyNA(reference_point)) return(NULL)
-    return(list(
-      geom_vline(
-        xintercept = unname(reference_point["x"]),
-        colour = "grey15",
-        linewidth = 1.4,
-        alpha = 0.3
-      ),
-      geom_hline(
-        yintercept = unname(reference_point["y"]),
-        colour = "grey15",
-        linewidth = 1.4,
-        alpha = 0.3
-      )
-    ))
+# ---- 1. Annual contour figures ------------------------------------------------
+annual_panel <- function(data, year, log_limits, slope_breaks,
+                         distance_limits, reference_point) {
+  if (nrow(data) < 5) {
+    return(
+      ggplot() +
+        annotate(
+          "text",
+          x = mean(log_limits), y = mean(distance_limits),
+          label = sprintf("n = %d\n(too few)", nrow(data)),
+          colour = "firebrick", size = 6
+        ) +
+        scale_x_continuous(
+          breaks = slope_breaks$positions,
+          labels = slope_breaks$labels
+        ) +
+        make_distance_scale(distance_limits) +
+        coord_cartesian(xlim = log_limits, ylim = distance_limits) +
+        labs(x = X_AXIS_LABEL, y = "Distance upstream (100 km)") +
+        base_theme +
+        ggtitle(year)
+    )
   }
 
-  if (REFERENCE_STYLE == "outline") {
-    if (is.null(reference_contour)) return(NULL)
-    return(geom_contour(
-    data = reference_contour$grid,
-    aes(x = x, y = y, z = z),
-    breaks = reference_contour$level,
-    colour = "grey15",
-    linewidth = 1.4,
-    alpha = 0.3,
-    inherit.aes = FALSE
-    ))
-  }
+  result <- fit_annual_kde(data)
+  grid <- kde_grid(result$fit)
 
-  stop("REFERENCE_STYLE must be either 'cross' or 'outline'.", call. = FALSE)
-}
-
-qt_panel <- function(df, x_lim_log, x_break_pos, x_break_lab, dist_lim, yr,
-                     reference_contour = NULL, reference_point = NULL) {
-  y_fmt <- make_dist_y_scale(dist_lim)
-  if (nrow(df) < 5) {
-    return(ggplot() +
-      annotate("text", x = mean(x_lim_log), y = mean(dist_lim),
-               label = sprintf("n = %d\n(too few)", nrow(df)),
-               color = "firebrick", size = 4, hjust = 0.5) +
-      scale_x_continuous(breaks = x_break_pos, labels = x_break_lab) +
-      y_fmt +
-      coord_cartesian(xlim = x_lim_log, ylim = dist_lim) +
-      labs(x = X_AXIS_LABEL,
-           y = "Distance upstream (100 km)") +
-      base_theme + ggtitle(yr))
-  }
-  kb      <- kde_breaks(df$log_slope, df$DistUpstre, df$assignment_norm)
-  grid_df <- expand.grid(x = kb$fit$eval.points[[1]], y = kb$fit$eval.points[[2]])
-  grid_df$z <- as.vector(kb$fit$estimate)
   ggplot() +
-    geom_contour_filled(data = grid_df,
-                        aes(x = x, y = y, z = z, fill = after_stat(level)),
-                        breaks = kb$breaks) +
-    quantile_fill_scale() +
-    reference_layer(reference_contour, reference_point) +
-    scale_x_continuous(breaks = x_break_pos, labels = x_break_lab) +
-    y_fmt +
-    coord_cartesian(xlim = x_lim_log, ylim = dist_lim) +
-    labs(x = X_AXIS_LABEL,
-         y = "Distance upstream (100 km)") +
-    base_theme + ggtitle(yr)
+    geom_contour_filled(
+      data = grid,
+      aes(x = x, y = y, z = density, fill = after_stat(level)),
+      breaks = result$breaks
+    ) +
+    scale_fill_brewer(
+      "Quantiles",
+      labels = percent(rev(QUANTILES[-1])),
+      palette = "YlOrRd", direction = -1
+    ) +
+    reference_cross(reference_point) +
+    scale_x_continuous(
+      breaks = slope_breaks$positions,
+      labels = slope_breaks$labels
+    ) +
+    make_distance_scale(distance_limits) +
+    coord_cartesian(xlim = log_limits, ylim = distance_limits) +
+    labs(x = X_AXIS_LABEL, y = "Distance upstream (100 km)") +
+    base_theme +
+    ggtitle(year)
 }
 
-# ==============================================================================
-# Save one figure per year
-# ==============================================================================
-save_year_figs <- function(yr_data, years, basin, method, out_dir,
-                           log_lim, log_break_pos, log_break_lab, dist_lim,
-                           reference_contour = NULL, reference_point = NULL) {
-  panel_fn <- if (method == "ggplot") gg_panel else qt_panel
-  for (yr in years) {
-    df    <- yr_data[[as.character(yr)]]
-    fig   <- panel_fn(df, log_lim, log_break_pos, log_break_lab, dist_lim, yr,
-                      reference_contour, reference_point)
-    fname <- file.path(out_dir,
-                       sprintf("%s_%d_thresh%.1f.png", basin, yr, FILT_THRESH))
-    ggsave(fname, fig, width = 10, height = 7, dpi = 150)
-    cat("  Saved:", fname, "\n")
+save_annual_figures <- function(annual_data, years, basin, log_limits,
+                                slope_breaks, distance_limits,
+                                reference_point) {
+  for (year in years) {
+    figure <- annual_panel(
+      annual_data[[as.character(year)]], year,
+      log_limits, slope_breaks, distance_limits, reference_point
+    )
+    path <- file.path(
+      annual_dir,
+      sprintf("%s_%d_contours_thresh%s.png", basin, year, THRESH_LABEL)
+    )
+    ggsave(path, figure, width = 10, height = 7, dpi = 150)
+    cat("Saved:", path, "\n")
   }
 }
 
-# ==============================================================================
-# Produce all figures — written directly to fig_dir
-# ==============================================================================
-yukon_reference_contour <- reference_80_contour(yukon_reference_data)
-kusko_reference_contour <- reference_80_contour(kusko_reference_data)
-yukon_reference_point <- reference_center(yukon_reference_data)
-kusko_reference_point <- reference_center(kusko_reference_data)
+# ---- 2–3. Density change figures ---------------------------------------------
+fit_common_kdes <- function(annual_data, years, log_limits, distance_limits) {
+  valid <- annual_data[vapply(annual_data, nrow, integer(1)) >= 5]
+  pooled_xy <- bind_rows(valid) %>%
+    select(log_slope, DistUpstre)
+  common_bandwidth <- Hpi(x = as.matrix(pooled_xy))
+  common_bandwidth <- (common_bandwidth + t(common_bandwidth)) / 2
 
-for (method in c("quantiles")) {
-  cat(sprintf("\n=== Method: %s ===\n", method))
-
-  cat("  Saving individual Yukon year figures...\n")
-  save_year_figs(yukon_data, YUKON_YEARS, "Yukon", method, fig_dir,
-                 YUKON_LOG_LIM, yukon_log_break_pos, yukon_log_break_lab,
-                 YUKON_DIST_LIM, yukon_reference_contour,
-                 yukon_reference_point)
-
-  cat("  Saving individual Kusko year figures...\n")
-  save_year_figs(kusko_data, KUSKO_YEARS, "Kusko", method, fig_dir,
-                 KUSKO_LOG_LIM, kusko_log_break_pos, kusko_log_break_lab,
-                 KUSKO_DIST_LIM, kusko_reference_contour,
-                 kusko_reference_point)
+  setNames(lapply(years, function(year) {
+    data <- annual_data[[as.character(year)]]
+    if (nrow(data) < 5) return(NULL)
+    kde(
+      x = cbind(data$log_slope, data$DistUpstre),
+      H = common_bandwidth,
+      w = normalise_kde_weights(data$assignment_norm),
+      gridsize = c(200, 200),
+      xmin = c(log_limits[1], distance_limits[1]),
+      xmax = c(log_limits[2], distance_limits[2])
+    )
+  }), years)
 }
 
-cat(sprintf("\nDone. Figures saved to %s\n", fig_dir))
+mean_kde <- function(fits) {
+  valid <- fits[!vapply(fits, is.null, logical(1))]
+  result <- valid[[1]]
+  result$estimate <- Reduce(
+    "+", lapply(valid, function(fit) fit$estimate)
+  ) / length(valid)
+  result
+}
+
+change_pairs <- function(fits, years, comparison) {
+  if (comparison == "previous") {
+    indices <- seq_along(years)[-1]
+    lapply(indices, function(index) {
+      list(
+        year = years[index],
+        reference = as.character(years[index - 1]),
+        baseline = fits[[index - 1]],
+        current = fits[[index]]
+      )
+    })
+  } else {
+    baseline <- mean_kde(fits)
+    lapply(seq_along(years), function(index) {
+      list(
+        year = years[index],
+        reference = "average",
+        baseline = baseline,
+        current = fits[[index]]
+      )
+    })
+  }
+}
+
+displayed_support <- function(fit) {
+  cutoff <- kde_mass_levels(fit, max(QUANTILES))
+  as.vector(fit$estimate) >= cutoff
+}
+
+pair_change_values <- function(pair, mask_outside = FALSE) {
+  change <- as.vector(
+    pair$current$estimate - pair$baseline$estimate
+  )
+  support <- displayed_support(pair$current) |
+    displayed_support(pair$baseline)
+  if (mask_outside) {
+    change[!support] <- NA_real_
+  } else {
+    change <- change[support]
+  }
+  change
+}
+
+change_limit <- function(pairs) {
+  values <- unlist(lapply(pairs, function(pair) {
+    if (is.null(pair$baseline) || is.null(pair$current)) return(numeric())
+    pair_change_values(pair)
+  }), use.names = FALSE)
+  max(abs(values[is.finite(values)]))
+}
+
+change_colours <- function(n) {
+  colorRampPalette(
+    c("#2166AC", "#67A9CF", "#F7F7F7", "#EF8A62", "#B2182B")
+  )(n)
+}
+
+change_panel <- function(pair, log_limits, slope_breaks, distance_limits,
+                         reference_point, limit) {
+  grid <- kde_grid(pair$current, "change")
+  # Match the annual panels: show change only where at least one of the two
+  # compared KDEs lies inside its displayed 80% density region. The union
+  # retains genuine expansions and contractions while suppressing KDE tails
+  # that are white in both source contour figures.
+  grid$change <- pair_change_values(pair, mask_outside = TRUE)
+  n_intervals <- 10
+  breaks <- seq(-limit, limit, length.out = n_intervals + 1)
+
+  # Invisible-to-panel training contours keep all legend bins visible.
+  x_span <- diff(log_limits)
+  legend_grid <- expand.grid(
+    x = seq(
+      log_limits[2] + x_span,
+      log_limits[2] + 2 * x_span,
+      length.out = n_intervals + 1
+    ),
+    y = seq(
+      distance_limits[1], distance_limits[2],
+      length.out = n_intervals + 1
+    )
+  )
+  legend_grid$change <- rep(
+    seq(-limit, limit, length.out = n_intervals + 1),
+    times = n_intervals + 1
+  )
+
+  ggplot() +
+    geom_contour_filled(
+      data = legend_grid,
+      aes(x = x, y = y, z = change, fill = after_stat(level)),
+      breaks = breaks
+    ) +
+    geom_contour_filled(
+      data = grid,
+      aes(x = x, y = y, z = change, fill = after_stat(level)),
+      breaks = breaks,
+      na.rm = TRUE
+    ) +
+    scale_fill_manual(
+      "Density\nchange",
+      values = change_colours(n_intervals),
+      labels = c("Decrease", rep("", n_intervals - 2), "Increase"),
+      drop = FALSE
+    ) +
+    reference_cross(reference_point) +
+    scale_x_continuous(
+      breaks = slope_breaks$positions,
+      labels = slope_breaks$labels
+    ) +
+    make_distance_scale(distance_limits) +
+    coord_cartesian(xlim = log_limits, ylim = distance_limits) +
+    labs(x = X_AXIS_LABEL, y = "Distance upstream (100 km)") +
+    base_theme +
+    ggtitle(sprintf("%s \u2212 %s", pair$year, pair$reference))
+}
+
+save_density_changes <- function(pairs, basin, output_directory,
+                                 log_limits, slope_breaks, distance_limits,
+                                 reference_point) {
+  # Scale is calculated independently for each watershed and comparison type.
+  limit <- change_limit(pairs)
+  for (pair in pairs) {
+    if (is.null(pair$baseline) || is.null(pair$current)) next
+    figure <- change_panel(
+      pair, log_limits, slope_breaks, distance_limits,
+      reference_point, limit
+    )
+    path <- file.path(
+      output_directory,
+      sprintf(
+        "%s_%d_density_change_from_%s_thresh%s.png",
+        basin, pair$year, pair$reference, THRESH_LABEL
+      )
+    )
+    ggsave(path, figure, width = 10, height = 7, dpi = 150)
+    cat("Saved:", path, "\n")
+  }
+}
+
+# ---- 4. Nine equal-cell change from previous year ----------------------------
+nine_cell_shares <- function(annual_data, years, basin,
+                             log_limits, distance_limits) {
+  x_edges <- seq(log_limits[1], log_limits[2], length.out = 4)
+  y_edges <- seq(distance_limits[1], distance_limits[2], length.out = 4)
+  cells <- expand.grid(x_bin = 1:3, y_bin = 1:3)
+
+  bind_rows(lapply(years, function(year) {
+    data <- annual_data[[as.character(year)]]
+    total <- sum(data$assignment_rescale)
+    if (nrow(data) == 0 || !is.finite(total) || total <= 0) return(NULL)
+
+    observed <- data.frame(
+      x_bin = findInterval(
+        data$log_slope, x_edges, all.inside = TRUE
+      ),
+      y_bin = findInterval(
+        data$DistUpstre, y_edges, all.inside = TRUE
+      ),
+      weight = data$assignment_rescale / total
+    ) %>%
+      group_by(x_bin, y_bin) %>%
+      summarise(share_pct = 100 * sum(weight), .groups = "drop")
+
+    cells %>%
+      left_join(observed, by = c("x_bin", "y_bin")) %>%
+      mutate(
+        share_pct = coalesce(share_pct, 0),
+        basin = basin,
+        year = year,
+        xmin = x_edges[x_bin],
+        xmax = x_edges[x_bin + 1],
+        ymin = y_edges[y_bin],
+        ymax = y_edges[y_bin + 1]
+      )
+  }))
+}
+
+nine_cell_previous_changes <- function(shares) {
+  years <- sort(unique(shares$year))
+  bind_rows(lapply(seq_along(years)[-1], function(index) {
+    current <- shares %>%
+      filter(year == years[index]) %>%
+      rename(current_pct = share_pct)
+    baseline <- shares %>%
+      filter(year == years[index - 1]) %>%
+      select(x_bin, y_bin, baseline_pct = share_pct)
+
+    current %>%
+      left_join(baseline, by = c("x_bin", "y_bin")) %>%
+      mutate(
+        reference = as.character(years[index - 1]),
+        comparison_label = sprintf(
+          "%d \u2212 %d", years[index], years[index - 1]
+        ),
+        change_pp = current_pct - baseline_pct
+      )
+  }))
+}
+
+nine_cell_panel <- function(data, log_limits, slope_breaks,
+                            distance_limits, limit) {
+  data <- data %>%
+    mutate(
+      label_x = (xmin + xmax) / 2,
+      label_y = (ymin + ymax) / 2,
+      label = sprintf(
+        "%+.1f pp\n%.1f%% \u2192 %.1f%%",
+        change_pp, baseline_pct, current_pct
+      )
+    )
+
+  ggplot(data) +
+    geom_rect(
+      aes(
+        xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
+        fill = change_pp
+      ),
+      colour = "white", linewidth = 1.5
+    ) +
+    geom_text(
+      aes(x = label_x, y = label_y, label = label),
+      size = 4.6, lineheight = 0.92, fontface = "bold",
+      colour = "grey10"
+    ) +
+    geom_vline(
+      xintercept = seq(log_limits[1], log_limits[2], length.out = 4)[2:3],
+      colour = "grey15", linewidth = 1.2, alpha = 0.3
+    ) +
+    geom_hline(
+      yintercept = seq(
+        distance_limits[1], distance_limits[2], length.out = 4
+      )[2:3],
+      colour = "grey15", linewidth = 1.2, alpha = 0.3
+    ) +
+    scale_fill_gradient2(
+      "Change in run\ncontribution",
+      low = "#2166AC", mid = "#F7F7F7", high = "#B2182B",
+      midpoint = 0, limits = c(-limit, limit),
+      labels = function(x) sprintf("%+.0f pp", x),
+      oob = squish
+    ) +
+    scale_x_continuous(
+      breaks = slope_breaks$positions,
+      labels = slope_breaks$labels
+    ) +
+    make_distance_scale(distance_limits) +
+    coord_cartesian(
+      xlim = log_limits, ylim = distance_limits, expand = FALSE
+    ) +
+    labs(
+      x = X_AXIS_LABEL,
+      y = "Distance upstream (100 km)",
+      title = unique(data$comparison_label)
+    ) +
+    base_theme
+}
+
+save_nine_cell_changes <- function(changes, basin, log_limits,
+                                   slope_breaks, distance_limits) {
+  # Scale is calculated independently for each watershed.
+  limit <- ceiling(max(abs(changes$change_pp), na.rm = TRUE))
+  for (label in unique(changes$comparison_label)) {
+    data <- changes %>% filter(comparison_label == label)
+    year <- unique(data$year)
+    reference <- unique(data$reference)
+    figure <- nine_cell_panel(
+      data, log_limits, slope_breaks, distance_limits, limit
+    )
+    path <- file.path(
+      nine_cell_dir,
+      sprintf(
+        "%s_%d_nine_cell_change_from_%s_thresh%s.png",
+        basin, year, reference, THRESH_LABEL
+      )
+    )
+    ggsave(path, figure, width = 10, height = 7, dpi = 150)
+    cat("Saved:", path, "\n")
+  }
+}
+
+# ---- Generate annual contour figures ----------------------------------------
+yukon_reference <- reference_center(yukon_data)
+kusko_reference <- reference_center(kusko_data)
+
+save_annual_figures(
+  yukon_data, YUKON_YEARS, "Yukon",
+  YUKON_LOG_LIM, yukon_slope_breaks, YUKON_DIST_LIM, yukon_reference
+)
+save_annual_figures(
+  kusko_data, KUSKO_YEARS, "Kusko",
+  KUSKO_LOG_LIM, kusko_slope_breaks, KUSKO_DIST_LIM, kusko_reference
+)
+
+# The empirical change calculation is kept in one focused helper so this script
+# remains readable. Running 02_ContourThreshnew.R always runs it.
+source(here(
+  "Code", "Analysis", "02_EmpiricalChangeFromAverage.R"
+), local = TRUE)
+
+# Rebuild manuscript Figures 1-2 in a clean R session after both annual source
+# series exist. Keeping the raster assembly isolated avoids state collisions
+# when this script itself is sourced from 00_run_all.R or an interactive session.
+presentation_script <- here(
+  "Code", "Analysis", "PresentationFigures.R"
+)
+rscript <- file.path(R.home("bin"), "Rscript.exe")
+presentation_status <- system2(
+  rscript,
+  args = shQuote(presentation_script)
+)
+if (!identical(presentation_status, 0L)) {
+  stop(
+    "PresentationFigures.R failed with status ", presentation_status,
+    call. = FALSE
+  )
+}
+
+cat(
+  "\nDone. Contours, empirical changes, and manuscript Figures 1-2 ",
+  "were refreshed from current production data.\n",
+  sep = ""
+)

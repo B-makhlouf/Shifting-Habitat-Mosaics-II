@@ -1,8 +1,9 @@
 ################################################################################
 # MANUSCRIPT PRESENTATION FIGURES
 #
-# Pairs each annual production map (left) with its corresponding landscape
-# contour (right). Source figures are read only; nothing is redrawn or replaced.
+# Combines each annual production map, thresholded landscape contour, and
+# thresholded empirical change-from-average heatmap. All sources are generated
+# earlier in 00_run_all.R from the same current ProductionData files.
 #
 # Outputs:
 #   Figures/00_PubFigures/Figure1_KuskoMultiPanel.png
@@ -37,7 +38,8 @@ BACKGROUND   <- "white"
 POINT_SIZE   <- 100
 
 map_dir     <- here("Figures", "01_ProdMaps")
-contour_dir <- here("Figures", "02_Contours")
+contour_dir <- here("Figures", "02_Contours", "01_annual_contours")
+change_dir  <- here("Figures", "02_Contours", "02_change_from_average")
 output_dir  <- here("Figures", "00_PubFigures")
 panel_map_dir <- file.path(
   tempdir(), "ShiftingHabitatMosaics_publication_panel_maps"
@@ -171,6 +173,15 @@ read_map_panel <- function(path, enlarge = FALSE) {
                  gravity = "center", color = BACKGROUND)
 }
 
+read_heatmap_panel <- function(path) {
+  if (!file.exists(path)) stop("Missing source figure: ", path, call. = FALSE)
+  image_read(path) |>
+    image_trim(fuzz = 2) |>
+    image_resize(sprintf("%dx%d", PANEL_WIDTH, PANEL_HEIGHT)) |>
+    image_extent(sprintf("%dx%d", PANEL_WIDTH, PANEL_HEIGHT),
+                 gravity = "center", color = BACKGROUND)
+}
+
 tag_panel <- function(img, tag, contour = FALSE) {
   tag_x <- if (contour) 190L else 28L
   image_annotate(
@@ -218,9 +229,9 @@ make_header <- function() {
     image_composite(legend, gravity = "south", offset = "+0+5")
 
   # Must match QUANTILES in 02_ContourThreshnew.R:
-  # c(0, .25, .5, .75, .9), yielding four filled contour intervals.
+  # c(0, .2, .4, .6, .8), yielding four filled contour intervals.
   contour_colors <- brewer.pal(4, "YlOrRd")
-  contour_labels <- c("25", "50", "75", "90")
+  contour_labels <- c("20", "40", "60", "80")
   contour_blocks <- lapply(contour_colors, function(col) {
     image_blank(220, 100, color = col)
   })
@@ -250,23 +261,32 @@ make_header <- function() {
   spacer <- image_blank(GUTTER, HEADER_HEIGHT, color = BACKGROUND)
   column_spacer <- image_blank(COLUMN_GUTTER, HEADER_HEIGHT,
                                color = BACKGROUND)
+  change_cell <- image_blank(PANEL_WIDTH, HEADER_HEIGHT,
+                             color = BACKGROUND) |>
+    image_annotate("Change from average",
+                   gravity = "center", size = 108,
+                   weight = 700, color = "#222222") |>
+    image_annotate(
+      sprintf("Retained reaches: assignment_norm > %s", CONTOUR_FILT_THRESH),
+      gravity = "south", location = "+0+35", size = 58,
+      weight = 500, color = "#555555"
+    )
   image_append(c(year_blank, spacer, production_cell, column_spacer,
-                 contour_cell("All individuals"), column_spacer,
-                 contour_cell("Highest density reaches")), stack = FALSE)
+                 contour_cell("Annual contour"), column_spacer,
+                 change_cell), stack = FALSE)
 }
 
-make_three_panel_row <- function(map_path, all_contour_path,
-                                 high_contour_path, tags, year,
+make_three_panel_row <- function(map_path, contour_path,
+                                 change_path, tags, year,
                                  enlarge_map = FALSE,
                                  show_x_ticks = FALSE) {
   left   <- tag_panel(read_map_panel(map_path, enlarge_map), tags[1])
   middle <- tag_panel(
-    read_contour_panel(all_contour_path, show_x_ticks), tags[2],
+    read_contour_panel(contour_path, show_x_ticks), tags[2],
     contour = TRUE
   )
   right <- tag_panel(
-    read_contour_panel(high_contour_path, show_x_ticks), tags[3],
-    contour = TRUE
+    read_heatmap_panel(change_path), tags[3]
   )
   spacer <- image_blank(GUTTER, PANEL_HEIGHT, color = BACKGROUND)
   column_spacer <- image_blank(COLUMN_GUTTER, PANEL_HEIGHT,
@@ -289,20 +309,20 @@ make_footer <- function() {
   image_append(c(left_blank, x_label), stack = FALSE)
 }
 
-save_manuscript_panel <- function(basin, years, map_paths, all_contour_paths,
-                                  high_contour_paths, output_stem,
+save_manuscript_panel <- function(basin, years, map_paths, contour_paths,
+                                  change_paths, output_stem,
                                   enlarge_maps = FALSE) {
   if (length(years) != length(map_paths) ||
-      length(years) != length(all_contour_paths) ||
-      length(years) != length(high_contour_paths)) {
-    stop("Years, maps, and both contour sets must have equal lengths.",
+      length(years) != length(contour_paths) ||
+      length(years) != length(change_paths)) {
+    stop("Years, maps, contours, and change heatmaps must have equal lengths.",
          call. = FALSE)
   }
 
   tags <- letters[seq_len(3L * length(years))]
   rows <- lapply(seq_along(years), function(i) {
     make_three_panel_row(
-      map_paths[i], all_contour_paths[i], high_contour_paths[i],
+      map_paths[i], contour_paths[i], change_paths[i],
       tags[(3L * i - 2L):(3L * i)], years[i], enlarge_maps,
       show_x_ticks = i == length(years)
     )
@@ -352,38 +372,26 @@ kusko_maps <- build_threshold_maps(
        sprintf("%d_Kusko_Assignment_Results.csv", kusko_years)),
   "Kusko"
 )
-kusko_all_contours <- file.path(
+threshold_label <- format(
+  CONTOUR_FILT_THRESH, scientific = FALSE, trim = TRUE, digits = 10
+)
+kusko_contours <- file.path(
   contour_dir,
-  sprintf("Kusko_%d_thresh%.1f.png", kusko_years, CONTOUR_FILT_THRESH)
+  sprintf(
+    "Kusko_%d_contours_thresh%s.png", kusko_years, threshold_label
+  )
 )
-
-# Always refresh the threshold-0.5 contour series so Figure 1 remains
-# reproducible after the pipeline clears Figures/ or the source data change.
-old_contour_override <- Sys.getenv(
-  "CONTOUR_FILTER_THRESHOLD", unset = NA_character_
-)
-Sys.setenv(CONTOUR_FILTER_THRESHOLD = "0.5")
-sys.source(
-  here("Code", "Analysis", "02_ContourThreshnew.R"),
-  envir = new.env(parent = globalenv())
-)
-if (is.na(old_contour_override)) {
-  Sys.unsetenv("CONTOUR_FILTER_THRESHOLD")
-} else {
-  Sys.setenv(CONTOUR_FILTER_THRESHOLD = old_contour_override)
-}
-
-kusko_high_contours <- file.path(
-  contour_dir,
-  sprintf("Kusko_%d_thresh0.5.png", kusko_years)
+kusko_changes <- file.path(
+  change_dir,
+  sprintf("Kusko_%d_change_from_average.png", kusko_years)
 )
 
 save_manuscript_panel(
   basin = "Kuskokwim",
   years = kusko_years,
   map_paths = kusko_maps,
-  all_contour_paths = kusko_all_contours,
-  high_contour_paths = kusko_high_contours,
+  contour_paths = kusko_contours,
+  change_paths = kusko_changes,
   output_stem = "Figure1_KuskoMultiPanel",
   enlarge_maps = TRUE
 )
@@ -401,21 +409,23 @@ yukon_maps <- build_threshold_maps(
        sprintf("%d_Yukon_Full_Assignment_Results.csv", yukon_years)),
   "Yukon"
 )
-yukon_all_contours <- file.path(
+yukon_contours <- file.path(
   contour_dir,
-  sprintf("Yukon_%d_thresh%.1f.png", yukon_years, CONTOUR_FILT_THRESH)
+  sprintf(
+    "Yukon_%d_contours_thresh%s.png", yukon_years, threshold_label
+  )
 )
-yukon_high_contours <- file.path(
-  contour_dir,
-  sprintf("Yukon_%d_thresh0.5.png", yukon_years)
+yukon_changes <- file.path(
+  change_dir,
+  sprintf("Yukon_%d_change_from_average.png", yukon_years)
 )
 
 save_manuscript_panel(
   basin = "Yukon",
   years = yukon_years,
   map_paths = yukon_maps,
-  all_contour_paths = yukon_all_contours,
-  high_contour_paths = yukon_high_contours,
+  contour_paths = yukon_contours,
+  change_paths = yukon_changes,
   output_stem = "Figure2_YukonMultiPanel",
   enlarge_maps = TRUE
 )

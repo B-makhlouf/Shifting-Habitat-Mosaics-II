@@ -32,17 +32,17 @@ YUKON_YEARS <- ANALYSIS_YEARS$Yukon
 # ---- Kuskokwim ---------------------------------------------------------------
 KUSKO_PARAMS <- list(
   min_stream_order      = 3,        # Minimum Strahler stream order included
-  min_error             = 0.0000,   # Lower-bound clamp on pid_isose error
+  min_error             = 0.0002,   # Lower-bound clamp on pid_isose error
   max_error             = 0.00089,  # Upper-bound clamp (Quartiles analysis)
-  sensitivity_threshold = 0,
+  sensitivity_threshold = 0.2,
   channel_slope_cutoff  = 2.0     # NewHabitatPrior: Channel_sl > this -> excluded
 )
 
 # ---- Yukon -------------------------------------------------------------------
 YUKON_PARAMS <- list(
   min_stream_order      = 4,
-  min_error             = 0.0016,
-  sensitivity_threshold = 0.0,
+  min_error             = 0.00175,
+  sensitivity_threshold = 0.2,
   channel_slope_cutoff  = 2.0,
   porcupine_target      = 0.10     # Target proportion of Canadian basin assigned to Porcupine
 )
@@ -51,5 +51,5 @@ YUKON_PARAMS <- list(
 # assignment_norm minimum for a reach to be included in the density-contour
 # figures (02_ContourThreshnewR). Applies to both basins. Raise to keep only
 # higher-confidence assignments; lower to include more reaches.
-CONTOUR_FILT_THRESH <- 0.0
+CONTOUR_FILT_THRESH <- 0.5
 

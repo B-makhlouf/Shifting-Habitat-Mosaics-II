@@ -53,8 +53,6 @@ PATHS <- list(
   runsize        = here("Data", "AYKEscapement.xlsx"),
   out_kusko      = here("Outputs", "ProductionData", "Kusko"),
   out_yukon_full = here("Outputs", "ProductionData", "Yukon_full"),
-  contour_kusko  = here("Outputs", "SensitivitySweep", "t0.9", "Kusko"),
-  contour_yukon  = here("Outputs", "SensitivitySweep", "t0.9", "Yukon"),
   map_kusko      = here("Figures", "01_ProdMaps", "Kusko"),
   map_yukon_full = here("Figures", "01_ProdMaps", "Yukon")
 )
@@ -304,14 +302,6 @@ run_yukon <- function(year,
     show_col_types = FALSE
   )
 
-  # Use the final 2016 otolith-collection date (June 30; DOY 182) as the
-  # common seasonal endpoint for every Yukon year.
-  # To restore the full sampling period, comment out the next four lines.
-  yukon_rows_before_date_cutoff <- nrow(natal_raw)
-  natal_raw <- natal_raw %>% dplyr::filter(!is.na(DOY), DOY <= 182)
-  cat(sprintf("  Fish/records after 2016 date cutoff (DOY 182): %d (excluded %d)\n",
-              nrow(natal_raw), yukon_rows_before_date_cutoff - nrow(natal_raw)))
-
   # Treat any incomplete genetics row as missing.
   missing_genetics <- !stats::complete.cases(natal_raw[, gen_cols])
 
@@ -496,31 +486,6 @@ cat("\n### YUKON_FULL ###\n")
 for (yr in YUKON_YEARS) {
   tryCatch(run_yukon(yr),
            error = function(e) cat("ERROR Yukon_Full", yr, ":", e$message, "\n"))
-}
-
-# ==============================================================================
-# CONTOUR DATA PASS  (sensitivity threshold = 0.9)
-#
-# The density-contour figures (02_ContourThreshnew.R) read a sensitivity-
-# thresholded (tau = 0.9) version of the assignment results from
-# Outputs/SensitivitySweep/t0.9/. Re-running the SAME assignment computation
-# here at tau = 0.9 regenerates that data from the current production code, so
-# no contour-pass maps are drawn.
-# ==============================================================================
-CONTOUR_SENS_THRESHOLD <- 0.9
-
-cat("\n### CONTOUR DATA (tau = 0.9): KUSKOKWIM ###\n")
-for (yr in KUSKO_YEARS) {
-  tryCatch(run_kusko(yr, sens_thresh = CONTOUR_SENS_THRESHOLD,
-                     out_dir = PATHS$contour_kusko, draw_map = FALSE),
-           error = function(e) cat("ERROR Kusko contour", yr, ":", e$message, "\n"))
-}
-
-cat("\n### CONTOUR DATA (tau = 0.9): YUKON_FULL ###\n")
-for (yr in YUKON_YEARS) {
-  tryCatch(run_yukon(yr, sens_thresh = CONTOUR_SENS_THRESHOLD,
-                     out_dir = PATHS$contour_yukon, draw_map = FALSE),
-           error = function(e) cat("ERROR Yukon contour", yr, ":", e$message, "\n"))
 }
 
 cat("\nDone.\n")
